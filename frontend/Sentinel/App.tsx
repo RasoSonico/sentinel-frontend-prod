@@ -4,6 +4,7 @@ import { PersistGate } from "redux-persist/integration/react";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, Text } from "react-native";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { store, persistor } from "./src/redux/store";
 import { RootNavigator } from "./src/navigation/RootNagivator";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -34,10 +35,12 @@ export default function App() {
           >
             <PaperProvider>
               <SafeAreaProvider>
-                <ModalProvider>
-                  <StatusBar style="auto" />
-                  <RootNavigator />
-                </ModalProvider>
+                <BottomSheetModalProvider>
+                  <ModalProvider>
+                    <StatusBar style="auto" />
+                    <RootNavigator />
+                  </ModalProvider>
+                </BottomSheetModalProvider>
               </SafeAreaProvider>
             </PaperProvider>
           </PersistGate>

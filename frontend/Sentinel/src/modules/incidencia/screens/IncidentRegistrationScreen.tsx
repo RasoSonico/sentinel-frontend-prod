@@ -89,76 +89,22 @@ const IncidentRegistrationScreen: React.FC = () => {
     catalogs.classifications.items.length,
   ]);
 
-  // Manejar éxito de creación
-  useEffect(() => {
-    if (newIncident.success) {
-      Alert.alert(
-        "Incidencia Registrada",
-        "La incidencia ha sido registrada exitosamente.",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              dispatch(clearNewIncident());
-              navigation.goBack();
-            },
-          },
-        ]
-      );
-    }
-  }, [newIncident.success, dispatch, navigation]);
-
-  // Manejar errores
-  useEffect(() => {
-    if (newIncident.error) {
-      Alert.alert("Error", newIncident.error, [
-        {
-          text: "OK",
-          onPress: () => dispatch(clearNewIncidentError()),
-        },
-      ]);
-    }
-  }, [newIncident.error, dispatch]);
-
-  // Función para manejar el envío del formulario usando Redux
-  const handleSubmitWithRedux = async (data: CreateIncident) => {
-    setIsSubmitting(true);
-    try {
-      await dispatch(createNewIncident(data));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  // Los éxitos y errores ahora se manejan con el sistema de modales en IncidentForm
 
   // Función para manejar el envío del formulario usando React Query
-  const handleSubmitWithQuery = async (data: CreateIncident) => {
+  const handleSubmit = async (data: CreateIncident) => {
+    // Ahora el formulario maneja toda la lógica de modales
+    // Solo necesitamos hacer la llamada a la API
     setIsSubmitting(true);
     try {
       await createIncidentMutation.mutateAsync(data);
-      Alert.alert(
-        "Incidencia Registrada",
-        "La incidencia ha sido registrada exitosamente.",
-        [
-          {
-            text: "OK",
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      // El éxito se maneja en IncidentForm con modales
     } catch (error) {
-      Alert.alert(
-        "Error",
-        "Hubo un error al registrar la incidencia. Inténtelo de nuevo.",
-        [{ text: "OK" }]
-      );
+      // El error se maneja en IncidentForm con modales
+      throw error; // Re-throw para que IncidentForm maneje el error
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  // Función principal de envío (usando React Query por defecto)
-  const handleSubmit = async (data: CreateIncident) => {
-    await handleSubmitWithQuery(data);
   };
 
   // Loading de catálogos o construcción
@@ -237,6 +183,7 @@ const IncidentRegistrationScreen: React.FC = () => {
             initialData={formData}
             onSubmit={handleSubmit}
             isSubmitting={isSubmitting || newIncident.loading}
+            onGoHome={() => navigation.goBack()}
           />
         </View>
       </KeyboardAvoidingView>

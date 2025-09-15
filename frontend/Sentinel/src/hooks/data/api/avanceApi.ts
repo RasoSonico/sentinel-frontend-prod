@@ -126,6 +126,9 @@ export const submitAdvance = async (advance: SubmitAdvance) =>
 export const getAdvancesByCatalog = async ({
   catalogId,
   status,
+  startDate,
+  endDate,
+  date,
   page = 1,
   pageSize = 20,
   detailed = true, // Nuevo parámetro para obtener información expandida
@@ -133,6 +136,9 @@ export const getAdvancesByCatalog = async ({
 }: {
   catalogId: number;
   status?: "PENDING" | "APPROVED" | "REJECTED";
+  startDate?: string; // YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ (datetime)
+  endDate?: string; // YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ (datetime)  
+  date?: string; // YYYY-MM-DD (single date - DEPRECATED)
   page?: number;
   pageSize?: number;
   detailed?: boolean;
@@ -146,6 +152,19 @@ export const getAdvancesByCatalog = async ({
 
   if (status) {
     params.append("status", status);
+  }
+
+  // Filtros de fecha
+  if (startDate) {
+    params.append("start_date", startDate);
+  }
+
+  if (endDate) {
+    params.append("end_date", endDate);
+  }
+
+  if (date) {
+    params.append("date", date);
   }
 
   // Agregar parámetro detailed si está habilitado

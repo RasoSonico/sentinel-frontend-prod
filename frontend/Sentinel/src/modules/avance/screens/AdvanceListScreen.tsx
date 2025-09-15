@@ -12,11 +12,12 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { Ionicons } from "@expo/vector-icons";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { useFormattedDate } from "../../../hooks/ui/useDateFormatting";
 import ProgramStatusBadge from "../components/ProgramStatusBadge";
 import OfflineIndicator from "../components/OfflineIndicator";
 import AdvanceDetailBottomSheet from "../components/AdvanceDetailBottomSheet";
+import { DateRangeFilter } from "../../../components/ui/filters/DateRangeFilter";
+import { useDateRangeFilter } from "../../../hooks/ui/useDateRangeFilter";
 import { AvanceStackParamList } from "../../../navigation/types";
 import { useAppSelector, useAppDispatch } from "../../../redux/hooks";
 import { selectOfflineSync } from "../../../redux/slices/avance/advanceSlice";
@@ -44,6 +45,16 @@ const AdvanceListScreen: React.FC = () => {
     "all" | "pending" | "approved" | "rejected"
   >("all");
 
+  // Hook para filtro de fecha
+  const {
+    dateFilter,
+    setDateFilter,
+    startDate,
+    endDate,
+    singleDate,
+    hasFilter: hasDateFilter,
+  } = useDateRangeFilter();
+
   // Estados para el bottom sheet
   const [selectedAdvance, setSelectedAdvance] =
     useState<PhysicalAdvanceResponse | null>(null);
@@ -69,7 +80,7 @@ const AdvanceListScreen: React.FC = () => {
   // Obtener el primer catálogo disponible
   const mainCatalog = catalogs?.[0];
 
-  // Preparar parámetros para query de avances
+  // Preparar parámetros para query de avances con filtros combinados
   const advanceParams = useMemo(() => {
     const statusParam =
       statusFilter !== "all"
@@ -79,10 +90,13 @@ const AdvanceListScreen: React.FC = () => {
     return {
       catalogId: mainCatalog?.id || null,
       status: statusParam,
+      startDate,
+      endDate,
+      date: singleDate,
       page: 1,
-      pageSize: 20,
+      pageSize: 100,
     };
-  }, [mainCatalog?.id, statusFilter]);
+  }, [mainCatalog?.id, statusFilter, startDate, endDate, singleDate]);
 
   // Query para obtener avances con información detallada (detailed=true)
   const {
@@ -195,6 +209,8 @@ const AdvanceListScreen: React.FC = () => {
   const AdvanceItemCard: React.FC<{
     item: PhysicalAdvanceResponse;
   }> = ({ item }) => {
+    // ✅ Use formatted date hook for UTC conversion
+    const formattedDate = useFormattedDate(item.date, "medium");
     // Verificar que item existe
     if (!item) {
       return null;
@@ -210,7 +226,7 @@ const AdvanceListScreen: React.FC = () => {
       <TouchableOpacity
         style={[
           styles.advanceItem,
-          { borderLeftColor: ColorUtils.getStatusBorderColor(item.status) } // ✅ COLOR DINÁMICO POR ESTADO
+          { borderLeftColor: ColorUtils.getStatusBorderColor(item.status) }, // ✅ COLOR DINÁMICO POR ESTADO
         ]}
         onPress={() => handleAdvancePress(item)}
       >
@@ -281,13 +297,7 @@ const AdvanceListScreen: React.FC = () => {
           </View>
 
           <View style={styles.dateContainer}>
-            <Text style={styles.dateText}>
-              {item.date
-                ? format(new Date(item.date), "dd MMM yyyy", {
-                    locale: es,
-                  })
-                : "Sin fecha"}
-            </Text>
+            <Text style={styles.dateText}>{formattedDate}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -412,6 +422,11 @@ const AdvanceListScreen: React.FC = () => {
             Rechazados
           </Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Filtro de fecha */}
+      <View style={styles.dateFilterContainer}>
+        <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
       </View>
     </View>
   );
@@ -542,9 +557,9 @@ const AdvanceListScreen: React.FC = () => {
       <View style={styles.emptyContainer}>
         <Ionicons name="document-text-outline" size={64} color="#bdc3c7" />
         <Text style={styles.emptyTitle}>No hay avances registrados</Text>
-        <Text style={styles.emptyDescription}>
+        {/* <Text style={styles.emptyDescription}>
           No se encontraron avances para los filtros seleccionados
-        </Text>
+        </Text> */}
         <TouchableOpacity style={styles.emptyButton} onPress={handleAddAdvance}>
           <Text style={styles.emptyButtonText}>Registrar avance</Text>
         </TouchableOpacity>

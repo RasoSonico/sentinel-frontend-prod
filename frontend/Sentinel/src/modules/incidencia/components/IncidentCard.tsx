@@ -1,11 +1,10 @@
 import React, { memo, useMemo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Incident } from "src/types/incidencia";
 import IncidentClassificationBadge from "./IncidentClassificationBadge";
 import IncidentTypeDisplay from "./IncidentTypeDisplay";
 import { useOptimizedIncidentTypeNameById } from "../../../redux/selectors/incidencia/optimizedSelectors";
+import { useFormattedDate } from "../../../hooks/ui/useDateFormatting";
 import { DesignTokens } from "../../../styles/designTokens";
 import styles from "./styles/IncidentCard.styles";
 
@@ -18,14 +17,8 @@ const IncidentCard: React.FC<IncidentCardProps> = memo(({
   incident,
   onPress,
 }) => {
-  // Memoizar formateo de fecha para evitar recalcular en cada render
-  const formattedDate = useMemo(() => {
-    try {
-      return format(new Date(incident.date), "dd MMM yyyy", { locale: es });
-    } catch {
-      return incident.date;
-    }
-  }, [incident.date]);
+  // ✅ Use consistent date formatting with AdvanceListScreen
+  const formattedDate = useFormattedDate(incident.date, "medium");
 
   // Memoizar truncado de descripción
   const truncatedDescription = useMemo(() => {

@@ -9,11 +9,9 @@ const styles = StyleSheet.create({
     zIndex: DesignTokens.zIndex.bottomSheet,
   },
   bottomSheetBackground: {
-    backgroundColor: DesignTokens.colors.background.secondary,
+    backgroundColor: DesignTokens.colors.background.primary,
     borderTopLeftRadius: DesignTokens.components.bottomSheet.borderRadius,
     borderTopRightRadius: DesignTokens.components.bottomSheet.borderRadius,
-    borderWidth: 1,
-    borderColor: DesignTokens.colors.neutral[300],
   },
   handleIndicator: {
     backgroundColor: DesignTokens.colors.neutral[400],
@@ -24,16 +22,30 @@ const styles = StyleSheet.create({
 
   // Content container
   contentContainer: {
-    backgroundColor: DesignTokens.colors.background.tertiary,
-    paddingBottom: 0,
+    backgroundColor: DesignTokens.colors.neutral[200],
+    paddingTop: DesignTokens.spacing.md,
+    paddingBottom: DesignTokens.spacing["6xl"],
   },
 
-  // Header - Ejecutivo con gradiente sutil
+  // Fixed header with cleaner design
   fixedHeader: {
-    backgroundColor: DesignTokens.colors.background.secondary,
-    paddingHorizontal: 0,
+    backgroundColor: DesignTokens.colors.background.primary,
+    paddingBottom: DesignTokens.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: DesignTokens.colors.neutral[200],
+    borderBottomColor: DesignTokens.colors.neutral[100],
+  },
+
+  // New: Header with title only
+  headerTitleSection: {
+    marginBottom: DesignTokens.spacing.md,
+  },
+
+  // New: Date and status in same row
+  dateStatusRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: DesignTokens.spacing.xl,
   },
   header: {
     paddingHorizontal: 20,
@@ -46,43 +58,30 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: DesignTokens.typography.fontSize.xl,
-    fontWeight: DesignTokens.typography.fontWeight.bold as any,
-    color: DesignTokens.colors.executive.primary,
-    alignItems: "flex-start",
-    letterSpacing: -0.5,
-    borderBottomWidth: 1,
-    borderBottomColor: DesignTokens.colors.neutral[800],
+    fontWeight: DesignTokens.typography.fontWeight.semibold as any,
+    color: DesignTokens.colors.neutral[800],
+    letterSpacing: -0.3,
   },
   subheaderSection: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: DesignTokens.spacing.xs / 4,
-    flexWrap: "nowrap",
-    minHeight: 32,
-    paddingHorizontal: DesignTokens.spacing.lg,
-    paddingVertical: DesignTokens.spacing.sm,
-  },
-  statusContainer: {
-    alignContent: "center",
-    maxWidth: "60%",
-    paddingLeft: DesignTokens.spacing.sm,
-    backgroundColor: "transparent",
+    paddingHorizontal: DesignTokens.spacing.xl,
+    paddingTop: DesignTokens.spacing.lg,
     paddingBottom: DesignTokens.spacing.sm,
   },
-  dateContainer: {
-    alignItems: "flex-start",
-    paddingRight: DesignTokens.spacing["2xl"] + DesignTokens.spacing.xs,
-    backgroundColor: "transparent",
+  statusContainer: {
+    alignItems: "flex-end",
   },
 
-  // Item container - Minimalista
+  dateContainer: {
+    flex: 1,
+  },
+
+  // Clean item container - minimal styling
   itemContainer: {
-    paddingHorizontal: DesignTokens.spacing.xl,
-    paddingVertical: DesignTokens.spacing.sm,
-    borderBottomWidth: 0.5,
-    borderBottomColor: DesignTokens.colors.background.tertiary,
-    backgroundColor: DesignTokens.colors.background.tertiary,
+    backgroundColor: DesignTokens.colors.background.primary,
+    marginHorizontal: DesignTokens.spacing.lg,
+    marginBottom: DesignTokens.spacing.sm,
+    padding: DesignTokens.spacing.lg,
+    borderRadius: DesignTokens.borderRadius.md,
   },
 
   // Item label - Minimalista
@@ -95,14 +94,15 @@ const styles = StyleSheet.create({
   editIconContainer: {
     padding: DesignTokens.spacing.xs,
     marginLeft: "auto",
+    borderRadius: DesignTokens.borderRadius.sm,
+    backgroundColor: DesignTokens.colors.primary[50],
   },
   labelText: {
     fontSize: DesignTokens.typography.fontSize.sm,
-    fontWeight: DesignTokens.typography.fontWeight.semibold as any,
-    color: DesignTokens.colors.neutral[500],
-    marginLeft: DesignTokens.spacing.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium as any,
+    color: DesignTokens.colors.neutral[600],
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 
   // Values - Minimalista

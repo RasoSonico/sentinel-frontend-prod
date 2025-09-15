@@ -25,60 +25,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: DesignTokens.colors.background.secondary,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: DesignTokens.colors.background.secondary,
+  listContent: {
+    padding: getResponsiveSpacing(DesignTokens.spacing.lg),
+    paddingBottom: getResponsiveSpacing(DesignTokens.spacing["2xl"]),
   },
-  loadingText: {
-    marginTop: getResponsiveSpacing(DesignTokens.spacing.lg),
-    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.base),
-    color: DesignTokens.colors.neutral[500],
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+  emptyListContent: {
+    flexGrow: 1,
+    padding: getResponsiveSpacing(DesignTokens.spacing.lg),
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: DesignTokens.colors.background.secondary,
-    paddingHorizontal: getResponsiveSpacing(DesignTokens.spacing["3xl"]),
-  },
-  errorTitle: {
-    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.xl),
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    color: DesignTokens.colors.error[600],
-    marginTop: getResponsiveSpacing(DesignTokens.spacing.lg),
-    textAlign: "center",
-  },
-  errorMessage: {
-    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.base),
-    color: DesignTokens.colors.neutral[600],
-    marginTop: getResponsiveSpacing(DesignTokens.spacing.sm),
-    textAlign: "center",
-    lineHeight: DesignTokens.typography.lineHeight.relaxed,
-    maxWidth: 280,
-  },
-  retryButton: {
-    backgroundColor: DesignTokens.colors.primary[500],
-    paddingHorizontal: getResponsiveSpacing(DesignTokens.spacing["2xl"]),
-    paddingVertical: getResponsiveSpacing(DesignTokens.spacing.md),
-    borderRadius: DesignTokens.borderRadius.base,
-    marginTop: getResponsiveSpacing(DesignTokens.spacing["2xl"]),
-    ...DesignTokens.shadows.sm,
-  },
-  retryButtonText: {
-    color: DesignTokens.colors.background.primary,
-    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.base),
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-  },
-  header: {
-    backgroundColor: DesignTokens.colors.background.primary,
-    paddingHorizontal: getResponsiveSpacing(DesignTokens.spacing.lg),
-    paddingTop: getResponsiveSpacing(DesignTokens.spacing.lg),
-    paddingBottom: getResponsiveSpacing(DesignTokens.spacing.md),
+  headerContainer: {
     marginBottom: getResponsiveSpacing(DesignTokens.spacing["2xl"]),
-    ...DesignTokens.shadows.sm,
   },
   title: {
     fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize["2xl"]),
@@ -86,96 +42,152 @@ const styles = StyleSheet.create({
     color: DesignTokens.colors.neutral[800],
     marginBottom: getResponsiveSpacing(DesignTokens.spacing.lg),
     includeFontPadding: false,
-    lineHeight: getResponsiveFontSize(DesignTokens.typography.fontSize["2xl"]) * 1.3,
+    lineHeight:
+      getResponsiveFontSize(DesignTokens.typography.fontSize["2xl"]) * 1.3,
   },
-  filterContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+  summaryContainer: {
+    flexDirection: isTablet ? "row" : "row", // MANTENER ROW EN AMBOS
+    backgroundColor: DesignTokens.colors.background.primary,
+    borderRadius: getResponsiveSpacing(DesignTokens.borderRadius.md),
+    padding: getResponsiveSpacing(DesignTokens.spacing.xl),
     marginBottom: getResponsiveSpacing(DesignTokens.spacing.lg),
-    gap: getResponsiveSpacing(DesignTokens.spacing.sm),
+    ...DesignTokens.shadows.base,
+    borderLeftWidth: 4,
+    borderLeftColor: DesignTokens.colors.incident, // Color específico para incidencias
+    minHeight: getResponsiveSpacing(80),
   },
-  filterButton: {
-    height: getResponsiveSpacing(36),
-    paddingHorizontal: getResponsiveSpacing(DesignTokens.spacing.sm),
-    borderRadius: getResponsiveSpacing(18),
-    backgroundColor: DesignTokens.colors.neutral[100],
-    borderWidth: 1,
-    borderColor: DesignTokens.colors.neutral[200],
-    justifyContent: "center",
+  summaryLoading: {
+    flexDirection: "row",
     alignItems: "center",
-    minWidth: getResponsiveSpacing(60),
-  },
-  filterButtonActive: {
-    backgroundColor: DesignTokens.colors.primary[500],
-    borderColor: DesignTokens.colors.primary[500],
+    backgroundColor: DesignTokens.colors.background.primary,
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing.xl,
+    marginBottom: DesignTokens.spacing.lg,
+    justifyContent: "center",
     ...DesignTokens.shadows.sm,
   },
-  filterButtonText: {
-    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.xs),
-    color: DesignTokens.colors.neutral[600],
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    textAlign: "center",
-    includeFontPadding: false,
-    textAlignVertical: "center",
-  },
-  filterButtonTextActive: {
-    color: DesignTokens.colors.background.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-    textAlign: "center",
-    includeFontPadding: false,
-    textAlignVertical: "center",
-  },
-  statsContainer: {
-    paddingTop: getResponsiveSpacing(DesignTokens.spacing.sm),
-  },
-  statsText: {
-    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.sm),
+  summaryLoadingText: {
+    marginLeft: DesignTokens.spacing.sm,
     color: DesignTokens.colors.neutral[500],
+    fontSize: DesignTokens.typography.fontSize.sm,
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  summaryValue: {
+    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.xl),
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.incident, // Color específico para incidencias
+    includeFontPadding: false,
+    textAlign: "center",
+    lineHeight:
+      getResponsiveFontSize(DesignTokens.typography.fontSize.xl) * 1.2,
+  },
+  summaryLabel: {
+    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.xs),
+    color: DesignTokens.colors.neutral[500],
+    marginTop: getResponsiveSpacing(DesignTokens.spacing.xs),
     fontWeight: DesignTokens.typography.fontWeight.medium,
+    includeFontPadding: false,
+    textAlign: "center",
+    lineHeight:
+      getResponsiveFontSize(DesignTokens.typography.fontSize.xs) * 1.3,
+  },
+  filtersContainer: {
+    flexDirection: "row",
+    marginBottom: getResponsiveSpacing(DesignTokens.spacing.lg),
+    // Removed flexWrap for horizontal scroll implementation
+    gap: getResponsiveSpacing(DesignTokens.spacing.sm),
+  },
+  dateFilterContainer: {
+    marginTop: getResponsiveSpacing(DesignTokens.spacing.sm),
+    marginBottom: getResponsiveSpacing(DesignTokens.spacing.md),
+  },
+  activeFiltersBadgeContainer: {
+    marginTop: getResponsiveSpacing(DesignTokens.spacing.xs),
+    marginBottom: getResponsiveSpacing(DesignTokens.spacing.sm),
   },
   footerLoader: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: getResponsiveSpacing(DesignTokens.spacing.lg),
+    paddingVertical: DesignTokens.spacing.lg,
   },
-  footerText: {
-    marginLeft: getResponsiveSpacing(DesignTokens.spacing.sm),
-    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.sm),
+  footerLoaderText: {
+    marginLeft: DesignTokens.spacing.sm,
     color: DesignTokens.colors.neutral[500],
-  },
-  // CONTENEDOR DE LISTA - IGUAL QUE ADVANCELISTSCREEN
-  listContent: {
-    padding: getResponsiveSpacing(DesignTokens.spacing.lg), // 16px como AdvanceListScreen
-    paddingBottom: getResponsiveSpacing(DesignTokens.spacing["2xl"]), // 24px extra al final
+    fontSize: DesignTokens.typography.fontSize.sm,
   },
   emptyContainer: {
-    flexGrow: 1,
-    padding: getResponsiveSpacing(DesignTokens.spacing.lg),
-  },
-  emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: getResponsiveSpacing(DesignTokens.spacing["3xl"]),
-    paddingTop: getResponsiveSpacing(100),
+    padding: DesignTokens.spacing["3xl"],
   },
   emptyTitle: {
-    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.xl),
+    fontSize: DesignTokens.typography.fontSize.xl,
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.neutral[700],
-    marginTop: getResponsiveSpacing(DesignTokens.spacing.lg),
+    marginTop: DesignTokens.spacing.lg,
     textAlign: "center",
   },
-  emptyMessage: {
-    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.base),
+  emptyDescription: {
+    fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.neutral[500],
-    marginTop: getResponsiveSpacing(DesignTokens.spacing.sm),
     textAlign: "center",
+    marginTop: DesignTokens.spacing.sm,
     lineHeight: DesignTokens.typography.lineHeight.relaxed,
     maxWidth: 280,
   },
-  // FLOATING ACTION BUTTON (FAB) - CONGRUENTE CON AVANCE
+  emptyButton: {
+    backgroundColor: DesignTokens.colors.incident, // Color específico para incidencias
+    paddingHorizontal: DesignTokens.spacing["2xl"],
+    paddingVertical: DesignTokens.spacing.md,
+    borderRadius: DesignTokens.borderRadius.base,
+    marginTop: DesignTokens.spacing["2xl"],
+    ...DesignTokens.shadows.sm,
+  },
+  emptyButtonText: {
+    color: DesignTokens.colors.background.primary,
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+  errorTitle: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.error[600],
+    marginTop: DesignTokens.spacing.lg,
+    textAlign: "center",
+  },
+  errorSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.neutral[600],
+    textAlign: "center",
+    marginTop: DesignTokens.spacing.sm,
+    lineHeight: DesignTokens.typography.lineHeight.relaxed,
+    maxWidth: 280,
+  },
+  retryButton: {
+    backgroundColor: DesignTokens.colors.primary[500],
+    paddingHorizontal: DesignTokens.spacing["2xl"],
+    paddingVertical: DesignTokens.spacing.md,
+    borderRadius: DesignTokens.borderRadius.base,
+    marginTop: DesignTokens.spacing["2xl"],
+    ...DesignTokens.shadows.sm,
+  },
+  retryButtonText: {
+    color: DesignTokens.colors.background.primary,
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+  loadingText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.neutral[500],
+    marginTop: DesignTokens.spacing.md,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  // FLOATING ACTION BUTTON (FAB) - CONGRUENTE CON HEADER EJECUTIVO
   fab: {
     position: "absolute",
     right: getResponsiveSpacing(20),
@@ -194,6 +206,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: DesignTokens.elevation.md,
     zIndex: DesignTokens.zIndex.fab,
+  },
+  fabIcon: {
+    color: DesignTokens.colors.background.primary,
   },
 });
 

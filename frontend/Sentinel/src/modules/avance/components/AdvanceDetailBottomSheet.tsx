@@ -18,6 +18,7 @@ import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
+import BottomSheetBackdrop from "../../../components/ui/BottomSheetBackdrop";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PhysicalAdvanceResponse } from "../../../types/entities";
@@ -171,11 +172,20 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.handleIndicator}
       style={styles.bottomSheetContainer}
+      backdropComponent={(props) => (
+        <BottomSheetBackdrop {...props} onPress={onClose} />
+      )}
     >
       <View style={styles.fixedHeader}>
-        {/* Header */}
+        {/* Header Title */}
         <View style={styles.subheaderSection}>
-          <Text style={styles.headerTitle}>Detalle de Avances</Text>
+          <View style={styles.headerTitleSection}>
+            <Text style={styles.headerTitle}>Detalle de Avances</Text>
+          </View>
+        </View>
+
+        {/* Date and Status Row */}
+        <View style={styles.dateStatusRow}>
           <View style={styles.dateContainer}>
             <Text style={styles.valueText}>
               {advance.date
@@ -187,36 +197,35 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
                 : "Sin fecha"}
             </Text>
           </View>
-        </View>
 
-        {/* Status */}
-        <View style={styles.statusContainer}>
-          <View
-            style={[
-              styles.statusBadge,
-              advance.status === "APPROVED"
-                ? styles.approvedBadge
-                : advance.status === "REJECTED"
-                ? styles.rejectedBadge
-                : styles.pendingBadge,
-            ]}
-          >
-            <Text
+          <View style={styles.statusContainer}>
+            <View
               style={[
-                styles.statusText,
+                styles.statusBadge,
                 advance.status === "APPROVED"
-                  ? styles.approvedText
+                  ? styles.approvedBadge
                   : advance.status === "REJECTED"
-                  ? styles.rejectedText
-                  : styles.pendingText,
+                  ? styles.rejectedBadge
+                  : styles.pendingBadge,
               ]}
             >
-              {advance.status === "APPROVED"
-                ? "Aprobado"
-                : advance.status === "REJECTED"
-                ? "Rechazado"
-                : "Pendiente"}
-            </Text>
+              <Text
+                style={[
+                  styles.statusText,
+                  advance.status === "APPROVED"
+                    ? styles.approvedText
+                    : advance.status === "REJECTED"
+                    ? styles.rejectedText
+                    : styles.pendingText,
+                ]}
+              >
+                {advance.status === "APPROVED"
+                  ? "Aprobado"
+                  : advance.status === "REJECTED"
+                  ? "Rechazado"
+                  : "Pendiente"}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -224,11 +233,6 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         {/* Catálogo */}
         <View style={styles.itemContainer}>
           <View style={styles.itemLabel}>
-            <Ionicons
-              name="radio-button-on-outline"
-              size={10}
-              color={DesignTokens.colors.neutral[800]}
-            />
             <Text style={styles.labelText}>Catálogo</Text>
           </View>
           <Text style={styles.valueText}>
@@ -239,11 +243,6 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         {/* Partida */}
         <View style={styles.itemContainer}>
           <View style={styles.itemLabel}>
-            <Ionicons
-              name="radio-button-on-outline"
-              size={10}
-              color={DesignTokens.colors.neutral[800]}
-            />
             <Text style={styles.labelText}>Partida</Text>
           </View>
           <Text style={styles.valueText}>
@@ -254,11 +253,6 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         {/* Concepto */}
         <View style={styles.itemContainer}>
           <View style={styles.itemLabel}>
-            <Ionicons
-              name="radio-button-on-outline"
-              size={10}
-              color={DesignTokens.colors.neutral[800]}
-            />
             <Text style={styles.labelText}>Concepto</Text>
           </View>
           <Text style={styles.valueText}>
@@ -269,17 +263,16 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         {/* Volumen con Unidad */}
         <View style={styles.itemContainer}>
           <View style={styles.itemLabel}>
-            <Ionicons
-              name="radio-button-on-outline"
-              size={10}
-              color={DesignTokens.colors.neutral[800]}
-            />
             <Text style={styles.labelText}>Volumen</Text>
             <TouchableOpacity
               onPress={() => setIsEditingVolume(!isEditingVolume)}
               style={styles.editIconContainer}
             >
-              <Ionicons name="pencil" size={16} color={DesignTokens.colors.primary[500]} />
+              <Ionicons
+                name="pencil"
+                size={14}
+                color={DesignTokens.colors.primary[600]}
+              />
             </TouchableOpacity>
           </View>
 
@@ -309,7 +302,11 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
                   </View>
                   {errors.volume && (
                     <View style={styles.errorRow}>
-                      <Ionicons name="alert-circle" size={16} color={DesignTokens.colors.error[500]} />
+                      <Ionicons
+                        name="alert-circle"
+                        size={16}
+                        color={DesignTokens.colors.error[500]}
+                      />
                       <Text style={styles.errorText}>
                         {errors.volume.message}
                       </Text>
@@ -320,13 +317,21 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
             />
           ) : (
             <Text style={styles.volumeValue}>
-              {advance.volume} {advance.concept_unit || ""}
+              {parseFloat(advance.volume).toLocaleString("es-MX", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              {advance.concept_unit || ""}
             </Text>
           )}
 
           {advance.total_amount && (
             <Text style={styles.amountValue}>
-              Importe: ${advance.total_amount}
+              Importe: $
+              {parseFloat(advance.total_amount).toLocaleString("es-MX", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </Text>
           )}
         </View>
@@ -334,11 +339,6 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         {/* Comentario */}
         <View style={styles.itemContainer}>
           <View style={styles.itemLabel}>
-            <Ionicons
-              name="radio-button-on-outline"
-              size={10}
-              color={DesignTokens.colors.neutral[800]}
-            />
             <Text style={styles.labelText}>Comentario</Text>
 
             {advance.comments ? (
@@ -346,14 +346,22 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
                 onPress={() => setIsEditingComment(!isEditingComment)}
                 style={styles.editIconContainer}
               >
-                <Ionicons name="pencil" size={16} color={DesignTokens.colors.primary[500]} />
+                <Ionicons
+                  name="pencil"
+                  size={14}
+                  color={DesignTokens.colors.primary[600]}
+                />
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 onPress={() => setIsEditingComment(true)}
                 style={styles.editIconContainer}
               >
-                <Ionicons name="add" size={16} color={DesignTokens.colors.primary[500]} />
+                <Ionicons
+                  name="add"
+                  size={14}
+                  color={DesignTokens.colors.primary[600]}
+                />
               </TouchableOpacity>
             )}
           </View>
@@ -378,7 +386,11 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
                   />
                   {errors.comments && (
                     <View style={styles.errorRow}>
-                      <Ionicons name="alert-circle" size={16} color={DesignTokens.colors.error[500]} />
+                      <Ionicons
+                        name="alert-circle"
+                        size={16}
+                        color={DesignTokens.colors.error[500]}
+                      />
                       <Text style={styles.errorText}>
                         {errors.comments.message}
                       </Text>
@@ -415,7 +427,10 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
                 disabled={updateAdvanceMutation.isPending || !isDirty}
               >
                 {updateAdvanceMutation.isPending ? (
-                  <ActivityIndicator size="small" color={DesignTokens.colors.background.primary} />
+                  <ActivityIndicator
+                    size="small"
+                    color={DesignTokens.colors.background.primary}
+                  />
                 ) : (
                   <Text style={styles.saveButtonText}>Guardar</Text>
                 )}

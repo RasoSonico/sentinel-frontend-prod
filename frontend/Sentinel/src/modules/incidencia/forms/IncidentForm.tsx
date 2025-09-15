@@ -13,6 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { SegmentedButtons } from "react-native-paper";
 import { useAppSelector } from "../../../redux/hooks";
 import { selectIncidentCatalogs } from "../../../redux/slices/incidencia/incidenciaSlice";
+import { useModal } from "../../../modules/modals/ModalContext";
+import { ModalEnum } from "../../../modules/modals/modalTypes";
 import { CreateIncident } from "../../../types/incidencia";
 import {
   validateIncidentForm,
@@ -27,15 +29,20 @@ interface IncidentFormProps {
   initialData?: Partial<CreateIncident>;
   onSubmit: (data: CreateIncident) => void;
   isSubmitting?: boolean;
+  onGoHome?: () => void; // Función opcional para manejar navegación
 }
 
 const IncidentForm: React.FC<IncidentFormProps> = ({
   initialData = {},
   onSubmit,
   isSubmitting = false,
+  onGoHome,
 }) => {
   // Estados de Redux
   const catalogs = useAppSelector(selectIncidentCatalogs);
+
+  // Modal system
+  const { openModal, closeModal } = useModal();
 
   // Estados del formulario
   const [formData, setFormData] = useState<IncidentFormData>({
@@ -141,7 +148,77 @@ const IncidentForm: React.FC<IncidentFormProps> = ({
     return validation.isValid;
   };
 
-  // Función para manejar el envío (igual que AdvanceForm)
+  // Generar resumen para el modal de confirmación
+  const generateSummary = () => {
+    const typeData = catalogs.types.items.find(t => t.id === formData.type);
+    const classificationData = catalogs.classifications.items.find(c => c.id === formData.clasification);
+    
+    return [
+      { label: "Tipo de Incidencia", value: typeData?.name || "" },
+      { label: "Clasificación", value: classificationData?.name || "" },
+      { label: "Descripción", value: formData.description.trim() },
+    ];
+  };
+
+  // Función para manejar confirmación del modal
+  const handleConfirmSendModal = async () => {
+    closeModal();
+    
+    // Mostrar modal de loading
+    openModal(ModalEnum.Pending, {
+      message: "Registrando incidencia..."
+    });
+
+    try {
+      await onSubmit({
+        type: formData.type,
+        clasification: formData.clasification,
+        description: formData.description.trim(),
+      });
+      
+      // Éxito - mostrar modal de éxito
+      closeModal();
+      openModal(ModalEnum.Success, {
+        title: "¡Incidencia registrada!",
+        subtitle: "La incidencia ha sido registrada exitosamente.",
+        primaryButtonText: "Registrar otra incidencia",
+        secondaryButtonText: "Ir al inicio",
+        onPrimaryAction: handleRegisterAnother,
+        onSecondaryAction: handleGoHomeAction,
+      });
+    } catch (error) {
+      // Error - mostrar modal de error
+      closeModal();
+      openModal(ModalEnum.Failure, {
+        title: "Hubo un error",
+        message: "La incidencia no pudo registrarse correctamente, intente más tarde.",
+        buttonText: "Cerrar",
+      });
+    }
+  };
+
+  // Función para registrar otra incidencia
+  const handleRegisterAnother = () => {
+    closeModal();
+    // Limpiar formulario
+    setFormData({
+      type: incidentFormDefaultValues.type,
+      clasification: incidentFormDefaultValues.clasification,
+      description: incidentFormDefaultValues.description,
+    });
+    setErrors({});
+    setTouched({});
+  };
+
+  // Función para ir al inicio
+  const handleGoHomeAction = () => {
+    closeModal();
+    if (onGoHome) {
+      onGoHome();
+    }
+  };
+
+  // Función principal de envío del formulario (con modal de confirmación)
   const handleSubmit = () => {
     if (!validateForm()) {
       Alert.alert(
@@ -152,11 +229,17 @@ const IncidentForm: React.FC<IncidentFormProps> = ({
       return;
     }
 
-    // Enviar directamente (el modal de confirmación se maneja en el screen padre)
-    onSubmit({
-      type: formData.type,
-      clasification: formData.clasification,
-      description: formData.description.trim(),
+    // Mostrar modal de confirmación
+    openModal(ModalEnum.Confirm, {
+      title: "Confirmar Envío",
+      subtitle: "Revisa los datos antes de enviar la incidencia",
+      sectionTitle: "Resumen de envío:",
+      checkboxText: "Confirmo que los datos son correctos y decido enviar la incidencia registrada",
+      editButtonText: "Editar",
+      confirmButtonText: "Confirmar",
+      fields: generateSummary(),
+      onEdit: () => closeModal(),
+      onConfirm: handleConfirmSendModal,
     });
   };
 
@@ -240,6 +323,9 @@ const IncidentForm: React.FC<IncidentFormProps> = ({
                   styles.dropdownText,
                   !formData.type && styles.placeholderText,
                 ]}
+                numberOfLines={2} //Máximo 2 líneas para textos largos
+                adjustsFontSizeToFit={true} //Reducir tamaño de fuente si es necesario
+                minimumFontScale={0.8} //No reducir más del 80% del tamaño original
               >
                 {formData.type > 0
                   ? typeItems.find((item) => item.value === formData.type)
@@ -265,7 +351,14 @@ const IncidentForm: React.FC<IncidentFormProps> = ({
                       setMenuVisible(false);
                     }}
                   >
-                    <Text style={styles.dropdownOptionText}>{item.label}</Text>
+                    <Text
+                      style={styles.dropdownOptionText}
+                      numberOfLines={2}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.85}
+                    >
+                      {item.label}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>

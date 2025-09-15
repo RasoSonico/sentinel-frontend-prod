@@ -4,11 +4,24 @@ import { Ionicons } from "@expo/vector-icons";
 import styles from "./styles/AdvanceSuccessModal.styles";
 import { DesignTokens } from "../../../styles/designTokens";
 
+// Generic interface for reusability
+export interface FailureModalProps {
+  title?: string;
+  message?: string;
+  buttonText?: string;
+  onClose: () => void;
+}
+
+// Backward compatibility interface
 export interface AdvanceFailureModalProps {
   onClose: () => void;
 }
 
-const AdvanceFailureModal: React.FC<AdvanceFailureModalProps> = ({
+// Generic FailureModal component
+const FailureModal: React.FC<FailureModalProps> = ({
+  title = "Hubo un error",
+  message = "El avance no pudo guardarse correctamente, intente más tarde.",
+  buttonText = "Cerrar",
   onClose,
 }) => {
   const width = Dimensions.get("window").width * 0.8;
@@ -23,12 +36,10 @@ const AdvanceFailureModal: React.FC<AdvanceFailureModalProps> = ({
             color={DesignTokens.colors.error[500]}
             style={styles.icon}
           />
-          <Text style={styles.title}>Hubo un error</Text>
-          <Text style={styles.subtitle}>
-            El avance no pudo guardarse correctamente, intente más tarde.
-          </Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>{message}</Text>
           <TouchableOpacity style={styles.registerButton} onPress={onClose}>
-            <Text style={styles.registerButtonText}>Cerrar</Text>
+            <Text style={styles.registerButtonText}>{buttonText}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -36,4 +47,19 @@ const AdvanceFailureModal: React.FC<AdvanceFailureModalProps> = ({
   );
 };
 
+// Backward compatibility wrapper for existing advance functionality
+const AdvanceFailureModal: React.FC<AdvanceFailureModalProps> = ({
+  onClose,
+}) => {
+  return (
+    <FailureModal
+      title="Hubo un error"
+      message="El avance no pudo guardarse correctamente, intente más tarde."
+      buttonText="Cerrar"
+      onClose={onClose}
+    />
+  );
+};
+
 export default AdvanceFailureModal;
+export { FailureModal };

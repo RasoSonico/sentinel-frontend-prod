@@ -104,6 +104,10 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: getResponsiveSpacing(DesignTokens.spacing.sm),
   },
+  dateFilterContainer: {
+    marginTop: getResponsiveSpacing(DesignTokens.spacing.sm),
+    marginBottom: getResponsiveSpacing(DesignTokens.spacing.md),
+  },
   filterChip: {
     height: getResponsiveSpacing(36), // Altura fija para mejor control
     paddingHorizontal: getResponsiveSpacing(DesignTokens.spacing.sm), // REDUCIR PADDING PARA MÁS COMPACTO

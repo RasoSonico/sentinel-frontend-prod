@@ -5,15 +5,31 @@ import styles from "./styles/AdvanceSuccessModal.styles";
 import { BaseModalProps } from "../modalTypes";
 import { DesignTokens } from "../../../styles/designTokens";
 
+// Generic interface for reusability
+export interface SuccessModalProps extends BaseModalProps {
+  title?: string;
+  subtitle?: string;
+  primaryButtonText?: string;
+  secondaryButtonText?: string;
+  onPrimaryAction: () => void;
+  onSecondaryAction: () => void;
+}
+
+// Backward compatibility interface
 export interface AdvanceSuccessModalProps extends BaseModalProps {
   onRegisterAnother: () => void;
   onGoHome: () => void;
   onClose: () => void;
 }
 
-const AdvanceSuccessModal: React.FC<AdvanceSuccessModalProps> = ({
-  onRegisterAnother,
-  onGoHome,
+// Generic SuccessModal component
+const SuccessModal: React.FC<SuccessModalProps> = ({
+  title = "¡Avance registrado!",
+  subtitle = "El avance ha sido registrado exitosamente.",
+  primaryButtonText = "Registrar otro avance",
+  secondaryButtonText = "Ir al inicio",
+  onPrimaryAction,
+  onSecondaryAction,
   onClose,
 }) => {
   const width = Dimensions.get("window").width * 0.8;
@@ -28,18 +44,16 @@ const AdvanceSuccessModal: React.FC<AdvanceSuccessModalProps> = ({
             color={DesignTokens.colors.success[500]}
             style={styles.icon}
           />
-          <Text style={styles.title}>¡Avance registrado!</Text>
-          <Text style={styles.subtitle}>
-            El avance ha sido registrado exitosamente.
-          </Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
           <TouchableOpacity
             style={styles.registerButton}
-            onPress={onRegisterAnother}
+            onPress={onPrimaryAction}
           >
-            <Text style={styles.registerButtonText}>Registrar otro avance</Text>
+            <Text style={styles.registerButtonText}>{primaryButtonText}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.homeButton} onPress={onGoHome}>
-            <Text style={styles.homeButtonText}>Ir al inicio</Text>
+          <TouchableOpacity style={styles.homeButton} onPress={onSecondaryAction}>
+            <Text style={styles.homeButtonText}>{secondaryButtonText}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -47,4 +61,24 @@ const AdvanceSuccessModal: React.FC<AdvanceSuccessModalProps> = ({
   );
 };
 
+// Backward compatibility wrapper for existing advance functionality
+const AdvanceSuccessModal: React.FC<AdvanceSuccessModalProps> = ({
+  onRegisterAnother,
+  onGoHome,
+  onClose,
+}) => {
+  return (
+    <SuccessModal
+      title="¡Avance registrado!"
+      subtitle="El avance ha sido registrado exitosamente."
+      primaryButtonText="Registrar otro avance"
+      secondaryButtonText="Ir al inicio"
+      onPrimaryAction={onRegisterAnother}
+      onSecondaryAction={onGoHome}
+      onClose={onClose}
+    />
+  );
+};
+
 export default AdvanceSuccessModal;
+export { SuccessModal };

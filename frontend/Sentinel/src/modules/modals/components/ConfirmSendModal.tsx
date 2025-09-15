@@ -12,6 +12,20 @@ import styles from "./styles/ConfirmSendModal.styles";
 import { BaseModalProps } from "../modalTypes";
 import { DesignTokens } from "../../../styles/designTokens";
 
+// Generic interface for reusability
+export interface ConfirmModalProps extends BaseModalProps {
+  title?: string;
+  subtitle?: string;
+  sectionTitle?: string;
+  checkboxText?: string;
+  editButtonText?: string;
+  confirmButtonText?: string;
+  fields: Array<{ label: string; value: string }>;
+  onEdit: () => void;
+  onConfirm: () => void;
+}
+
+// Backward compatibility interface
 export interface ConfirmSendModalProps extends BaseModalProps {
   onEdit: () => void;
   onConfirm: () => void;
@@ -25,11 +39,18 @@ export interface ConfirmSendModalProps extends BaseModalProps {
   };
 }
 
-const ConfirmSendModal: React.FC<ConfirmSendModalProps> = ({
+// Generic ConfirmModal component
+const ConfirmModal: React.FC<ConfirmModalProps> = ({
+  title = "Confirmar Envío",
+  subtitle = "Revisa los datos antes de enviar",
+  sectionTitle = "Resumen de envío:",
+  checkboxText = "Confirmo que los datos son correctos y decido enviar los datos ingresados",
+  editButtonText = "Editar",
+  confirmButtonText = "Confirmar",
+  fields,
   onEdit,
   onConfirm,
   onClose,
-  summary,
 }) => {
   const width = Dimensions.get("window").width * 0.9;
   const [checked, setChecked] = useState(false);
@@ -39,27 +60,19 @@ const ConfirmSendModal: React.FC<ConfirmSendModalProps> = ({
       <View style={styles.overlay}>
         <View style={[styles.modalContainer, { width }]}>
           <View style={styles.header}>
-            <Text style={styles.title}>Confirmar Envío</Text>
-            <Text style={styles.subtitle}>
-              Revisa los datos antes de enviar
-            </Text>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
           </View>
-          <Text style={styles.sectionTitle}>Resumen de envío:</Text>
+          <Text style={styles.sectionTitle}>{sectionTitle}</Text>
           <View style={styles.summaryBox}>
             <ScrollView>
-              <Text style={styles.summaryLabel}>Catalogo</Text>
-              <Text style={styles.summaryValue}>{summary.catalog}</Text>
-              <Text style={styles.summaryLabel}>Partida</Text>
-              <Text style={styles.summaryValue}>{summary.partida}</Text>
-              <Text style={styles.summaryLabel}>Concepto</Text>
-              <Text style={styles.summaryValue}>{summary.concept}</Text>
-              <Text style={styles.summaryLabel}>Volumen</Text>
-              <Text style={styles.summaryValue}>{summary.volume} {summary.unit}</Text>
-              {summary.notes !== "" && (
-                <>
-                  <Text style={styles.summaryLabel}>Notas</Text>
-                  <Text style={styles.summaryValue}>{summary.notes}</Text>
-                </>
+              {fields.map((field, index) => 
+                field.value ? (
+                  <React.Fragment key={index}>
+                    <Text style={styles.summaryLabel}>{field.label}</Text>
+                    <Text style={styles.summaryValue}>{field.value}</Text>
+                  </React.Fragment>
+                ) : null
               )}
             </ScrollView>
           </View>
@@ -68,14 +81,11 @@ const ConfirmSendModal: React.FC<ConfirmSendModalProps> = ({
               status={checked ? "checked" : "unchecked"}
               color={DesignTokens.colors.executive.primary}
             />
-            <Text style={styles.checkboxLabel}>
-              Confirmo que los datos son correctos y decido enviar los avances
-              ingresados
-            </Text>
+            <Text style={styles.checkboxLabel}>{checkboxText}</Text>
           </View>
           <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.editButton} onPress={onEdit}>
-              <Text style={styles.editButtonText}>Editar</Text>
+              <Text style={styles.editButtonText}>{editButtonText}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -85,7 +95,7 @@ const ConfirmSendModal: React.FC<ConfirmSendModalProps> = ({
               onPress={onConfirm}
               disabled={!checked}
             >
-              <Text style={styles.confirmButtonText}>Confirmar</Text>
+              <Text style={styles.confirmButtonText}>{confirmButtonText}</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -97,4 +107,36 @@ const ConfirmSendModal: React.FC<ConfirmSendModalProps> = ({
   );
 };
 
+// Backward compatibility wrapper for existing advance functionality
+const ConfirmSendModal: React.FC<ConfirmSendModalProps> = ({
+  onEdit,
+  onConfirm,
+  onClose,
+  summary,
+}) => {
+  const fields = [
+    { label: "Catalogo", value: summary.catalog },
+    { label: "Partida", value: summary.partida },
+    { label: "Concepto", value: summary.concept },
+    { label: "Volumen", value: `${summary.volume} ${summary.unit}` },
+    { label: "Notas", value: summary.notes },
+  ];
+
+  return (
+    <ConfirmModal
+      title="Confirmar Envío"
+      subtitle="Revisa los datos antes de enviar"
+      sectionTitle="Resumen de envío:"
+      checkboxText="Confirmo que los datos son correctos y decido enviar los avances ingresados"
+      editButtonText="Editar"
+      confirmButtonText="Confirmar"
+      fields={fields}
+      onEdit={onEdit}
+      onConfirm={onConfirm}
+      onClose={onClose}
+    />
+  );
+};
+
 export default ConfirmSendModal;
+export { ConfirmModal };

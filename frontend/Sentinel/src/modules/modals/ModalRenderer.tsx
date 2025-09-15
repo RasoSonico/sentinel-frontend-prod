@@ -1,6 +1,7 @@
 import React, { Suspense } from "react";
 import { ModalEnum } from "./modalTypes";
 
+// Backward compatibility imports
 const AdvanceSuccessModal = React.lazy(
   () => import("./components/AdvanceSuccessModal")
 );
@@ -14,11 +15,31 @@ const ConfirmSendModal = React.lazy(
   () => import("./components/ConfirmSendModal")
 );
 
+// Generic reusable modal imports
+const SuccessModal = React.lazy(
+  () => import("./components/AdvanceSuccessModal").then(module => ({ default: module.SuccessModal }))
+);
+const FailureModal = React.lazy(
+  () => import("./components/AdvanceFailureModal").then(module => ({ default: module.FailureModal }))
+);
+const ConfirmModal = React.lazy(
+  () => import("./components/ConfirmSendModal").then(module => ({ default: module.ConfirmModal }))
+);
+const PendingModal = React.lazy(
+  () => import("./components/AdvancePendingModal")
+);
+
 const MODAL_MAP = {
+  // Backward compatibility
   [ModalEnum.AdvanceSuccess]: AdvanceSuccessModal,
   [ModalEnum.AdvancePending]: AdvancePendingModal,
   [ModalEnum.AdvanceFailure]: AdvanceFailureModal,
   [ModalEnum.ConfirmSend]: ConfirmSendModal,
+  // Generic reusable modals
+  [ModalEnum.Success]: SuccessModal,
+  [ModalEnum.Failure]: FailureModal,
+  [ModalEnum.Confirm]: ConfirmModal,
+  [ModalEnum.Pending]: PendingModal,
 };
 
 export default function ModalRenderer({
