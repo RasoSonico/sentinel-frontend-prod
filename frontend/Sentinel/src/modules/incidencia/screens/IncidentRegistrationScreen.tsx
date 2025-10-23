@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -11,21 +11,11 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { useAppSelector, useAppDispatch } from "../../../redux/hooks";
 import {
-  selectIncidentCatalogs,
-  selectNewIncident,
-  fetchIncidentTypes,
-  fetchIncidentClassifications,
-  createNewIncident,
-  clearNewIncident,
-  clearNewIncidentError,
-} from "../../../redux/slices/incidencia/incidenciaSlice";
-import {
-  setTypesById,
-  setClassificationsById,
-} from "../../../redux/slices/incidencia/incidenciaFormDataSlice";
-import { useCreateIncidentMutation } from "../../../hooks/data/query/useIncidenciaQueries";
+  useCreateIncidentMutation,
+  useIncidentTypesQuery,
+  useIncidentClassificationsQuery,
+} from "../../../hooks/data/query/useIncidenciaQueries";
 import { useAssignedConstruction } from "../../../hooks/data/query/useAvanceQueries";
 import { IncidentRegistrationScreenNavigationProp } from "../../../navigation/types";
 import IncidentForm from "../forms/IncidentForm";
@@ -35,20 +25,26 @@ import styles from "../styles/IncidentRegistrationScreen.styles";
 
 const IncidentRegistrationScreen: React.FC = () => {
   const navigation = useNavigation<IncidentRegistrationScreenNavigationProp>();
-  const dispatch = useAppDispatch();
 
-  // Estados de Redux
-  const catalogs = useAppSelector(selectIncidentCatalogs);
-  const newIncident = useAppSelector(selectNewIncident);
+  // TanStack Query hooks
+  const {
+    data: incidentTypes,
+    isLoading: loadingTypes,
+    error: typesError,
+  } = useIncidentTypesQuery();
 
-  // Query para obtener la construcción asignada
+  const {
+    data: incidentClassifications,
+    isLoading: loadingClassifications,
+    error: classificationsError,
+  } = useIncidentClassificationsQuery();
+
   const {
     data: assignedConstruction,
     isLoading: loadingConstruction,
     error: constructionError,
   } = useAssignedConstruction();
 
-  // Mutation de React Query como alternativa
   const createIncidentMutation = useCreateIncidentMutation();
 
   // Estado local del formulario
@@ -60,41 +56,8 @@ const IncidentRegistrationScreen: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Cargar catálogos al montar el componente
-  useEffect(() => {
-    const loadCatalogs = async () => {
-      if (catalogs.types.items.length === 0) {
-        const typesResult = await dispatch(fetchIncidentTypes());
-        if (fetchIncidentTypes.fulfilled.match(typesResult)) {
-          dispatch(setTypesById(typesResult.payload));
-        }
-      }
-
-      if (catalogs.classifications.items.length === 0) {
-        const classificationsResult = await dispatch(
-          fetchIncidentClassifications()
-        );
-        if (
-          fetchIncidentClassifications.fulfilled.match(classificationsResult)
-        ) {
-          dispatch(setClassificationsById(classificationsResult.payload));
-        }
-      }
-    };
-
-    loadCatalogs();
-  }, [
-    dispatch,
-    catalogs.types.items.length,
-    catalogs.classifications.items.length,
-  ]);
-
-  // Los éxitos y errores ahora se manejan con el sistema de modales en IncidentForm
-
-  // Función para manejar el envío del formulario usando React Query
+  // Función para manejar el envío del formulario usando TanStack Query
   const handleSubmit = async (data: CreateIncident) => {
-    // Ahora el formulario maneja toda la lógica de modales
-    // Solo necesitamos hacer la llamada a la API
     setIsSubmitting(true);
     try {
       await createIncidentMutation.mutateAsync(data);
@@ -108,11 +71,7 @@ const IncidentRegistrationScreen: React.FC = () => {
   };
 
   // Loading de catálogos o construcción
-  if (
-    catalogs.types.loading ||
-    catalogs.classifications.loading ||
-    loadingConstruction
-  ) {
+  if (loadingTypes || loadingClassifications || loadingConstruction) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -123,19 +82,15 @@ const IncidentRegistrationScreen: React.FC = () => {
   }
 
   // Error de catálogos o construcción
-  if (
-    catalogs.types.error ||
-    catalogs.classifications.error ||
-    constructionError
-  ) {
+  if (typesError || classificationsError || constructionError) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#e74c3c" />
           <Text style={styles.errorTitle}>Error al cargar el formulario</Text>
           <Text style={styles.errorMessage}>
-            {catalogs.types.error ||
-              catalogs.classifications.error ||
+            {typesError?.message ||
+              classificationsError?.message ||
               constructionError?.message ||
               "Error desconocido"}
           </Text>
@@ -182,7 +137,7 @@ const IncidentRegistrationScreen: React.FC = () => {
           <IncidentForm
             initialData={formData}
             onSubmit={handleSubmit}
-            isSubmitting={isSubmitting || newIncident.loading}
+            isSubmitting={isSubmitting || createIncidentMutation.isPending}
             onGoHome={() => navigation.goBack()}
           />
         </View>

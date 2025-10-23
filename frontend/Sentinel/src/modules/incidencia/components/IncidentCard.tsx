@@ -1,9 +1,8 @@
 import React, { memo, useMemo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { Incident } from "src/types/incidencia";
+import { Incident, IncidentType, IncidentClassification } from "src/types/incidencia";
 import IncidentClassificationBadge from "./IncidentClassificationBadge";
 import IncidentTypeDisplay from "./IncidentTypeDisplay";
-import { useOptimizedIncidentTypeNameById } from "../../../redux/selectors/incidencia/optimizedSelectors";
 import { useFormattedDate } from "../../../hooks/ui/useDateFormatting";
 import { DesignTokens } from "../../../styles/designTokens";
 import styles from "./styles/IncidentCard.styles";
@@ -11,11 +10,15 @@ import styles from "./styles/IncidentCard.styles";
 interface IncidentCardProps {
   incident: Incident;
   onPress: (incident: Incident) => void;
+  incidentTypes?: IncidentType[];
+  incidentClassifications?: IncidentClassification[];
 }
 
 const IncidentCard: React.FC<IncidentCardProps> = memo(({
   incident,
   onPress,
+  incidentTypes = [],
+  incidentClassifications = [],
 }) => {
   // ✅ Use consistent date formatting with AdvanceListScreen
   const formattedDate = useFormattedDate(incident.date, "medium");
@@ -27,8 +30,11 @@ const IncidentCard: React.FC<IncidentCardProps> = memo(({
     return incident.description.substring(0, maxLength) + "...";
   }, [incident.description]);
 
-  // Hook para obtener el nombre del tipo
-  const typeName = useOptimizedIncidentTypeNameById(incident.type);
+  // ✅ Obtener nombre del tipo directamente de los props (TanStack Query data)
+  const typeName = useMemo(() => {
+    const type = incidentTypes.find(t => t.id === incident.type);
+    return type?.name || "";
+  }, [incidentTypes, incident.type]);
   
   // Función para obtener color del borde lateral según tipo de incidencia
   const getIncidentBorderColor = useMemo(() => {
@@ -68,6 +74,7 @@ const IncidentCard: React.FC<IncidentCardProps> = memo(({
           <IncidentTypeDisplay 
             typeId={incident.type} 
             size="medium"
+            incidentTypes={incidentTypes}
           />
         </View>
         
@@ -75,6 +82,7 @@ const IncidentCard: React.FC<IncidentCardProps> = memo(({
         <IncidentClassificationBadge 
           classificationId={incident.clasification} 
           size="small"
+          incidentClassifications={incidentClassifications}
         />
       </View>
 

@@ -1,12 +1,13 @@
 import React, { memo, useMemo } from "react";
 import { View, Text } from "react-native";
-import { useOptimizedIncidentClassificationNameById } from "src/redux/selectors/incidencia/optimizedSelectors";
+import { IncidentClassification } from "src/types/incidencia";
 import { DesignTokens } from "../../../styles/designTokens";
 import styles from "./styles/IncidentClassificationBadge.styles";
 
 interface IncidentClassificationBadgeProps {
   classificationId: number;
   size?: "small" | "medium" | "large";
+  incidentClassifications?: IncidentClassification[];
 }
 
 // Cache global para colores de clasificación
@@ -54,8 +55,13 @@ const getClassificationColor = (name: string) => {
 const IncidentClassificationBadge: React.FC<IncidentClassificationBadgeProps> = memo(({
   classificationId,
   size = "medium",
+  incidentClassifications = [],
 }) => {
-  const classificationName = useOptimizedIncidentClassificationNameById(classificationId);
+  // ✅ Obtener nombre de la clasificación directamente de los props (TanStack Query data)
+  const classificationName = useMemo(() => {
+    const classification = incidentClassifications.find(c => c.id === classificationId);
+    return classification?.name || "";
+  }, [incidentClassifications, classificationId]);
 
   // Memoizar cálculo de colores
   const colors = useMemo(() => getClassificationColor(classificationName), [classificationName]);

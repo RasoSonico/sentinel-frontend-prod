@@ -11,8 +11,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SegmentedButtons } from "react-native-paper";
-import { useAppSelector } from "../../../redux/hooks";
-import { selectIncidentCatalogs } from "../../../redux/slices/incidencia/incidenciaSlice";
+import {
+  useIncidentTypesQuery,
+  useIncidentClassificationsQuery,
+} from "../../../hooks/data/query/useIncidenciaQueries";
 import { useModal } from "../../../modules/modals/ModalContext";
 import { ModalEnum } from "../../../modules/modals/modalTypes";
 import { CreateIncident } from "../../../types/incidencia";
@@ -38,8 +40,9 @@ const IncidentForm: React.FC<IncidentFormProps> = ({
   isSubmitting = false,
   onGoHome,
 }) => {
-  // Estados de Redux
-  const catalogs = useAppSelector(selectIncidentCatalogs);
+  // TanStack Query hooks
+  const { data: incidentTypes = [] } = useIncidentTypesQuery();
+  const { data: incidentClassifications = [] } = useIncidentClassificationsQuery();
 
   // Modal system
   const { openModal, closeModal } = useModal();
@@ -92,13 +95,13 @@ const IncidentForm: React.FC<IncidentFormProps> = ({
   };
 
   // Preparar datos para dropdown de tipos (simple)
-  const typeItems = catalogs.types.items.map((type) => ({
+  const typeItems = incidentTypes.map((type) => ({
     value: type.id,
     label: type.name,
   }));
 
   // Preparar datos para SegmentedButtons de clasificaciones con colores
-  const classificationButtons = catalogs.classifications.items.map(
+  const classificationButtons = incidentClassifications.map(
     (classification) => ({
       value: classification.id.toString(),
       label: classification.name,
@@ -150,8 +153,8 @@ const IncidentForm: React.FC<IncidentFormProps> = ({
 
   // Generar resumen para el modal de confirmación
   const generateSummary = () => {
-    const typeData = catalogs.types.items.find(t => t.id === formData.type);
-    const classificationData = catalogs.classifications.items.find(c => c.id === formData.clasification);
+    const typeData = incidentTypes.find(t => t.id === formData.type);
+    const classificationData = incidentClassifications.find(c => c.id === formData.clasification);
     
     return [
       { label: "Tipo de Incidencia", value: typeData?.name || "" },
@@ -264,7 +267,7 @@ const IncidentForm: React.FC<IncidentFormProps> = ({
                 const isSelected =
                   formData.clasification === parseInt(button.value);
                 const classificationColor = getClassificationColor(
-                  catalogs.classifications.items.find(
+                  incidentClassifications.find(
                     (c) => c.id === parseInt(button.value)
                   )?.name || ""
                 );

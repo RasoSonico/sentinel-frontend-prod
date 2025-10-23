@@ -1,13 +1,14 @@
 import React, { memo, useMemo } from "react";
 import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useOptimizedIncidentTypeNameById } from "src/redux/selectors/incidencia/optimizedSelectors";
+import { IncidentType } from "src/types/incidencia";
 import styles, { iconSizes } from "./styles/IncidentTypeDisplay.styles";
 
 interface IncidentTypeDisplayProps {
   typeId: number;
   showIcon?: boolean;
   size?: "small" | "medium" | "large";
+  incidentTypes?: IncidentType[];
 }
 
 // Cache global para iconos de tipo
@@ -40,8 +41,13 @@ const IncidentTypeDisplay: React.FC<IncidentTypeDisplayProps> = memo(({
   typeId,
   showIcon = true,
   size = "medium",
+  incidentTypes = [],
 }) => {
-  const typeName = useOptimizedIncidentTypeNameById(typeId);
+  // ✅ Obtener nombre del tipo directamente de los props (TanStack Query data)
+  const typeName = useMemo(() => {
+    const type = incidentTypes.find(t => t.id === typeId);
+    return type?.name || "";
+  }, [incidentTypes, typeId]);
 
   // Memoizar cálculos costosos
   const iconName = useMemo(() => getTypeIcon(typeName), [typeName]);

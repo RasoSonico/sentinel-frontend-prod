@@ -178,7 +178,7 @@ const IncidentListScreen: React.FC = () => {
     };
   }, [incidentsData?.incidents, incidentTypes, incidentClassifications]);
 
-  // Effect para poblar el store con catálogos (mantener compatibilidad con forms)
+  // ✅ Effect para poblar el store con catálogos (siguiendo patrón de AdvanceListScreen)
   useEffect(() => {
     if (incidentTypes && incidentTypes.length > 0) {
       dispatch(setTypesById(incidentTypes));
@@ -247,12 +247,18 @@ const IncidentListScreen: React.FC = () => {
     setClassificationFilter("all");
   }, []);
 
-  // Render del item de la lista
+  // Render del item de la lista (siguiendo patrón de AdvanceListScreen)
   const renderIncidentItem = useCallback(
     ({ item }: { item: Incident }) => (
-      <IncidentCard incident={item} onPress={handleIncidentPress} />
+      <IncidentCard 
+        incident={item} 
+        onPress={handleIncidentPress}
+        // ✅ Los tipos y clasificaciones vienen directamente del TanStack Query (como en AdvanceListScreen)
+        incidentTypes={incidentTypes}
+        incidentClassifications={incidentClassifications}
+      />
     ),
-    [handleIncidentPress]
+    [handleIncidentPress, incidentTypes, incidentClassifications]
   );
 
   // Render del footer de la lista (loading más items)
