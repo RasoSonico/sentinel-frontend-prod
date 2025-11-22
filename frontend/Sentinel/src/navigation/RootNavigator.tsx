@@ -1,12 +1,12 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
-import { useAppSelector } from "../redux/hooks";
-import { AuthNavigator } from "./AuthNavigator";
-import { AppNavigator } from "./AppNavigator";
 import { RootStackParamList } from "./types";
 import { navigationRef } from "./NavigationService";
 import { createStackNavigator } from "@react-navigation/stack";
 import AuthLoading from "./AuthLoading";
+import { AppNavigator } from "./AppNavigator";
+import { AuthNavigator } from "./AuthNavigator";
+import { useAppSelector } from "src/redux/hooks";
 
 const Stack = createStackNavigator<RootStackParamList>();
 
