@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AppTabParamList } from "./types";
-import { ObraNavigator } from "./moduleNavigators/ObraNavigator";
 import { AvanceNavigator } from "./moduleNavigators/AvanceNavigator";
 import { IncidenciaNavigator } from "./moduleNavigators/IncidenciaNavigator";
 import { Ionicons } from "@expo/vector-icons";
