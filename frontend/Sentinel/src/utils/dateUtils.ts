@@ -1,6 +1,9 @@
 import { format, parseISO, startOfDay, subDays, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 
+export const DAY_IN_MS = 24 * 60 * 60 * 1000;
+export const FIVE_MINS_IN_MS = 5 * 60 * 1000;
+
 /**
  * 🌍 UTC-First Date Utils for Global Applications
  *
@@ -85,7 +88,7 @@ export class DateUtils {
     // ✅ Let JavaScript automatically convert UTC to local timezone
     // This is the "interpreter" function - it translates backend UTC to user's timezone
     const utcDate = new Date(utcDateString); // Automatically parses UTC and converts to local
-    
+
     // Format the local date representation
     const formatted = format(utcDate, formatString, { locale });
 
@@ -119,9 +122,12 @@ export class DateUtils {
     // Start of day in local timezone (00:00:00)
     const startOfDay = new Date(
       localDate.getFullYear(),
-      localDate.getMonth(), 
+      localDate.getMonth(),
       localDate.getDate(),
-      0, 0, 0, 0
+      0,
+      0,
+      0,
+      0
     );
 
     // End of day in local timezone (23:59:59.999)
@@ -129,12 +135,15 @@ export class DateUtils {
       localDate.getFullYear(),
       localDate.getMonth(),
       localDate.getDate(),
-      23, 59, 59, 999
+      23,
+      59,
+      59,
+      999
     );
 
     return {
       start: startOfDay.toISOString(),
-      end: endOfDay.toISOString()
+      end: endOfDay.toISOString(),
     };
   }
 
@@ -168,19 +177,22 @@ export class DateUtils {
    * Input: 6 days back = last 7 days including today
    * Output: Start of oldest day to end of today, both in UTC
    */
-  static getUTCDateRangeForDays(daysBack: number): { startDate: string; endDate: string } {
+  static getUTCDateRangeForDays(daysBack: number): {
+    startDate: string;
+    endDate: string;
+  } {
     const today = new Date();
     const startDate = subDays(today, daysBack);
 
     // Get full day range for start date (00:00 to 23:59 local time → UTC)
     const startRange = this.localDateToUTCRange(startDate);
-    
+
     // Get full day range for end date (today)
     const endRange = this.localDateToUTCRange(today);
 
     return {
-      startDate: startRange.start,  // Start of oldest day in UTC
-      endDate: endRange.end,        // End of today in UTC
+      startDate: startRange.start, // Start of oldest day in UTC
+      endDate: endRange.end, // End of today in UTC
     };
   }
 
@@ -216,14 +228,18 @@ export class DateUtils {
 
       thisMonth: (() => {
         // First day of current month to today (full days)
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const firstDayOfMonth = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          1
+        );
         const firstDayRange = this.localDateToUTCRange(firstDayOfMonth);
         const todayRange = this.localDateToUTCRange(today);
-        
+
         return {
           type: "range" as const,
           startDate: firstDayRange.start, // Start of first day
-          endDate: todayRange.end,        // End of today  
+          endDate: todayRange.end, // End of today
           label: "Este mes",
         };
       })(),
@@ -248,7 +264,7 @@ export class DateUtils {
         return {
           type: "range" as const,
           startDate: startRange.start, // Start of first day of month
-          endDate: endRange.end,       // End of last day of month
+          endDate: endRange.end, // End of last day of month
           label: "Mes pasado",
         };
       })(),
@@ -338,53 +354,65 @@ export class DateUtils {
    */
   static debugTimezoneProblem(backendDateString: string): void {
     console.group(`🐛 Debugging timezone issue: ${backendDateString}`);
-    
+
     try {
-      console.log('1️⃣ Backend date string:', backendDateString);
-      
+      console.log("1️⃣ Backend date string:", backendDateString);
+
       // Parse with our parseUTCDate function
       const parsedUTC = this.parseUTCDate(backendDateString);
-      console.log('2️⃣ Parsed UTC Date:', parsedUTC.toISOString());
-      console.log('3️⃣ UTC parts:', {
+      console.log("2️⃣ Parsed UTC Date:", parsedUTC.toISOString());
+      console.log("3️⃣ UTC parts:", {
         year: parsedUTC.getUTCFullYear(),
         month: parsedUTC.getUTCMonth() + 1,
         date: parsedUTC.getUTCDate(),
-        hours: parsedUTC.getUTCHours()
+        hours: parsedUTC.getUTCHours(),
       });
-      
+
       // Create local representation (what we use for display)
       const localRepresentation = new Date(
         parsedUTC.getUTCFullYear(),
         parsedUTC.getUTCMonth(),
         parsedUTC.getUTCDate()
       );
-      console.log('4️⃣ Local representation:', localRepresentation.toISOString());
-      console.log('5️⃣ Local display date:', localRepresentation.toDateString());
-      
+      console.log(
+        "4️⃣ Local representation:",
+        localRepresentation.toISOString()
+      );
+      console.log("5️⃣ Local display date:", localRepresentation.toDateString());
+
       // Format with our function
-      const formatted = this.formatUTCForDisplay(backendDateString, 'dd MMM yyyy');
-      console.log('6️⃣ Our formatted:', formatted);
-      
+      const formatted = this.formatUTCForDisplay(
+        backendDateString,
+        "dd MMM yyyy"
+      );
+      console.log("6️⃣ Our formatted:", formatted);
+
       // Compare with direct date-fns (what incidents use)
-      const directFormatted = format(new Date(backendDateString), "dd MMM yyyy", { locale: es });
-      console.log('7️⃣ Direct date-fns:', directFormatted);
-      
+      const directFormatted = format(
+        new Date(backendDateString),
+        "dd MMM yyyy",
+        { locale: es }
+      );
+      console.log("7️⃣ Direct date-fns:", directFormatted);
+
       // Show the difference
-      console.log('8️⃣ Results match:', formatted === directFormatted ? '✅' : '❌');
-      
+      console.log(
+        "8️⃣ Results match:",
+        formatted === directFormatted ? "✅" : "❌"
+      );
+
       // Show local timezone info
       const localDate = new Date(backendDateString);
-      console.log('9️⃣ Local timezone interpretation:', {
+      console.log("9️⃣ Local timezone interpretation:", {
         toString: localDate.toString(),
         toDateString: localDate.toDateString(),
         getDate: localDate.getDate(),
-        getTimezoneOffset: localDate.getTimezoneOffset()
+        getTimezoneOffset: localDate.getTimezoneOffset(),
       });
-      
     } catch (error) {
-      console.error('❌ Error in timezone debug:', error);
+      console.error("❌ Error in timezone debug:", error);
     }
-    
+
     console.groupEnd();
   }
 
@@ -392,53 +420,58 @@ export class DateUtils {
    * 🧪 Test the new timezone-aware filtering system
    */
   static testTimezoneAwareFiltering(): void {
-    console.group('🧪 Testing Timezone-Aware Date Filtering');
-    
+    console.group("🧪 Testing Timezone-Aware Date Filtering");
+
     const now = new Date();
-    console.log('Current local time:', now.toString());
-    console.log('Current timezone offset:', now.getTimezoneOffset(), 'minutes');
-    console.log('');
-    
+    console.log("Current local time:", now.toString());
+    console.log("Current timezone offset:", now.getTimezoneOffset(), "minutes");
+    console.log("");
+
     // Test today's range
     console.group('📅 Testing "Today" filter');
     const todayRange = this.getTodayUTCRange();
-    console.log('Local date selected: TODAY');
-    console.log('UTC range for backend:', todayRange);
-    console.log('Range covers:', {
+    console.log("Local date selected: TODAY");
+    console.log("UTC range for backend:", todayRange);
+    console.log("Range covers:", {
       start: new Date(todayRange.start).toString(),
-      end: new Date(todayRange.end).toString()
+      end: new Date(todayRange.end).toString(),
     });
     console.groupEnd();
-    
+
     // Test last 7 days
     console.group('📅 Testing "Last 7 days" filter');
     const last7Days = this.getUTCDateRangeForDays(6);
-    console.log('Local range selected: Last 7 days (including today)');
-    console.log('UTC range for backend:', last7Days);
-    console.log('Range covers:', {
+    console.log("Local range selected: Last 7 days (including today)");
+    console.log("UTC range for backend:", last7Days);
+    console.log("Range covers:", {
       start: new Date(last7Days.startDate).toString(),
-      end: new Date(last7Days.endDate).toString()
+      end: new Date(last7Days.endDate).toString(),
     });
     console.groupEnd();
-    
+
     // Test with your CDMX example
-    console.group('🇲🇽 CDMX Example Test');
-    console.log('Scenario: User registered advance on 10-sep-2025 at 18:46 CDMX time');
-    console.log('Backend stored it as: 2025-09-11T00:46:00Z');
-    console.log('');
-    
+    console.group("🇲🇽 CDMX Example Test");
+    console.log(
+      "Scenario: User registered advance on 10-sep-2025 at 18:46 CDMX time"
+    );
+    console.log("Backend stored it as: 2025-09-11T00:46:00Z");
+    console.log("");
+
     // Simulate what happens when user selects "today" (assuming today is 10-sep)
-    const mockToday = new Date('2025-09-10T12:00:00-05:00'); // Noon CDMX time
+    const mockToday = new Date("2025-09-10T12:00:00-05:00"); // Noon CDMX time
     const mockTodayRange = this.localDateToUTCRange(mockToday);
     console.log('When user selects "10-sep-2025" as today:');
-    console.log('UTC range sent to backend:', mockTodayRange);
-    console.log('Backend record: 2025-09-11T00:46:00Z');
-    console.log('Will match?', 
-      '2025-09-11T00:46:00Z' >= mockTodayRange.start &&
-      '2025-09-11T00:46:00Z' <= mockTodayRange.end ? '✅ YES' : '❌ NO'
+    console.log("UTC range sent to backend:", mockTodayRange);
+    console.log("Backend record: 2025-09-11T00:46:00Z");
+    console.log(
+      "Will match?",
+      "2025-09-11T00:46:00Z" >= mockTodayRange.start &&
+        "2025-09-11T00:46:00Z" <= mockTodayRange.end
+        ? "✅ YES"
+        : "❌ NO"
     );
     console.groupEnd();
-    
+
     console.groupEnd();
   }
 
@@ -456,14 +489,16 @@ export class DateUtils {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const offsetMinutes = now.getTimezoneOffset();
     const offsetHours = offsetMinutes / 60;
-    const offsetString = `UTC${offsetHours <= 0 ? '+' : '-'}${Math.abs(offsetHours)}`;
-    
+    const offsetString = `UTC${offsetHours <= 0 ? "+" : "-"}${Math.abs(
+      offsetHours
+    )}`;
+
     return {
       timezone,
       offsetMinutes,
       offsetHours,
       offsetString,
-      currentTime: now.toString()
+      currentTime: now.toString(),
     };
   }
 
@@ -471,43 +506,60 @@ export class DateUtils {
    * 🧪 Test timezone-aware date selection flow
    */
   static testDateSelectionFlow(selectedLocalDate: Date): void {
-    console.group('🧪 Testing Date Selection Flow');
-    
+    console.group("🧪 Testing Date Selection Flow");
+
     const deviceInfo = this.getDeviceTimezoneInfo();
-    console.log('📱 Device Timezone Info:', deviceInfo);
-    console.log('');
-    
-    console.group('📅 User Selection');
-    console.log('Selected date (local):', selectedLocalDate.toString());
-    console.log('Selected date (local date only):', selectedLocalDate.toDateString());
-    console.log('Year/Month/Date:', {
+    console.log("📱 Device Timezone Info:", deviceInfo);
+    console.log("");
+
+    console.group("📅 User Selection");
+    console.log("Selected date (local):", selectedLocalDate.toString());
+    console.log(
+      "Selected date (local date only):",
+      selectedLocalDate.toDateString()
+    );
+    console.log("Year/Month/Date:", {
       year: selectedLocalDate.getFullYear(),
       month: selectedLocalDate.getMonth() + 1,
-      date: selectedLocalDate.getDate()
+      date: selectedLocalDate.getDate(),
     });
     console.groupEnd();
-    
-    console.group('🔄 Conversion to UTC Range');
+
+    console.group("🔄 Conversion to UTC Range");
     const utcRange = this.localDateToUTCRange(selectedLocalDate);
-    console.log('UTC Range for backend:', utcRange);
-    console.log('Range covers (local times):');
-    console.log('  Start:', new Date(utcRange.start).toString());
-    console.log('  End:', new Date(utcRange.end).toString());
+    console.log("UTC Range for backend:", utcRange);
+    console.log("Range covers (local times):");
+    console.log("  Start:", new Date(utcRange.start).toString());
+    console.log("  End:", new Date(utcRange.end).toString());
     console.groupEnd();
-    
-    console.group('🖥️ Display Conversion');
-    const displayStart = this.formatUTCForDisplay(utcRange.start, 'dd MMM yyyy');
-    const displayEnd = this.formatUTCForDisplay(utcRange.end, 'dd MMM yyyy');
-    console.log('Display start date:', displayStart);
-    console.log('Display end date:', displayEnd);
-    console.log('Should show same date?', displayStart === displayEnd ? '✅' : '❌');
-    
+
+    console.group("🖥️ Display Conversion");
+    const displayStart = this.formatUTCForDisplay(
+      utcRange.start,
+      "dd MMM yyyy"
+    );
+    const displayEnd = this.formatUTCForDisplay(utcRange.end, "dd MMM yyyy");
+    console.log("Display start date:", displayStart);
+    console.log("Display end date:", displayEnd);
+    console.log(
+      "Should show same date?",
+      displayStart === displayEnd ? "✅" : "❌"
+    );
+
     // Test what display will show for the selected date
-    const selectedDateAsUTC = `${selectedLocalDate.getFullYear()}-${String(selectedLocalDate.getMonth() + 1).padStart(2, '0')}-${String(selectedLocalDate.getDate()).padStart(2, '0')}T12:00:00Z`;
-    const midDayDisplay = this.formatUTCForDisplay(selectedDateAsUTC, 'dd MMM yyyy');
-    console.log('Midday UTC display:', midDayDisplay);
+    const selectedDateAsUTC = `${selectedLocalDate.getFullYear()}-${String(
+      selectedLocalDate.getMonth() + 1
+    ).padStart(2, "0")}-${String(selectedLocalDate.getDate()).padStart(
+      2,
+      "0"
+    )}T12:00:00Z`;
+    const midDayDisplay = this.formatUTCForDisplay(
+      selectedDateAsUTC,
+      "dd MMM yyyy"
+    );
+    console.log("Midday UTC display:", midDayDisplay);
     console.groupEnd();
-    
+
     console.groupEnd();
   }
 
@@ -515,57 +567,70 @@ export class DateUtils {
    * 🧪 Test the display timezone conversion (interpreter function)
    */
   static testDisplayConversion(): void {
-    console.group('🧪 Testing Display Timezone Conversion (Frontend as Interpreter)');
-    
+    console.group(
+      "🧪 Testing Display Timezone Conversion (Frontend as Interpreter)"
+    );
+
     const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const deviceOffset = new Date().getTimezoneOffset();
-    
-    console.log('📱 Device Info:');
-    console.log('   Timezone:', deviceTimezone);
-    console.log('   UTC Offset:', deviceOffset, 'minutes');
-    console.log('   Current time:', new Date().toString());
-    console.log('');
-    
+
+    console.log("📱 Device Info:");
+    console.log("   Timezone:", deviceTimezone);
+    console.log("   UTC Offset:", deviceOffset, "minutes");
+    console.log("   Current time:", new Date().toString());
+    console.log("");
+
     // Test cases with different UTC timestamps
     const testCases = [
       {
-        name: 'Backend: 01-ago 05:00 UTC (midnight in CDMX)',
-        utc: '2025-08-01T05:00:00Z',
-        expectedCDMX: '01 ago 2025'
+        name: "Backend: 01-ago 05:00 UTC (midnight in CDMX)",
+        utc: "2025-08-01T05:00:00Z",
+        expectedCDMX: "01 ago 2025",
       },
       {
-        name: 'Backend: 31-jul 22:00 UTC (evening in CDMX)',
-        utc: '2025-07-31T22:00:00Z', 
-        expectedCDMX: '31 jul 2025'
+        name: "Backend: 31-jul 22:00 UTC (evening in CDMX)",
+        utc: "2025-07-31T22:00:00Z",
+        expectedCDMX: "31 jul 2025",
       },
       {
-        name: 'Your original example: 11-sep 00:46 UTC',
-        utc: '2025-09-11T00:46:00Z',
-        expectedCDMX: '10 sep 2025'
-      }
+        name: "Your original example: 11-sep 00:46 UTC",
+        utc: "2025-09-11T00:46:00Z",
+        expectedCDMX: "10 sep 2025",
+      },
     ];
-    
-    testCases.forEach(testCase => {
+
+    testCases.forEach((testCase) => {
       console.group(`🔍 ${testCase.name}`);
-      
+
       // Direct JavaScript parsing (what we now do)
       const directParsed = new Date(testCase.utc);
-      const directFormatted = format(directParsed, 'dd MMM yyyy', { locale: es });
-      
+      const directFormatted = format(directParsed, "dd MMM yyyy", {
+        locale: es,
+      });
+
       // Our function
-      const ourFormatted = this.formatUTCForDisplay(testCase.utc, 'dd MMM yyyy');
-      
-      console.log('UTC Input:', testCase.utc);
-      console.log('Direct JS conversion:', directParsed.toString());
-      console.log('Direct format result:', directFormatted);
-      console.log('Our function result:', ourFormatted);
-      console.log('Expected in CDMX:', testCase.expectedCDMX);
-      console.log('Match expected:', ourFormatted === testCase.expectedCDMX ? '✅' : '❌');
-      console.log('Functions match:', directFormatted === ourFormatted ? '✅' : '❌');
-      
+      const ourFormatted = this.formatUTCForDisplay(
+        testCase.utc,
+        "dd MMM yyyy"
+      );
+
+      console.log("UTC Input:", testCase.utc);
+      console.log("Direct JS conversion:", directParsed.toString());
+      console.log("Direct format result:", directFormatted);
+      console.log("Our function result:", ourFormatted);
+      console.log("Expected in CDMX:", testCase.expectedCDMX);
+      console.log(
+        "Match expected:",
+        ourFormatted === testCase.expectedCDMX ? "✅" : "❌"
+      );
+      console.log(
+        "Functions match:",
+        directFormatted === ourFormatted ? "✅" : "❌"
+      );
+
       console.groupEnd();
     });
-    
+
     console.groupEnd();
   }
 }
