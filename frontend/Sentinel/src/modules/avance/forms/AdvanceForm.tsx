@@ -24,13 +24,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigation } from "@react-navigation/native";
 import { useModal } from "../../modals/ModalContext";
 import { ModalEnum } from "../../modals/modalTypes";
-import {
-  useCatalogNameById,
-  useConceptDescriptionById,
-  useConceptUnitById,
-  usePartidaNameById,
-} from "../../../redux/selectors/avance/avanceFormDataSelectors";
 import { useAdvancesSubmission } from "../../../hooks/avance/useAdvancesSubmission";
+import { useAvanceBase } from "src/hooks/data/query/useAvanceQueries";
 
 interface AdvanceFormProps {
   constructionId: number;
@@ -45,7 +40,7 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
   const offlineSyncState = useAppSelector(selectOfflineSync);
   const navigation = useNavigation();
 
-  const { location, loading: loadingLocation } = useAdvanceLocation({
+  const { location, loading: isLoadingLocation } = useAdvanceLocation({
     requestPermissionOnMount: true,
   });
 
@@ -66,7 +61,7 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
   const {
     submitAdvanceWithPhotos,
     mutation: {
-      isPending: isSubmittingAdvance,
+      // isPending: isSubmittingAdvance,
       isSuccess: isAdvanceSubmitted,
       isError: isAdvanceSubmissionError,
     },
@@ -80,11 +75,29 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
   const selectedNotes = watch("notes");
   const selectedVolume = watch("quantity");
 
+  const {
+    data: catalogs,
+    isLoading: isLoadingCatalogs,
+    error: catalogsError,
+    isError: isCatalogsError,
+  } = useAvanceBase();
+
+  const findCatalogById = (id: number) => {
+    return catalogs?.find((catalog) => catalog.id === id);
+  };
+
   // Get names/descriptions for summary modal
-  const catalogName = useCatalogNameById(selectedCatalogId);
-  const partidaName = usePartidaNameById(selectedPartidaId);
-  const conceptDescription = useConceptDescriptionById(selectedConceptId);
-  const conceptUnit = useConceptUnitById(selectedConceptId);
+  const catalog = findCatalogById(selectedCatalogId);
+  const catalogName = catalog?.name || "";
+  const partida = catalog?.work_items.find(
+    (partida) => partida.id === selectedPartidaId,
+  );
+  const partidaName = partida?.name || "";
+  const concept = partida?.concepts.find(
+    (concept) => concept.id === selectedConceptId,
+  );
+  const conceptDescription = concept?.description || "";
+  const conceptUnit = concept?.unit || "";
 
   // Hook de fotos (debe ir después de definir partidaName y conceptDescription)
   const {
@@ -131,33 +144,11 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
         comments: data.notes ?? "",
         photos,
       });
-    } catch (error) {
-      console.error("Error in form submission:", error);
-      openModal(ModalEnum.AdvanceFailure);
-    }
-  };
 
-  useEffect(() => {
-    if (isSubmittingAdvance) {
-      openModal(ModalEnum.AdvancePending);
-    }
-  }, [isSubmittingAdvance]);
-
-  useEffect(() => {
-    if (isAdvanceSubmissionError) {
-      openModal(ModalEnum.AdvanceFailure);
-    }
-  }, [isAdvanceSubmissionError]);
-
-  useEffect(() => {
-    if (isAdvanceSubmitted) {
-      resetFormFields();
-      clearPhotos();
-
-      onSuccess?.();
-
-      openModal(ModalEnum.AdvanceSuccess, {
+      openModal(ModalEnum.AdvanceSent, {
         onRegisterAnother: () => {
+          resetFormFields();
+          clearPhotos();
           closeModal();
           scrollToTop();
         },
@@ -166,8 +157,16 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
           navigation.goBack();
         },
       });
+    } catch (error) {
+      console.error("Error in form submission:", error);
     }
-  }, [isAdvanceSubmitted]);
+  };
+
+  useEffect(() => {
+    if (isAdvanceSubmissionError) {
+      openModal(ModalEnum.AdvanceFailure);
+    }
+  }, [isAdvanceSubmissionError]);
 
   // Refs for scrolling to fields
   const scrollViewRef = useRef<ScrollView>(null);
@@ -188,12 +187,7 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
   };
 
   const handleConfirmSendModal = async () => {
-    const valid = await trigger();
-    if (valid) {
-      handleSubmit(onFormSubmit)();
-    } else {
-      scrollToTop();
-    }
+    handleSubmit(onFormSubmit)();
   };
 
   const handleSubmitForm = async () => {
@@ -259,7 +253,7 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
             style={styles.photoSection}
           />
           <AdvanceLocationSection
-            loading={loadingLocation}
+            loading={isLoadingLocation}
             location={
               location
                 ? {
@@ -274,8 +268,8 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
         </View>
 
         <SubmitButton
-          loading={isSubmittingAdvance}
-          disabled={isSubmittingAdvance}
+          loading={isLoadingCatalogs}
+          disabled={isLoadingCatalogs}
           onPress={handleSubmitForm}
         />
       </ScrollView>

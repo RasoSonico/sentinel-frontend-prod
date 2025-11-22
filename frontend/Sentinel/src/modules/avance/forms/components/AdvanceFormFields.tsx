@@ -14,18 +14,21 @@ import StatusSection from "../../components/StatusSection";
 import NotesInput from "../../components/NotesInput";
 import { AdvanceFormFieldsZod } from "../util/advanceFormValidation";
 import {
-  useFetchCatalogs,
-  useFetchConcepts,
-  useFetchPartidas,
   useCatalogsByConstruction,
   usePartidasByCatalog,
   useConceptsByWorkItem,
   useAssignedConstruction,
+  useAvanceBase,
 } from "src/hooks/data/query/useAvanceQueries";
 import { CatalogoItem } from "src/types/catalogo";
 import { DropdownItemType } from "src/components/ui/SearchableDropdown";
 import { ConceptoItem } from "src/types/concepto";
-import { Concept } from "src/types/entities";
+import {
+  AvanceBaseCatalog,
+  AvanceBaseConcept,
+  AvanceBaseWorkItem,
+  Concept,
+} from "src/types/entities";
 import { PartidaItem } from "src/types/partida";
 import { useDispatch } from "react-redux";
 import {
@@ -55,13 +58,10 @@ const AdvanceFormFields: React.FC<AdvanceFormFieldsProps> = ({
   watchFormValue,
 }) => {
   const dispatch = useDispatch();
-  
+
   // Get assigned construction for CONTRATISTA
-  const {
-    data: assignedConstruction,
-    isLoading: isLoadingConstruction,
-    error: constructionError,
-  } = useAssignedConstruction("CONTRATISTA");
+  const { data: assignedConstruction, isLoading: isLoadingConstruction } =
+    useAssignedConstruction("CONTRATISTA");
 
   // Watch form values for hierarchical loading
   const selectedCatalogId = watchFormValue("catalog");
@@ -69,45 +69,38 @@ const AdvanceFormFields: React.FC<AdvanceFormFieldsProps> = ({
   const selectedConceptId = watchFormValue("concept");
   const [unit, setUnit] = useState("");
 
-  // NEW HIERARCHICAL QUERIES
   const {
     data: catalogs,
     isLoading: isLoadingCatalogs,
     error: catalogsError,
     isError: isCatalogsError,
-  } = useCatalogsByConstruction(assignedConstruction?.id ? parseInt(assignedConstruction.id, 10) : null);
+  } = useAvanceBase();
 
-  const {
-    data: partidas,
-    isLoading: isLoadingPartidas,
-    error: partidasError,
-    isError: isPartidasError,
-  } = usePartidasByCatalog(selectedCatalogId || null);
-
-  const {
-    data: concepts,
-    isLoading: isLoadingConcepts,
-    error: conceptsError,
-    isError: isConceptsError,
-  } = useConceptsByWorkItem(selectedPartidaId || null);
+  const [partidas, setPartidas] = useState<AvanceBaseWorkItem[] | null>(null);
 
   useEffect(() => {
-    if (catalogs) {
-      dispatch(setCatalogsById(catalogs));
+    if (catalogs && selectedCatalogId) {
+      const foundCatalog = catalogs.find(
+        (catalog) => catalog.id === selectedCatalogId
+      );
+      setPartidas(foundCatalog ? foundCatalog.work_items : []);
+    } else {
+      setPartidas(null);
     }
-  }, [catalogs, dispatch]);
+  }, [catalogs, selectedCatalogId]);
+
+  const [concepts, setConcepts] = useState<AvanceBaseConcept[] | null>(null);
 
   useEffect(() => {
-    if (partidas) {
-      dispatch(setPartidasById(partidas));
+    if (partidas && selectedPartidaId) {
+      const foundPartida = partidas.find(
+        (partida) => partida.id === selectedPartidaId
+      );
+      setConcepts(foundPartida ? foundPartida.concepts : []);
+    } else {
+      setConcepts(null);
     }
-  }, [partidas, dispatch]);
-
-  useEffect(() => {
-    if (concepts) {
-      dispatch(setConceptsById(concepts));
-    }
-  }, [concepts, dispatch]);
+  }, [partidas, selectedPartidaId]);
 
   // Update unit when concept is selected
   useEffect(() => {
@@ -121,25 +114,27 @@ const AdvanceFormFields: React.FC<AdvanceFormFieldsProps> = ({
     }
   }, [concepts, selectedConceptId]);
 
-  const getCatalogsList = (catalogs: CatalogoItem[]): DropdownItemType[] =>
+  const getCatalogsList = (catalogs: AvanceBaseCatalog[]): DropdownItemType[] =>
     catalogs && catalogs.length > 0
-      ? catalogs.map((catalog: CatalogoItem) => ({
+      ? catalogs.map((catalog: AvanceBaseCatalog) => ({
           value: catalog.id,
           label: catalog.name,
         }))
       : [];
 
-  const getPartidasList = (partidas: PartidaItem[]): DropdownItemType[] =>
+  const getPartidasList = (
+    partidas: AvanceBaseWorkItem[]
+  ): DropdownItemType[] =>
     partidas && partidas.length > 0
-      ? partidas.map((partida: PartidaItem) => ({
+      ? partidas.map((partida: AvanceBaseWorkItem) => ({
           value: partida.id,
           label: partida.name,
         }))
       : [];
 
-  const getConceptsList = (concepts: ConceptoItem[]): DropdownItemType[] =>
+  const getConceptsList = (concepts: AvanceBaseConcept[]): DropdownItemType[] =>
     concepts && concepts.length > 0
-      ? concepts.map((concept: ConceptoItem) => ({
+      ? concepts.map((concept: AvanceBaseConcept) => ({
           value: concept.id,
           label: concept.description,
         }))
@@ -159,12 +154,17 @@ const AdvanceFormFields: React.FC<AdvanceFormFieldsProps> = ({
               onSelect={onCatalogSelect}
               error={errors.catalog?.message || catalogsError?.message}
               isLoading={isLoadingCatalogs || isLoadingConstruction}
-              loadingLabel={isLoadingConstruction ? "Cargando obra asignada..." : "Cargando Catálogos"}
+              loadingLabel={
+                isLoadingConstruction
+                  ? "Cargando obra asignada..."
+                  : "Cargando Catálogos"
+              }
               disabled={isCatalogsError || !assignedConstruction}
             />
           )}
         />
       </View>
+
       <View>
         <Controller
           control={control}
@@ -175,9 +175,9 @@ const AdvanceFormFields: React.FC<AdvanceFormFieldsProps> = ({
               items={getPartidasList(partidas || [])}
               selected={value}
               onSelect={onPartidaSelect}
-              error={errors.partida?.message || partidasError?.message}
-              disabled={!selectedCatalogId || isPartidasError}
-              isLoading={isLoadingPartidas}
+              error={errors.partida?.message}
+              disabled={!selectedCatalogId}
+              isLoading={isLoadingCatalogs}
               loadingLabel="Cargando Partidas"
             />
           )}
@@ -193,9 +193,9 @@ const AdvanceFormFields: React.FC<AdvanceFormFieldsProps> = ({
               items={getConceptsList(concepts || [])}
               selected={value}
               onSelect={onConceptSelect}
-              error={errors.concept?.message || conceptsError?.message}
-              disabled={!selectedPartidaId || isConceptsError}
-              isLoading={isLoadingConcepts}
+              error={errors.concept?.message}
+              disabled={!selectedPartidaId}
+              isLoading={isLoadingCatalogs}
               loadingLabel="Cargando Conceptos"
             />
           )}
