@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { createStackNavigator } from "@react-navigation/stack";
-import { Platform, Dimensions } from "react-native";
+import { Dimensions } from "react-native";
 import { AvanceStackParamList } from "../types";
 import AdvanceListScreen from "../../modules/avance/screens/AdvanceListScreen";
 import AdvanceRegistrationScreen from "../../modules/avance/screens/AdvanceRegistrationScreen";
 import { DesignTokens } from "../../styles/designTokens";
+import { useAvancePrefetch } from "src/hooks/data/query/useAvancePrefetch";
+import { useFocusEffect } from "@react-navigation/native";
 
 // HEADER UTILITIES
 const { width: screenWidth } = Dimensions.get("window");
@@ -13,6 +15,15 @@ const isTablet = screenWidth >= 768;
 const Stack = createStackNavigator<AvanceStackParamList>();
 
 export const AvanceNavigator: React.FC = () => {
+  const { prefetchAvance } = useAvancePrefetch();
+
+  // Prefetch when navigator mounts
+  useFocusEffect(
+    useCallback(() => {
+      prefetchAvance();
+    }, [prefetchAvance]),
+  );
+
   return (
     <Stack.Navigator
       initialRouteName="AvancesList"
