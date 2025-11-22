@@ -68,7 +68,7 @@ const LoginScreen: React.FC = () => {
 
       Alert.alert(
         "Error de Autenticación",
-        `Ocurrió un error durante el inicio de sesión: ${errorMessage}`
+        `Ocurrió un error durante el inicio de sesión: ${errorMessage}`,
       );
 
       dispatch(setError(errorMessage));

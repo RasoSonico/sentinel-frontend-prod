@@ -37,7 +37,7 @@ export const useAuth = () => {
         return azureAuth;
       default:
         console.debug(
-          `[useAuth] Unsupported auth provider: ${activeProvider}, defaulting to Azure`
+          `[useAuth] Unsupported auth provider: ${activeProvider}, defaulting to Azure`,
         );
         return azureAuth; // Default to Azure
     }
@@ -48,7 +48,7 @@ export const useAuth = () => {
     const tokenResponse = await provider.login();
 
     if (tokenResponse) {
-      console.log('[useAuth] login() successful');
+      console.log("[useAuth] login() successful");
       saveTokenResponse(tokenResponse);
       dispatch(setIsAuthenticated(true));
     }
@@ -59,7 +59,7 @@ export const useAuth = () => {
       dispatch(
         setCredentials({
           user: authUser,
-        })
+        }),
       );
     }
 
