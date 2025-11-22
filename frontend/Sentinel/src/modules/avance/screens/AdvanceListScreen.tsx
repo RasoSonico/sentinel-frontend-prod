@@ -30,6 +30,7 @@ import {
 } from "../../../hooks/data/query/useAvanceQueries";
 import styles from "../styles/AdvanceListScreen.styles";
 import { ColorUtils } from "../../../styles/designTokens";
+import { EnqueuedTransactionsList } from "src/components/ui/EnqueuedTransactionsList";
 
 type AdvanceListScreenNavigationProp = StackNavigationProp<
   AvanceStackParamList,
@@ -46,14 +47,8 @@ const AdvanceListScreen: React.FC = () => {
   >("all");
 
   // Hook para filtro de fecha
-  const {
-    dateFilter,
-    setDateFilter,
-    startDate,
-    endDate,
-    singleDate,
-    hasFilter: hasDateFilter,
-  } = useDateRangeFilter();
+  const { dateFilter, setDateFilter, startDate, endDate, singleDate } =
+    useDateRangeFilter();
 
   // Estados para el bottom sheet
   const [selectedAdvance, setSelectedAdvance] =
@@ -74,63 +69,82 @@ const AdvanceListScreen: React.FC = () => {
     isLoading: loadingCatalogs,
     error: catalogsError,
   } = useCatalogsByConstruction(
-    assignedConstruction?.id ? parseInt(assignedConstruction.id) : null
+    assignedConstruction?.id ? Number(assignedConstruction.id) : null
   );
 
   // Obtener el primer catálogo disponible
   const mainCatalog = catalogs?.[0];
 
-  // Preparar parámetros para query de avances con filtros combinados
-  const advanceParams = useMemo(() => {
-    const statusParam =
-      statusFilter !== "all"
-        ? (statusFilter.toUpperCase() as "PENDING" | "APPROVED" | "REJECTED")
-        : undefined;
-
-    return {
-      catalogId: mainCatalog?.id || null,
-      status: statusParam,
-      startDate,
-      endDate,
-      date: singleDate,
-      page: 1,
-      pageSize: 100,
-    };
-  }, [mainCatalog?.id, statusFilter, startDate, endDate, singleDate]);
-
   // Query para obtener avances con información detallada (detailed=true)
   const {
-    data: advancesData,
+    data: advancesByCatalog,
     isLoading: loadingAdvances,
     error: advancesError,
     refetch: refetchAdvances,
-  } = useAdvancesByCatalog({
-    ...advanceParams,
-    detailed: true,
-  });
+  } = useAdvancesByCatalog({ catalogId: mainCatalog?.id || null });
+
+  const filteredAdvancesByStatus = useMemo(() => {
+    if (!advancesByCatalog?.advances) return null;
+
+    let filteredAdvances = advancesByCatalog.advances;
+
+    // Filtrar por estado
+    if (statusFilter !== "all") {
+      filteredAdvances = filteredAdvances.filter((advance) => {
+        if (statusFilter === "pending") return advance.status === "PENDING";
+        if (statusFilter === "approved") return advance.status === "APPROVED";
+        if (statusFilter === "rejected") return advance.status === "REJECTED";
+        return true;
+      });
+    }
+
+    // Filtrar por rango de fechas
+    if (startDate && endDate) {
+      filteredAdvances = filteredAdvances.filter((advance) => {
+        const advanceDate = new Date(advance.date);
+        return (
+          advanceDate >= new Date(startDate) && advanceDate <= new Date(endDate)
+        );
+      });
+    } else if (singleDate) {
+      filteredAdvances = filteredAdvances.filter((advance) => {
+        const advanceDate = new Date(advance.date);
+        return (
+          advanceDate.getFullYear() === new Date(singleDate).getFullYear() &&
+          advanceDate.getMonth() === new Date(singleDate).getMonth() &&
+          advanceDate.getDate() === new Date(singleDate).getDate()
+        );
+      });
+    }
+
+    return {
+      ...advancesByCatalog,
+      advances: filteredAdvances,
+    };
+  }, [statusFilter, startDate, endDate, singleDate, advancesByCatalog]);
 
   // Calcular resumen localmente
   const localSummary = useMemo(() => {
-    if (!advancesData?.advances) return null;
+    if (!advancesByCatalog?.advances) return null;
 
-    const advances = advancesData.advances;
+    const advances = advancesByCatalog.advances;
     return {
       total_advances: advances.length,
       pending_advances: advances.filter((a) => a.status === "PENDING").length,
       approved_advances: advances.filter((a) => a.status === "APPROVED").length,
       rejected_advances: advances.filter((a) => a.status === "REJECTED").length,
     };
-  }, [advancesData?.advances]);
+  }, [advancesByCatalog?.advances]);
 
   // Obtener datos del estado global
   const offlineSyncState = useAppSelector(selectOfflineSync);
 
   // Effect para poblar el store con catálogos
-  useEffect(() => {
-    if (catalogs && catalogs.length > 0) {
-      dispatch(setCatalogsById(catalogs));
-    }
-  }, [catalogs, dispatch]);
+  // useEffect(() => {
+  //   if (catalogs && catalogs.length > 0) {
+  //     dispatch(setCatalogsById(catalogs));
+  //   }
+  // }, [catalogs, dispatch]);
 
   // Ya no necesitamos poblar el store con partidas/conceptos
   // La información viene directamente en los avances (detailed=true)
@@ -180,7 +194,7 @@ const AdvanceListScreen: React.FC = () => {
   // Cargar más avances (simplificado por ahora)
   const handleLoadMore = useCallback(() => {
     // TODO: Implementar paginación con useInfiniteQuery
-    console.log("Load more functionality - to be implemented");
+    // console.log("Load more functionality - to be implemented");
   }, []);
 
   // Manejar apertura del bottom sheet
@@ -570,6 +584,7 @@ const AdvanceListScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Indicador de modo offline */}
+      <EnqueuedTransactionsList />
       <View style={styles.indicatorContainer}>
         <OfflineIndicator
           isOffline={!offlineSyncState.isOnline}
@@ -587,7 +602,7 @@ const AdvanceListScreen: React.FC = () => {
       </View>
 
       <FlatList
-        data={advancesData?.advances || []}
+        data={filteredAdvancesByStatus?.advances || []}
         renderItem={renderAdvanceItem}
         keyExtractor={(item) =>
           item?.id?.toString() || Math.random().toString()
@@ -606,7 +621,7 @@ const AdvanceListScreen: React.FC = () => {
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.1}
         contentContainerStyle={
-          !advancesData?.advances?.length
+          !advancesByCatalog?.advances?.length
             ? styles.emptyListContent
             : styles.listContent
         }
