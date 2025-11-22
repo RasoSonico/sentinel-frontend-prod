@@ -66,20 +66,23 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <Text style={styles.sectionTitle}>{sectionTitle}</Text>
           <View style={styles.summaryBox}>
             <ScrollView>
-              {fields.map((field, index) => 
+              {fields.map((field, index) =>
                 field.value ? (
                   <React.Fragment key={index}>
                     <Text style={styles.summaryLabel}>{field.label}</Text>
                     <Text style={styles.summaryValue}>{field.value}</Text>
                   </React.Fragment>
-                ) : null
+                ) : null,
               )}
             </ScrollView>
           </View>
-          <View style={styles.checkboxContainer} onTouchEnd={() => setChecked(!checked)}>
+          <View
+            style={styles.checkboxContainer}
+            onTouchEnd={() => setChecked(!checked)}
+          >
             <Checkbox
               status={checked ? "checked" : "unchecked"}
-              color={DesignTokens.colors.executive.primary}
+              color={DesignTokens.colors.executive.secondary}
             />
             <Text style={styles.checkboxLabel}>{checkboxText}</Text>
           </View>
@@ -99,7 +102,11 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={{ fontSize: 22, color: DesignTokens.colors.neutral[400] }}>×</Text>
+            <Text
+              style={{ fontSize: 22, color: DesignTokens.colors.neutral[400] }}
+            >
+              ×
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

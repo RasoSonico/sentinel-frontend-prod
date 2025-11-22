@@ -1,12 +1,12 @@
 import React from "react";
 import { Modal, View, Text, TouchableOpacity, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import styles from "./styles/AdvanceSuccessModal.styles";
+import styles from "./styles/AdvanceSentModal.styles";
 import { BaseModalProps } from "../modalTypes";
 import { DesignTokens } from "../../../styles/designTokens";
 
 // Generic interface for reusability
-export interface SuccessModalProps extends BaseModalProps {
+export interface SentModalProps extends BaseModalProps {
   title?: string;
   subtitle?: string;
   primaryButtonText?: string;
@@ -16,16 +16,16 @@ export interface SuccessModalProps extends BaseModalProps {
 }
 
 // Backward compatibility interface
-export interface AdvanceSuccessModalProps extends BaseModalProps {
+export interface AdvanceSentModalProps extends BaseModalProps {
   onRegisterAnother: () => void;
   onGoHome: () => void;
   onClose: () => void;
 }
 
-// Generic SuccessModal component
-const SuccessModal: React.FC<SuccessModalProps> = ({
-  title = "¡Avance registrado!",
-  subtitle = "El avance ha sido registrado exitosamente.",
+// Generic SentModal component
+const SentModal: React.FC<SentModalProps> = ({
+  title = "Avance enviado",
+  subtitle = "El avance ha sido enviado.",
   primaryButtonText = "Registrar otro avance",
   secondaryButtonText = "Ir al inicio",
   onPrimaryAction,
@@ -39,7 +39,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
       <View style={styles.overlay}>
         <View style={[styles.modalContainer, { width }]}>
           <Ionicons
-            name="checkmark-circle"
+            name="information-circle"
             size={64}
             color={DesignTokens.colors.success[500]}
             style={styles.icon}
@@ -65,17 +65,13 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
 };
 
 // Backward compatibility wrapper for existing advance functionality
-const AdvanceSuccessModal: React.FC<AdvanceSuccessModalProps> = ({
+const AdvanceSentModal: React.FC<AdvanceSentModalProps> = ({
   onRegisterAnother,
   onGoHome,
   onClose,
 }) => {
   return (
-    <SuccessModal
-      title="¡Avance registrado!"
-      subtitle="El avance ha sido registrado exitosamente."
-      primaryButtonText="Registrar otro avance"
-      secondaryButtonText="Ir al inicio"
+    <SentModal
       onPrimaryAction={onRegisterAnother}
       onSecondaryAction={onGoHome}
       onClose={onClose}
@@ -83,5 +79,4 @@ const AdvanceSuccessModal: React.FC<AdvanceSuccessModalProps> = ({
   );
 };
 
-export default AdvanceSuccessModal;
-export { SuccessModal };
+export default AdvanceSentModal;

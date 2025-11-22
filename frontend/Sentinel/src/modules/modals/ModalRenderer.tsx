@@ -3,35 +3,50 @@ import { ModalEnum } from "./modalTypes";
 
 // Backward compatibility imports
 const AdvanceSuccessModal = React.lazy(
-  () => import("./components/AdvanceSuccessModal")
+  () => import("./components/AdvanceSuccessModal"),
+);
+const AdvanceSentModal = React.lazy(
+  () => import("./components/AdvanceSentModal"),
 );
 const AdvanceFailureModal = React.lazy(
-  () => import("./components/AdvanceFailureModal")
+  () => import("./components/AdvanceFailureModal"),
 );
 const AdvancePendingModal = React.lazy(
-  () => import("./components/AdvancePendingModal")
+  () => import("./components/AdvancePendingModal"),
 );
 const ConfirmSendModal = React.lazy(
-  () => import("./components/ConfirmSendModal")
+  () => import("./components/ConfirmSendModal"),
 );
 
 // Generic reusable modal imports
-const SuccessModal = React.lazy(
-  () => import("./components/AdvanceSuccessModal").then(module => ({ default: module.SuccessModal }))
+const SuccessModal = React.lazy(() =>
+  import("./components/AdvanceSuccessModal").then((module) => ({
+    default: module.SuccessModal,
+  })),
 );
-const FailureModal = React.lazy(
-  () => import("./components/AdvanceFailureModal").then(module => ({ default: module.FailureModal }))
+const SentModal = React.lazy(() =>
+  import("./components/AdvanceSentModal").then((module) => ({
+    default: module.AdvanceSentModal,
+  })),
 );
-const ConfirmModal = React.lazy(
-  () => import("./components/ConfirmSendModal").then(module => ({ default: module.ConfirmModal }))
+const FailureModal = React.lazy(() =>
+  import("./components/AdvanceFailureModal").then((module) => ({
+    default: module.FailureModal,
+  })),
+);
+const ConfirmModal = React.lazy(() =>
+  import("./components/ConfirmSendModal").then((module) => ({
+    default: module.ConfirmModal,
+  })),
 );
 const PendingModal = React.lazy(
-  () => import("./components/AdvancePendingModal")
+  () => import("./components/AdvancePendingModal"),
 );
 
 const MODAL_MAP = {
   // Backward compatibility
   [ModalEnum.AdvanceSuccess]: AdvanceSuccessModal,
+  [ModalEnum.AdvanceSent]: AdvanceSentModal,
   [ModalEnum.AdvancePending]: AdvancePendingModal,
   [ModalEnum.AdvanceFailure]: AdvanceFailureModal,
   [ModalEnum.ConfirmSend]: ConfirmSendModal,

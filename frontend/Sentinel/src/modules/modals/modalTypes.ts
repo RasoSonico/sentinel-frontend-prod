@@ -1,6 +1,7 @@
 export enum ModalEnum {
   AdvanceSuccess = "AdvanceSuccess",
-  AdvancePending = "AdvancePending", 
+  AdvanceSent = "AdvanceSent",
+  AdvancePending = "AdvancePending",
   AdvanceFailure = "AdvanceFailure",
   ConfirmSend = "ConfirmSend",
   // Generic reusable modals
@@ -13,6 +14,7 @@ export enum ModalEnum {
 export type ModalPropsMap = {
   // Backward compatibility for existing advance modals
   [ModalEnum.AdvanceSuccess]: import("./components/AdvanceSuccessModal").AdvanceSuccessModalProps;
+  [ModalEnum.AdvanceSent]: import("./components/AdvanceSentModal").AdvanceSentModalProps;
   [ModalEnum.AdvancePending]: import("./components/AdvancePendingModal").AdvancePendingModalProps;
   [ModalEnum.AdvanceFailure]: import("./components/AdvanceFailureModal").AdvanceFailureModalProps;
   [ModalEnum.ConfirmSend]: import("./components/ConfirmSendModal").ConfirmSendModalProps;

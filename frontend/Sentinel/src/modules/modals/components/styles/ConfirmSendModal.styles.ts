@@ -67,6 +67,9 @@ export default StyleSheet.create({
     color: DesignTokens.colors.neutral[500],
     marginBottom: DesignTokens.spacing.xs / 2,
   },
+  checkbox: {
+    borderColor: DesignTokens.colors.neutral[400],
+  },
   checkboxContainer: {
     flexDirection: "row",
     alignItems: "center",
