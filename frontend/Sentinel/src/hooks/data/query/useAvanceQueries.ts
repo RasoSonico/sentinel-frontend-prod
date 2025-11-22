@@ -1,8 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  getCatalogs,
-  getConcepts,
-  getPartidas,
   submitAdvance,
   updateAdvance,
   getAdvancesByCatalog,
@@ -10,45 +7,28 @@ import {
   getCatalogsByConstruction as getCatalogsByConstructionApi,
   getPartidasByCatalog,
   getConceptsByWorkItem,
+  getAvanceBase,
 } from "../api/avanceApi";
-import { AdvanceRegistration } from "src/types/entities";
 import { SubmitAdvance } from "src/types/avance";
+import { AVANCE_QUERY_KEYS } from "./avanceQueries.const";
 
-// DEPRECATED: Use useCatalogsByConstruction instead
-export const useFetchCatalogs = () =>
-  useQuery({
-    queryKey: ["catalogs"],
-    queryFn: getCatalogs,
-  });
+export const avanceBaseOptions = {
+  queryKey: [AVANCE_QUERY_KEYS.BASE],
+  queryFn: getAvanceBase,
+};
 
-// DEPRECATED: Use usePartidasByCatalog instead
-export const useFetchPartidas = () =>
-  useQuery({
-    queryKey: ["partidas"],
-    queryFn: getPartidas,
-  });
-
-// DEPRECATED: Use useConceptsByWorkItem instead
-export const useFetchConcepts = () =>
-  useQuery({
-    queryKey: ["concepts"],
-    queryFn: getConcepts,
-  });
-
-/**
- * NEW HIERARCHICAL QUERIES - Following correct user permissions flow
- */
+export const useAvanceBase = () => useQuery(avanceBaseOptions);
 
 /**
  * Query para obtener catálogos de la construcción asignada al usuario
  */
+export const catalogsByConstructionOptions = (constructionId: number) => ({
+  queryKey: [AVANCE_QUERY_KEYS.CATALOGS_BY_CONSTRUCTION, constructionId],
+  queryFn: () => getCatalogsByConstructionApi(constructionId),
+  enabled: !!constructionId,
+});
 export const useCatalogsByConstruction = (constructionId: number | null) =>
-  useQuery({
-    queryKey: ["catalogsByConstruction", constructionId],
-    queryFn: () => getCatalogsByConstructionApi(constructionId!),
-    enabled: !!constructionId,
-    staleTime: 10 * 60 * 1000, // 10 minutos
-  });
+  useQuery(catalogsByConstructionOptions(constructionId!));
 
 /**
  * Query para obtener partidas de un catálogo específico
@@ -58,7 +38,6 @@ export const usePartidasByCatalog = (catalogId: number | null) =>
     queryKey: ["partidasByCatalog", catalogId],
     queryFn: () => getPartidasByCatalog(catalogId!),
     enabled: !!catalogId,
-    staleTime: 10 * 60 * 1000, // 10 minutos
   });
 
 /**
@@ -69,7 +48,6 @@ export const useConceptsByWorkItem = (workItemId: number | null) =>
     queryKey: ["conceptsByWorkItem", workItemId],
     queryFn: () => getConceptsByWorkItem(workItemId!),
     enabled: !!workItemId,
-    staleTime: 10 * 60 * 1000, // 10 minutos
   });
 
 export const useSubmitAdvance = () =>
@@ -97,65 +75,46 @@ export const useUpdateAdvance = () =>
     }) => updateAdvance(advanceId, updates),
   });
 
-// Nuevas queries para AdvanceListScreen
-
 /**
  * Query para obtener la construcción asignada al usuario
  */
+export const assignedConstructionOptions = (role: string = "CONTRATISTA") => ({
+  queryKey: [AVANCE_QUERY_KEYS.ASSIGNED_CONSTRUCTION, role],
+  queryFn: () => getAssignedConstruction(role),
+});
 export const useAssignedConstruction = (role: string = "CONTRATISTA") =>
-  useQuery({
-    queryKey: ["assignedConstruction", role],
-    queryFn: () => getAssignedConstruction(role),
-    staleTime: 30 * 60 * 1000, // 30 minutos - datos que no cambian frecuentemente
-    gcTime: 60 * 60 * 1000, // 1 hora - mantener en caché más tiempo
-  });
-
+  useQuery(assignedConstructionOptions(role));
 
 /**
  * Query para obtener avances por catálogo con filtros
  */
-export const useAdvancesByCatalog = ({
+export const advancesByCatalogOptions = ({
   catalogId,
-  status,
-  startDate,
-  endDate,
-  date,
-  page = 1,
-  pageSize = 20,
   detailed = true,
-  ordering = "-date", // Por defecto: más recientes primero
 }: {
   catalogId: number | null;
-  status?: "PENDING" | "APPROVED" | "REJECTED";
-  startDate?: string; // YYYY-MM-DD
-  endDate?: string; // YYYY-MM-DD
-  date?: string; // YYYY-MM-DD (single date)
-  page?: number;
-  pageSize?: number;
   detailed?: boolean;
-  ordering?: string;
+}) => ({
+  queryKey: ["advancesByCatalog", catalogId, detailed, ,],
+  queryFn: () => {
+    return getAdvancesByCatalog({
+      catalogId: catalogId!,
+      detailed,
+    });
+  },
+  enabled: !!catalogId,
+});
+export const useAdvancesByCatalog = ({
+  catalogId,
+  detailed = true,
+}: {
+  catalogId: number | null;
+  detailed?: boolean;
 }) => {
-  return useQuery({
-    queryKey: ["advancesByCatalog", catalogId, status, startDate, endDate, date, page, pageSize, detailed, ordering],
-    queryFn: () => {
-      return getAdvancesByCatalog({ 
-        catalogId: catalogId!, 
-        status, 
-        startDate,
-        endDate,
-        date,
-        page, 
-        pageSize,
-        detailed,
-        ordering
-      });
-    },
-    enabled: !!catalogId,
-    staleTime: 2 * 60 * 1000, // 2 minutos para datos más frescos
-  });
+  return useQuery(
+    advancesByCatalogOptions({
+      catalogId,
+      detailed,
+    }),
+  );
 };
-
-
-// useConceptsByIds ya no es necesario con detailed=true
-// La información viene directamente en los avances
-

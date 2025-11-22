@@ -120,6 +120,7 @@ export interface EstimationDetail {
   created_at: string;
   updated_at: string;
 }
+
 export interface AdvanceRegistration {
   construction_id: string;
   concept_id: string;
@@ -228,4 +229,49 @@ export interface UserConstruction {
   user_details: UserDetails;
   role_details: UserRole;
   construction_details: Construction;
+}
+
+// Avance Base Concept
+export interface AvanceBaseConcept {
+  id: number;
+  description: string;
+  unit: string;
+  quantity: string;
+  price: string;
+  clasification: string;
+}
+
+// Avance Base Work Item
+export interface AvanceBaseWorkItem {
+  id: number;
+  name: string;
+  concepts: AvanceBaseConcept[];
+}
+
+// Avance Base Catalog
+export interface AvanceBaseCatalog {
+  id: number;
+  name: string;
+  construction_id: number;
+  construction_name: string;
+  work_items: AvanceBaseWorkItem[];
+}
+
+// Avance Base Meta
+export interface AvanceBaseMeta {
+  total_catalogs: number;
+  total_work_items: number;
+  total_concepts: number;
+  user_constructions: number[];
+  filters_applied: {
+    construction_id: number | null;
+    active_only: boolean;
+  };
+  generated_at: string;
+}
+
+// Avance Base Response
+export interface AvanceBaseResponse {
+  catalogs: AvanceBaseCatalog[];
+  meta: AvanceBaseMeta;
 }
