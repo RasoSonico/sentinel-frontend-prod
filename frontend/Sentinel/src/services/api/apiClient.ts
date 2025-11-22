@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as SecureStore from "expo-secure-store";
 import axios, {
   AxiosError,
   AxiosInstance,
@@ -8,6 +7,8 @@ import axios, {
 } from "axios";
 import { deleteToken, getTokenResponse } from "../../utils/auth";
 import { API_CONFIG, isDevelopment } from "./config";
+import { store } from "src/redux/store";
+import { clearCredentials } from "src/redux/slices/authSlice";
 
 // Interceptor to add token to requests - prioritizes SecureStore over AsyncStorage
 const addTokenToRequestsInterceptor = (client: AxiosInstance) =>
@@ -78,6 +79,7 @@ const responseHandlerInterceptor = (client: AxiosInstance) =>
           console.log("401 Unauthorized - clearing tokens");
           try {
             await deleteToken();
+            store.dispatch(clearCredentials());
           } catch (clearError: unknown) {
             console.error("Error clearing tokens:", clearError);
           }
