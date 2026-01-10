@@ -1,4 +1,9 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  queryOptions,
+  skipToken,
+  useMutation,
+  useQuery,
+} from "@tanstack/react-query";
 import {
   submitAdvance,
   updateAdvance,
@@ -12,23 +17,27 @@ import {
 import { SubmitAdvance } from "src/types/avance";
 import { AVANCE_QUERY_KEYS } from "./avanceQueries.const";
 
-export const avanceBaseOptions = {
+export const avanceBaseOptions = queryOptions({
   queryKey: [AVANCE_QUERY_KEYS.BASE],
   queryFn: getAvanceBase,
-};
+});
 
 export const useAvanceBase = () => useQuery(avanceBaseOptions);
 
 /**
  * Query para obtener catálogos de la construcción asignada al usuario
  */
-export const catalogsByConstructionOptions = (constructionId: number) => ({
-  queryKey: [AVANCE_QUERY_KEYS.CATALOGS_BY_CONSTRUCTION, constructionId],
-  queryFn: () => getCatalogsByConstructionApi(constructionId),
-  enabled: !!constructionId,
-});
-export const useCatalogsByConstruction = (constructionId: number | null) =>
-  useQuery(catalogsByConstructionOptions(constructionId!));
+export const catalogsByConstructionOptions = (
+  constructionId: number | undefined,
+) =>
+  queryOptions({
+    queryKey: [AVANCE_QUERY_KEYS.CATALOGS_BY_CONSTRUCTION, constructionId],
+    queryFn: () => getCatalogsByConstructionApi(constructionId!),
+    enabled: !!constructionId,
+  });
+
+export const useCatalogsByConstruction = (constructionId: number | undefined) =>
+  useQuery(catalogsByConstructionOptions(constructionId));
 
 /**
  * Query para obtener partidas de un catálogo específico
@@ -78,10 +87,11 @@ export const useUpdateAdvance = () =>
 /**
  * Query para obtener la construcción asignada al usuario
  */
-export const assignedConstructionOptions = (role: string = "CONTRATISTA") => ({
-  queryKey: [AVANCE_QUERY_KEYS.ASSIGNED_CONSTRUCTION, role],
-  queryFn: () => getAssignedConstruction(role),
-});
+export const assignedConstructionOptions = (role: string = "CONTRATISTA") =>
+  queryOptions({
+    queryKey: [AVANCE_QUERY_KEYS.ASSIGNED_CONSTRUCTION, role],
+    queryFn: () => getAssignedConstruction(role),
+  });
 export const useAssignedConstruction = (role: string = "CONTRATISTA") =>
   useQuery(assignedConstructionOptions(role));
 
@@ -92,29 +102,29 @@ export const advancesByCatalogOptions = ({
   catalogId,
   detailed = true,
 }: {
-  catalogId: number | null;
+  catalogId: number | undefined;
   detailed?: boolean;
-}) => ({
-  queryKey: ["advancesByCatalog", catalogId, detailed, ,],
-  queryFn: () => {
-    return getAdvancesByCatalog({
-      catalogId: catalogId!,
-      detailed,
-    });
-  },
-  enabled: !!catalogId,
-});
+}) =>
+  queryOptions({
+    queryKey: [AVANCE_QUERY_KEYS.ADVANCES_BY_CATALOG, catalogId, detailed],
+    queryFn: () =>
+      getAdvancesByCatalog({
+        catalogId: catalogId!,
+        detailed,
+      }),
+    enabled: !!catalogId,
+  });
+
 export const useAdvancesByCatalog = ({
   catalogId,
   detailed = true,
 }: {
-  catalogId: number | null;
+  catalogId: number | undefined;
   detailed?: boolean;
-}) => {
-  return useQuery(
+}) =>
+  useQuery(
     advancesByCatalogOptions({
       catalogId,
       detailed,
     }),
   );
-};

@@ -2,7 +2,6 @@ import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import {
   AdvanceRegistration,
   Concept,
-  PhysicalAdvance,
   PhysicalAdvanceSummary,
   PhysicalAdvanceResponse,
 } from "../../../types/entities";
@@ -108,7 +107,7 @@ export const fetchAvailableConcepts = createAsyncThunk(
       page?: number;
       pageSize?: number;
     },
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
       return await advanceService.getAvailableConcepts(params.constructionId, {
@@ -121,10 +120,10 @@ export const fetchAvailableConcepts = createAsyncThunk(
       return rejectWithValue(
         error instanceof Error
           ? error.message
-          : "Error al obtener conceptos disponibles"
+          : "Error al obtener conceptos disponibles",
       );
     }
-  }
+  },
 );
 
 // Cargar avances registrados por catálogo
@@ -140,26 +139,23 @@ export const fetchAdvancesByConstruction = createAsyncThunk(
       page?: number;
       pageSize?: number;
     },
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
-      return await advanceService.getAdvancesByCatalog(
-        params.catalogId,
-        {
-          conceptId: params.conceptId,
-          startDate: params.startDate,
-          endDate: params.endDate,
-          status: params.status,
-          page: params.page,
-          pageSize: params.pageSize,
-        }
-      );
+      return await advanceService.getAdvancesByCatalog(params.catalogId, {
+        conceptId: params.conceptId,
+        startDate: params.startDate,
+        endDate: params.endDate,
+        status: params.status,
+        page: params.page,
+        pageSize: params.pageSize,
+      });
     } catch (error) {
       return rejectWithValue(
-        error instanceof Error ? error.message : "Error al obtener avances"
+        error instanceof Error ? error.message : "Error al obtener avances",
       );
     }
-  }
+  },
 );
 
 // Cargar resumen de avances (calcula desde lista existente)
@@ -172,7 +168,7 @@ export const fetchAdvanceSummary = createAsyncThunk(
       startDate?: string;
       endDate?: string;
     },
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
       // Primero obtenemos todos los avances del catálogo
@@ -184,33 +180,42 @@ export const fetchAdvanceSummary = createAsyncThunk(
           endDate: params.endDate,
           page: 1,
           pageSize: 1000, // Obtener todos para el resumen
-        }
+        },
       );
-      
+
       // Luego calculamos el resumen localmente
-      const summary = advanceService.calculateAdvanceSummary(advancesResponse.advances);
-      
+      const summary = advanceService.calculateAdvanceSummary(
+        advancesResponse.advances,
+      );
+
       return {
         ...summary,
         construction_id: params.catalogId.toString(),
         total_concepts: advancesResponse.advances.length,
-        completed_concepts: advancesResponse.advances.filter(a => a.status === "APPROVED").length,
-        physical_progress_percentage: advancesResponse.advances.length > 0 
-          ? (advancesResponse.advances.filter(a => a.status === "APPROVED").length / advancesResponse.advances.length) * 100 
-          : 0,
+        completed_concepts: advancesResponse.advances.filter(
+          (a) => a.status === "APPROVED",
+        ).length,
+        physical_progress_percentage:
+          advancesResponse.advances.length > 0
+            ? (advancesResponse.advances.filter((a) => a.status === "APPROVED")
+                .length /
+                advancesResponse.advances.length) *
+              100
+            : 0,
         financial_progress_percentage: 0, // Calculado separadamente si es necesario
-        last_advance_date: advancesResponse.advances.length > 0 
-          ? advancesResponse.advances[0].date 
-          : null,
+        last_advance_date:
+          advancesResponse.advances.length > 0
+            ? advancesResponse.advances[0].date
+            : null,
       } as PhysicalAdvanceSummary;
     } catch (error) {
       return rejectWithValue(
         error instanceof Error
           ? error.message
-          : "Error al obtener resumen de avances"
+          : "Error al obtener resumen de avances",
       );
     }
-  }
+  },
 );
 
 // Registrar avance
@@ -221,29 +226,31 @@ export const registerAdvance = createAsyncThunk(
       advance: AdvanceRegistration;
       photos: Photo[];
     },
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
       // Primero registramos el avance
       const registeredAdvance = await advanceService.registerAdvance(
-        params.advance
+        params.advance,
       );
 
       // Si hay fotos, las subimos asociadas al avance
       // NOTE: Photo upload is now handled by useAdvancesSubmission hook with React Query
       // This thunk is deprecated in favor of the new pattern
       if (params.photos.length > 0) {
-        console.warn("Photo upload via Redux thunk is deprecated. Use useAdvancesSubmission hook instead.");
+        console.warn(
+          "Photo upload via Redux thunk is deprecated. Use useAdvancesSubmission hook instead.",
+        );
         // Photo upload should be handled by usePhotoUpload hook
       }
 
       return registeredAdvance;
     } catch (error) {
       return rejectWithValue(
-        error instanceof Error ? error.message : "Error al registrar avance"
+        error instanceof Error ? error.message : "Error al registrar avance",
       );
     }
-  }
+  },
 );
 
 // Aprobar avance
@@ -254,19 +261,19 @@ export const approveAdvance = createAsyncThunk(
       advanceId: string;
       comments?: string;
     },
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
       return await advanceService.approveAdvance(
         params.advanceId,
-        params.comments
+        params.comments,
       );
     } catch (error) {
       return rejectWithValue(
-        error instanceof Error ? error.message : "Error al aprobar avance"
+        error instanceof Error ? error.message : "Error al aprobar avance",
       );
     }
-  }
+  },
 );
 
 // Rechazar avance
@@ -277,19 +284,19 @@ export const rejectAdvance = createAsyncThunk(
       advanceId: string;
       reason: string;
     },
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
       return await advanceService.rejectAdvance(
         params.advanceId,
-        params.reason
+        params.reason,
       );
     } catch (error) {
       return rejectWithValue(
-        error instanceof Error ? error.message : "Error al rechazar avance"
+        error instanceof Error ? error.message : "Error al rechazar avance",
       );
     }
-  }
+  },
 );
 
 // Slice
@@ -320,7 +327,7 @@ const advanceSlice = createSlice({
     // Establecer datos de avance actual
     setCurrentAdvanceData: (
       state,
-      action: PayloadAction<AdvanceRegistration | null>
+      action: PayloadAction<AdvanceRegistration | null>,
     ) => {
       state.currentAdvance.data = action.payload;
       state.currentAdvance.success = false;
@@ -340,7 +347,7 @@ const advanceSlice = createSlice({
     // Eliminar foto de avance actual
     removePhotoFromCurrentAdvance: (state, action: PayloadAction<string>) => {
       state.currentAdvance.photos = state.currentAdvance.photos.filter(
-        (photo) => photo.id !== action.payload
+        (photo) => photo.id !== action.payload,
       );
     },
 
@@ -439,14 +446,16 @@ const advanceSlice = createSlice({
       // approveAdvance returns PhysicalAdvance, but state has PhysicalAdvanceResponse[]
       // Convert the ID comparison properly
       state.advances.items = state.advances.items.map((item) =>
-        item.id.toString() === action.payload.id ? {
-          id: parseInt(action.payload.id),
-          concept: parseInt(action.payload.concept_id),
-          volume: action.payload.quantity.toString(),
-          date: new Date().toISOString().split('T')[0],
-          status: action.payload.status,
-          comments: action.payload.notes
-        } as PhysicalAdvanceResponse : item
+        item.id.toString() === action.payload.id
+          ? ({
+              id: parseInt(action.payload.id),
+              concept: parseInt(action.payload.concept_id),
+              volume: action.payload.quantity.toString(),
+              date: new Date().toISOString().split("T")[0],
+              status: action.payload.status,
+              comments: action.payload.notes,
+            } as PhysicalAdvanceResponse)
+          : item,
       );
     });
 
@@ -455,14 +464,16 @@ const advanceSlice = createSlice({
       // rejectAdvance returns PhysicalAdvance, but state has PhysicalAdvanceResponse[]
       // Convert the ID comparison properly
       state.advances.items = state.advances.items.map((item) =>
-        item.id.toString() === action.payload.id ? {
-          id: parseInt(action.payload.id),
-          concept: parseInt(action.payload.concept_id),
-          volume: action.payload.quantity.toString(),
-          date: new Date().toISOString().split('T')[0],
-          status: action.payload.status,
-          comments: action.payload.notes
-        } as PhysicalAdvanceResponse : item
+        item.id.toString() === action.payload.id
+          ? ({
+              id: parseInt(action.payload.id),
+              concept: parseInt(action.payload.concept_id),
+              volume: action.payload.quantity.toString(),
+              date: new Date().toISOString().split("T")[0],
+              status: action.payload.status,
+              comments: action.payload.notes,
+            } as PhysicalAdvanceResponse)
+          : item,
       );
     });
   },

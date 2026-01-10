@@ -4,6 +4,7 @@ import { usePhotoUpload, UploadResult } from "./usePhotoUpload";
 import { Photo } from "./usePhotoCapture";
 import { SubmitAdvance, SubmitAvanceResponse } from "../../types/avance";
 import { useAdvanceLocation } from "./useAdvanceLocation";
+import { AVANCE_QUERY_KEYS } from "../data/query/avanceQueries.const";
 
 export interface AdvanceSubmissionData {
   concept: number;
@@ -29,7 +30,7 @@ export const useAdvancesSubmission = ({
     mutationFn: async (data: AdvanceSubmissionData) => {
       if (loadingLocation || !location) {
         throw new Error(
-          "Datos de ubicación no disponibles, por favor intente de nuevo"
+          "Datos de ubicación no disponibles, por favor intente de nuevo",
         );
       }
       // Paso 1: Enviar datos del avance físico
@@ -49,11 +50,11 @@ export const useAdvancesSubmission = ({
       } catch (error: any) {
         console.log(
           "Error submitting advance:",
-          error.message || "Unknown error"
+          error.message || "Unknown error",
         );
         console.groupEnd();
         throw new Error(
-          "Error guardando avance físico, por favor intente de nuevo"
+          "Error guardando avance físico, por favor intente de nuevo",
         );
       }
 
@@ -66,18 +67,18 @@ export const useAdvancesSubmission = ({
           photoResult = await photoUpload.uploadPhotos(
             data.photos,
             advanceResponse.id,
-            location
+            location,
           );
           console.log(
             "Photos uploaded successfully:",
             photoResult.uploadedPhotos,
             "out of",
-            photoResult.totalPhotos
+            photoResult.totalPhotos,
           );
         } catch (error: any) {
           console.error(
             "Error uploading photos:",
-            error.message || "Unknown error"
+            error.message || "Unknown error",
           );
           console.groupEnd();
           return;
@@ -86,7 +87,7 @@ export const useAdvancesSubmission = ({
         if (!photoResult.success && photoResult.uploadedPhotos === 0) {
           console.log(
             "Advance submitted, but no photos uploaded due to errors",
-            photoResult.errors.join(", ")
+            photoResult.errors.join(", "),
           );
         }
       }
@@ -94,9 +95,9 @@ export const useAdvancesSubmission = ({
       // Paso 3: Invalidar queries para actualizar AdvanceListScreen
       console.log("Invalidating queries to refresh AdvanceListScreen...");
       await queryClient.invalidateQueries({
-        queryKey: ["advancesByCatalog"],
+        queryKey: [AVANCE_QUERY_KEYS.ADVANCES_BY_CATALOG],
       });
-      
+
       // Paso 4: Completado exitosamente
       console.log("Advance and photos submitted successfully");
       console.groupEnd();

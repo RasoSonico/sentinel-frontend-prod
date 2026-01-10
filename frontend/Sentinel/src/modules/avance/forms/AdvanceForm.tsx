@@ -222,7 +222,6 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
       >
         {/* Indicador de modo offline */}
         <OfflineIndicator
-          isOffline={!offlineSyncState.isOnline}
           pendingCount={offlineSyncState.pendingCount}
           isSyncing={offlineSyncState.isSyncing}
           lastSyncTime={

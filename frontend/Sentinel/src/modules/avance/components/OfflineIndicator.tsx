@@ -2,9 +2,9 @@ import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import styles from "./styles/OfflineIndicator.styles";
+import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
 
 interface OfflineIndicatorProps {
-  isOffline: boolean;
   pendingCount?: number;
   isSyncing?: boolean;
   lastSyncTime?: Date | null;
@@ -12,14 +12,14 @@ interface OfflineIndicatorProps {
 }
 
 const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
-  isOffline,
   pendingCount = 0,
   isSyncing = false,
   lastSyncTime = null,
   onSyncPress,
 }) => {
+  const isOnline = useNetworkStatus();
   // Si está online y no hay elementos pendientes, no mostrar
-  if (!isOffline && pendingCount === 0 && !isSyncing) {
+  if (isOnline && pendingCount === 0 && !isSyncing) {
     return null;
   }
 
@@ -56,26 +56,26 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
     <View
       style={[
         styles.container,
-        isOffline ? styles.offlineContainer : styles.onlineContainer,
+        !isOnline ? styles.offlineContainer : styles.onlineContainer,
       ]}
     >
       <View style={styles.infoContainer}>
         <Ionicons
-          name={isOffline ? "cloud-offline" : "cloud-upload"}
+          name={!isOnline ? "cloud-offline" : "cloud-upload"}
           size={18}
-          color={isOffline ? "#e74c3c" : "#3498db"}
+          color={!isOnline ? "#e74c3c" : "#3498db"}
           style={styles.icon}
         />
 
         <View>
           <Text style={styles.statusText}>
-            {isOffline
+            {!isOnline
               ? "Modo sin conexión"
               : isSyncing
-              ? "Sincronizando..."
-              : pendingCount > 0
-              ? `${pendingCount} pendientes de sincronizar`
-              : "Sincronizado"}
+                ? "Sincronizando..."
+                : pendingCount > 0
+                  ? `${pendingCount} pendientes de sincronizar`
+                  : "Sincronizado"}
           </Text>
 
           {lastSyncTime && (
@@ -86,7 +86,7 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
         </View>
       </View>
 
-      {!isOffline && pendingCount > 0 && !isSyncing && onSyncPress && (
+      {isOnline && pendingCount > 0 && !isSyncing && onSyncPress && (
         <TouchableOpacity
           style={styles.syncButton}
           onPress={onSyncPress}

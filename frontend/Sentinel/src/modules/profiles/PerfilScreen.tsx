@@ -33,8 +33,7 @@ const PerfilScreen = () => {
   const userEmail = useAppSelector(selectUserEmail) || "usuario@ejemplo.com";
 
   // Obtener construcción asignada con caché extendido
-  const { data: assignedConstruction, isLoading: loadingConstruction } =
-    useAssignedConstruction();
+  const { data: assignedConstruction } = useAssignedConstruction();
 
   // Generar iniciales para el avatar
   const userInitials = useMemo(() => {
@@ -101,7 +100,7 @@ const PerfilScreen = () => {
           },
         },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
@@ -179,7 +178,7 @@ const PerfilScreen = () => {
                       ? format(
                           new Date(assignedConstruction.start_date),
                           "dd MMM yyyy",
-                          { locale: es }
+                          { locale: es },
                         )
                       : "No definido"}
                   </Text>
@@ -192,7 +191,7 @@ const PerfilScreen = () => {
                       ? format(
                           new Date(assignedConstruction.end_date),
                           "dd MMM yyyy",
-                          { locale: es }
+                          { locale: es },
                         )
                       : "No definido"}
                   </Text>

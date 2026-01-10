@@ -39,7 +39,6 @@ type AdvanceListScreenNavigationProp = StackNavigationProp<
 
 const AdvanceListScreen: React.FC = () => {
   const navigation = useNavigation<AdvanceListScreenNavigationProp>();
-  const dispatch = useAppDispatch();
 
   // Estados para filtros y UI
   const [statusFilter, setStatusFilter] = useState<
@@ -69,7 +68,7 @@ const AdvanceListScreen: React.FC = () => {
     isLoading: loadingCatalogs,
     error: catalogsError,
   } = useCatalogsByConstruction(
-    assignedConstruction?.id ? Number(assignedConstruction.id) : null
+    assignedConstruction?.id ? Number(assignedConstruction.id) : undefined,
   );
 
   // Obtener el primer catálogo disponible
@@ -81,7 +80,7 @@ const AdvanceListScreen: React.FC = () => {
     isLoading: loadingAdvances,
     error: advancesError,
     refetch: refetchAdvances,
-  } = useAdvancesByCatalog({ catalogId: mainCatalog?.id || null });
+  } = useAdvancesByCatalog({ catalogId: mainCatalog?.id });
 
   const filteredAdvancesByStatus = useMemo(() => {
     if (!advancesByCatalog?.advances) return null;
@@ -172,7 +171,7 @@ const AdvanceListScreen: React.FC = () => {
       Alert.alert(
         "Error",
         "No tienes una obra asignada para registrar avances.",
-        [{ text: "Entendido", style: "default" }]
+        [{ text: "Entendido", style: "default" }],
       );
     }
   };
@@ -216,7 +215,7 @@ const AdvanceListScreen: React.FC = () => {
       refetchAdvances();
       setSelectedAdvance(updatedAdvance);
     },
-    [refetchAdvances]
+    [refetchAdvances],
   );
 
   // Componente para renderizar un elemento de avance
@@ -259,8 +258,8 @@ const AdvanceListScreen: React.FC = () => {
               item.status === "APPROVED"
                 ? styles.approvedChip
                 : item.status === "REJECTED"
-                ? styles.rejectedChip
-                : styles.pendingChip,
+                  ? styles.rejectedChip
+                  : styles.pendingChip,
             ]}
           >
             <Text
@@ -269,15 +268,15 @@ const AdvanceListScreen: React.FC = () => {
                 item.status === "APPROVED"
                   ? styles.approvedText
                   : item.status === "REJECTED"
-                  ? styles.rejectedText
-                  : styles.pendingText,
+                    ? styles.rejectedText
+                    : styles.pendingText,
               ]}
             >
               {item.status === "APPROVED"
                 ? "Aprobado"
                 : item.status === "REJECTED"
-                ? "Rechazado"
-                : "Pendiente"}
+                  ? "Rechazado"
+                  : "Pendiente"}
             </Text>
           </View>
         </View>

@@ -15,9 +15,9 @@ import { PersistGateLoader } from "src/components/ui/PersistGateLoader";
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Provider store={store}>
-        <PersistGate loading={<PersistGateLoader />} persistor={persistor}>
-          <QueryProvider>
+      <QueryProvider>
+        <Provider store={store}>
+          <PersistGate loading={<PersistGateLoader />} persistor={persistor}>
             <PaperProvider>
               <SafeAreaProvider>
                 <BottomSheetModalProvider>
@@ -28,9 +28,9 @@ export default function App() {
                 </BottomSheetModalProvider>
               </SafeAreaProvider>
             </PaperProvider>
-          </QueryProvider>
-        </PersistGate>
-      </Provider>
+          </PersistGate>
+        </Provider>
+      </QueryProvider>
     </GestureHandlerRootView>
   );
 }
