@@ -16,7 +16,7 @@ class AuthService {
         {
           email,
           password,
-        }
+        },
       );
 
       // Guardar token en AsyncStorage
