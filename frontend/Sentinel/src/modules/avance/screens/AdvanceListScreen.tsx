@@ -11,26 +11,22 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import { Ionicons } from "@expo/vector-icons";
-import { useFormattedDate } from "../../../hooks/ui/useDateFormatting";
-import ProgramStatusBadge from "../components/ProgramStatusBadge";
-import OfflineIndicator from "../components/OfflineIndicator";
 import AdvanceDetailBottomSheet from "../components/AdvanceDetailBottomSheet";
 import { DateRangeFilter } from "../../../components/ui/filters/DateRangeFilter";
 import { useDateRangeFilter } from "../../../hooks/ui/useDateRangeFilter";
 import { AvanceStackParamList } from "../../../navigation/types";
-import { useAppSelector, useAppDispatch } from "../../../redux/hooks";
-import { selectOfflineSync } from "../../../redux/slices/avance/advanceSlice";
-import { setCatalogsById } from "../../../redux/slices/avance/avanceFormDataSlice";
+import { Ionicons } from "@expo/vector-icons";
+import { useFormattedDate } from "../../../hooks/ui/useDateFormatting";
+import ProgramStatusBadge from "../components/ProgramStatusBadge";
+import OfflineIndicator from "../components/OfflineIndicator";
 import { PhysicalAdvanceResponse } from "../../../types/entities";
 import {
   useAssignedConstruction,
   useCatalogsByConstruction,
   useAdvancesByCatalog,
-} from "../../../hooks/data/query/useAvanceQueries";
+} from "../../../hooks/data/query/useAvance";
 import styles from "../styles/AdvanceListScreen.styles";
 import { ColorUtils } from "../../../styles/designTokens";
-import { EnqueuedTransactionsList } from "src/components/ui/EnqueuedTransactionsList";
 
 type AdvanceListScreenNavigationProp = StackNavigationProp<
   AvanceStackParamList,
@@ -57,7 +53,7 @@ const AdvanceListScreen: React.FC = () => {
   // Query para obtener la construcción asignada
   const {
     data: assignedConstruction,
-    isLoading: loadingConstruction,
+    isInitialLoading: loadingConstruction,
     error: constructionError,
     refetch: refetchConstruction,
   } = useAssignedConstruction();
@@ -85,11 +81,12 @@ const AdvanceListScreen: React.FC = () => {
   const filteredAdvancesByStatus = useMemo(() => {
     if (!advancesByCatalog?.advances) return null;
 
-    let filteredAdvances = advancesByCatalog.advances;
+    const { advances } = advancesByCatalog;
+    console.log("Total advances before filtering:", advances.length);
 
     // Filtrar por estado
     if (statusFilter !== "all") {
-      filteredAdvances = filteredAdvances.filter((advance) => {
+      return advances.filter((advance) => {
         if (statusFilter === "pending") return advance.status === "PENDING";
         if (statusFilter === "approved") return advance.status === "APPROVED";
         if (statusFilter === "rejected") return advance.status === "REJECTED";
@@ -99,14 +96,16 @@ const AdvanceListScreen: React.FC = () => {
 
     // Filtrar por rango de fechas
     if (startDate && endDate) {
-      filteredAdvances = filteredAdvances.filter((advance) => {
+      return advances.filter((advance) => {
         const advanceDate = new Date(advance.date);
         return (
           advanceDate >= new Date(startDate) && advanceDate <= new Date(endDate)
         );
       });
-    } else if (singleDate) {
-      filteredAdvances = filteredAdvances.filter((advance) => {
+    }
+
+    if (singleDate) {
+      return advances.filter((advance) => {
         const advanceDate = new Date(advance.date);
         return (
           advanceDate.getFullYear() === new Date(singleDate).getFullYear() &&
@@ -116,11 +115,8 @@ const AdvanceListScreen: React.FC = () => {
       });
     }
 
-    return {
-      ...advancesByCatalog,
-      advances: filteredAdvances,
-    };
-  }, [statusFilter, startDate, endDate, singleDate, advancesByCatalog]);
+    return advances;
+  }, [advancesByCatalog, statusFilter, startDate, endDate, singleDate]);
 
   // Calcular resumen localmente
   const localSummary = useMemo(() => {
@@ -134,19 +130,6 @@ const AdvanceListScreen: React.FC = () => {
       rejected_advances: advances.filter((a) => a.status === "REJECTED").length,
     };
   }, [advancesByCatalog?.advances]);
-
-  // Obtener datos del estado global
-  const offlineSyncState = useAppSelector(selectOfflineSync);
-
-  // Effect para poblar el store con catálogos
-  // useEffect(() => {
-  //   if (catalogs && catalogs.length > 0) {
-  //     dispatch(setCatalogsById(catalogs));
-  //   }
-  // }, [catalogs, dispatch]);
-
-  // Ya no necesitamos poblar el store con partidas/conceptos
-  // La información viene directamente en los avances (detailed=true)
 
   // Estados para refresh
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -582,26 +565,12 @@ const AdvanceListScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Indicador de modo offline */}
-      <EnqueuedTransactionsList />
       <View style={styles.indicatorContainer}>
-        <OfflineIndicator
-          isOffline={!offlineSyncState.isOnline}
-          pendingCount={offlineSyncState.pendingCount}
-          isSyncing={offlineSyncState.isSyncing}
-          lastSyncTime={
-            offlineSyncState.lastSyncTime
-              ? new Date(offlineSyncState.lastSyncTime)
-              : null
-          }
-          onSyncPress={() => {
-            // Implementar forzar sincronización
-          }}
-        />
+        <OfflineIndicator />
       </View>
 
       <FlatList
-        data={filteredAdvancesByStatus?.advances || []}
+        data={filteredAdvancesByStatus ?? []}
         renderItem={renderAdvanceItem}
         keyExtractor={(item) =>
           item?.id?.toString() || Math.random().toString()
