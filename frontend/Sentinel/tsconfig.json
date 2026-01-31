@@ -1,11 +1,17 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "jsx": "react",
     "strict": true,
-    "typeRoots": ["./src/types", "./node_modules/@types"],
+    "typeRoots": [
+      "./src/types",
+      "./node_modules/@types"
+    ],
     "baseUrl": ".",
     "paths": {
-      "@env": ["node_modules/react-native-dotenv"]
+      "@env": [
+        "node_modules/react-native-dotenv"
+      ]
     }
   }
 }
