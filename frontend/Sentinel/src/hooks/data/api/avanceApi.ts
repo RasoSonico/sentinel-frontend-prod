@@ -17,9 +17,7 @@ export const getAvanceBase = async () => {
     "get",
     endpoint,
     "Error al obtener bases del avance (partida, catalogo y concepto)",
-  ).then((response) => {
-    return response.catalogs ?? [];
-  });
+  );
 };
 
 /**

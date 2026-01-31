@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { View, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { useForm } from "react-hook-form";
-
 import OfflineIndicator from "../components/OfflineIndicator";
 import { useAdvancePhotoSync } from "../../../hooks/avance/useAdvancePhotoSync";
 import { useAdvanceLocation } from "../../../hooks/avance/useAdvanceLocation";
@@ -25,7 +24,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useModal } from "../../modals/ModalContext";
 import { ModalEnum } from "../../modals/modalTypes";
 import { useAdvancesSubmission } from "../../../hooks/avance/useAdvancesSubmission";
-import { useAvanceBase } from "src/hooks/data/query/useAvanceQueries";
+import { useAvanceBase } from "src/hooks/data/query/useAvance";
 
 interface AdvanceFormProps {
   constructionId: number;
@@ -61,11 +60,14 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
   const {
     submitAdvanceWithPhotos,
     mutation: {
-      // isPending: isSubmittingAdvance,
+      isPending: isSubmittingAdvance,
       isSuccess: isAdvanceSubmitted,
       isError: isAdvanceSubmissionError,
     },
   } = useAdvancesSubmission({ constructionId });
+
+  const { data: avanceBase, loading: isLoadingAvanceBase } = useAvanceBase();
+  const { catalogs } = avanceBase ?? {};
 
   // Watchers for dependent logic
   const selectedCatalogId = watch("catalog");
@@ -74,13 +76,6 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
   const isCompleted = watch("isCompleted");
   const selectedNotes = watch("notes");
   const selectedVolume = watch("quantity");
-
-  const {
-    data: catalogs,
-    isLoading: isLoadingCatalogs,
-    error: catalogsError,
-    isError: isCatalogsError,
-  } = useAvanceBase();
 
   const findCatalogById = (id: number) => {
     return catalogs?.find((catalog) => catalog.id === id);
@@ -162,11 +157,13 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
     }
   };
 
+  const { openModal, closeModal } = useModal();
+
   useEffect(() => {
     if (isAdvanceSubmissionError) {
       openModal(ModalEnum.AdvanceFailure);
     }
-  }, [isAdvanceSubmissionError]);
+  }, [isAdvanceSubmissionError, openModal]);
 
   // Refs for scrolling to fields
   const scrollViewRef = useRef<ScrollView>(null);
@@ -178,8 +175,6 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
       animated: true,
     });
   };
-
-  const { openModal, closeModal } = useModal();
 
   const handleEditConfirmSendModal = () => {
     closeModal();
@@ -239,7 +234,6 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
             onPartidaSelect={handlePartidaSelect}
             onConceptSelect={handleConceptSelect}
             setFormValue={setValue}
-            watchFormValue={watch}
           />
           <AdvancePhotoSection
             photos={photos}
@@ -267,8 +261,8 @@ const AdvanceForm: React.FC<AdvanceFormProps> = ({
         </View>
 
         <SubmitButton
-          loading={isLoadingCatalogs}
-          disabled={isLoadingCatalogs}
+          loading={isLoadingAvanceBase}
+          disabled={isLoadingAvanceBase}
           onPress={handleSubmitForm}
         />
       </ScrollView>
