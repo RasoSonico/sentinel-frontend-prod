@@ -149,7 +149,7 @@ export const logRealmVerification = (
 
 /**
  * Log hook state
- * Only shows detailed state in debug mode
+ * Only logs when debug mode is explicitly enabled to avoid performance issues
  */
 export const logHookState = (
   hookName: string,
@@ -161,10 +161,8 @@ export const logHookState = (
     queryState?: unknown;
   },
 ) => {
+  // Only log when debug mode is explicitly enabled
   if (!isDebugEnabled()) {
-    // In production, just log a simple summary
-    const status = state.hasCached ? "💾 Cached" : "🌐 Fetching";
-    console.log(`🎣 ${hookName}: ${status}`);
     return;
   }
 
@@ -202,16 +200,16 @@ export const logHookState = (
 
 /**
  * Log offline mode usage
+ * Only logs when debug mode is explicitly enabled
  */
 export const logOfflineMode = (entityName: string, cached: unknown) => {
-  if (isDebugEnabled()) {
-    console.log(
-      `📴 Network status: Offline | Using cached ${entityName}`,
-      cached,
-    );
-  } else {
-    console.log(`📴 Offline mode: Using cached ${entityName}`);
+  if (!isDebugEnabled()) {
+    return;
   }
+  console.log(
+    `📴 Network status: Offline | Using cached ${entityName}`,
+    cached,
+  );
 };
 
 /**

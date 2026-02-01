@@ -12,6 +12,8 @@ import { ModalProvider } from "src/modules/modals/ModalContext";
 import RealmProvider from "src/providers/RealmProvider";
 import QueryProvider from "src/providers/QueryProvider";
 import { PersistGateLoader } from "src/components/ui/PersistGateLoader";
+import { SnackbarProvider } from "src/providers/SnackbarProvider";
+import { SyncWorkerProvider } from "src/providers/SyncWorkerProvider";
 
 export default function App() {
   return (
@@ -21,14 +23,18 @@ export default function App() {
           <Provider store={store}>
             <PersistGate loading={<PersistGateLoader />} persistor={persistor}>
               <PaperProvider>
-                <SafeAreaProvider>
-                  <BottomSheetModalProvider>
-                    <ModalProvider>
-                      <StatusBar style="auto" />
-                      <RootNavigator />
-                    </ModalProvider>
-                  </BottomSheetModalProvider>
-                </SafeAreaProvider>
+                <SnackbarProvider>
+                  <SyncWorkerProvider>
+                    <SafeAreaProvider>
+                      <BottomSheetModalProvider>
+                        <ModalProvider>
+                          <StatusBar style="auto" />
+                          <RootNavigator />
+                        </ModalProvider>
+                      </BottomSheetModalProvider>
+                    </SafeAreaProvider>
+                  </SyncWorkerProvider>
+                </SnackbarProvider>
               </PaperProvider>
             </PersistGate>
           </Provider>

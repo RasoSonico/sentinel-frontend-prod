@@ -25,6 +25,7 @@ export type AppTabParamList = {
   Estatus: undefined;
   Problematicas: undefined;
   Financiero: undefined;
+  Cola: undefined;
 };
 
 // Parámetros para el navegador de Obras

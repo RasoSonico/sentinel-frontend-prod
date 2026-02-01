@@ -6,20 +6,24 @@ import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
 
 interface OfflineIndicatorProps {
   pendingCount?: number;
+  failedCount?: number;
   isSyncing?: boolean;
   lastSyncTime?: Date | null;
   onSyncPress?: () => void;
+  onViewQueuePress?: () => void;
 }
 
 const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   pendingCount = 0,
+  failedCount = 0,
   isSyncing = false,
   lastSyncTime = null,
   onSyncPress,
+  onViewQueuePress,
 }) => {
   const isOnline = useNetworkStatus();
-  // Si está online y no hay elementos pendientes, no mostrar
-  if (isOnline && pendingCount === 0 && !isSyncing) {
+  // Si está online y no hay elementos pendientes ni fallidos, no mostrar
+  if (isOnline && pendingCount === 0 && failedCount === 0 && !isSyncing) {
     return null;
   }
 
@@ -52,18 +56,24 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
     return `Hace ${days} ${days === 1 ? "día" : "días"}`;
   };
 
+  const hasErrors = failedCount > 0;
+
   return (
     <View
       style={[
         styles.container,
-        !isOnline ? styles.offlineContainer : styles.onlineContainer,
+        !isOnline
+          ? styles.offlineContainer
+          : hasErrors
+            ? styles.errorContainer
+            : styles.onlineContainer,
       ]}
     >
       <View style={styles.infoContainer}>
         <Ionicons
-          name={!isOnline ? "cloud-offline" : "cloud-upload"}
+          name={!isOnline ? "cloud-offline" : hasErrors ? "alert-circle" : "cloud-upload"}
           size={18}
-          color={!isOnline ? "#e74c3c" : "#3498db"}
+          color={!isOnline ? "#e74c3c" : hasErrors ? "#e74c3c" : "#3498db"}
           style={styles.icon}
         />
 
@@ -73,9 +83,11 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
               ? "Modo sin conexión"
               : isSyncing
                 ? "Sincronizando..."
-                : pendingCount > 0
-                  ? `${pendingCount} pendientes de sincronizar`
-                  : "Sincronizado"}
+                : failedCount > 0
+                  ? `${failedCount} fallido${failedCount > 1 ? "s" : ""}${pendingCount > 0 ? `, ${pendingCount} pendiente${pendingCount > 1 ? "s" : ""}` : ""}`
+                  : pendingCount > 0
+                    ? `${pendingCount} pendiente${pendingCount > 1 ? "s" : ""} de sincronizar`
+                    : "Sincronizado"}
           </Text>
 
           {lastSyncTime && (
@@ -94,6 +106,16 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
         >
           <Ionicons name="refresh" size={16} color="#fff" />
           <Text style={styles.syncButtonText}>Sincronizar</Text>
+        </TouchableOpacity>
+      )}
+
+      {hasErrors && onViewQueuePress && (
+        <TouchableOpacity
+          style={[styles.syncButton, styles.viewQueueButton]}
+          onPress={onViewQueuePress}
+        >
+          <Ionicons name="list" size={16} color="#fff" />
+          <Text style={styles.syncButtonText}>Ver cola</Text>
         </TouchableOpacity>
       )}
     </View>

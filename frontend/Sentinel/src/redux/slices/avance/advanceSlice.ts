@@ -50,6 +50,8 @@ interface AdvanceState {
   // Estado de sincronización offline
   offlineSync: {
     pendingCount: number;
+    failedCount: number;
+    syncingItemId: string | null;
     lastSyncTime: number | null;
     isSyncing: boolean;
     isOnline: boolean;
@@ -88,6 +90,8 @@ const initialState: AdvanceState = {
   },
   offlineSync: {
     pendingCount: 0,
+    failedCount: 0,
+    syncingItemId: null,
     lastSyncTime: null,
     isSyncing: false,
     isOnline: true,
@@ -319,6 +323,16 @@ const advanceSlice = createSlice({
       state.offlineSync.pendingCount = action.payload;
     },
 
+    // Actualizar contador de elementos fallidos
+    updateFailedCount: (state, action: PayloadAction<number>) => {
+      state.offlineSync.failedCount = action.payload;
+    },
+
+    // Establecer ID del elemento sincronizando actualmente
+    setSyncingItemId: (state, action: PayloadAction<string | null>) => {
+      state.offlineSync.syncingItemId = action.payload;
+    },
+
     // Actualizar tiempo de última sincronización
     updateLastSyncTime: (state, action: PayloadAction<number>) => {
       state.offlineSync.lastSyncTime = action.payload;
@@ -484,6 +498,8 @@ export const {
   setOnlineStatus,
   setSyncingStatus,
   updatePendingCount,
+  updateFailedCount,
+  setSyncingItemId,
   updateLastSyncTime,
   setCurrentAdvanceData,
   setCurrentAdvancePhotos,
