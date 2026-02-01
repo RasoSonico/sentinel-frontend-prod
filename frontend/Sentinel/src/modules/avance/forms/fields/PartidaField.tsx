@@ -6,7 +6,11 @@ import { AdvanceFormFieldsZod } from "../util/advanceFormValidation";
 import { useAdvanceFormContext } from "../context/AdvanceFormContext";
 
 export function PartidaField() {
-  const { control, setValue, formState: { errors } } = useFormContext<AdvanceFormFieldsZod>();
+  const {
+    control,
+    setValue,
+    formState: { errors },
+  } = useFormContext<AdvanceFormFieldsZod>();
   const { catalogs, isLoadingAvanceBase } = useAdvanceFormContext();
 
   const catalogId = useWatch({ control, name: "catalog" });
@@ -41,6 +45,7 @@ export function PartidaField() {
         name="partida"
         render={({ field: { value, onChange } }) => (
           <LabeledDropdown
+            quickSelect
             label="Partida"
             items={workItemOptions}
             selected={value}

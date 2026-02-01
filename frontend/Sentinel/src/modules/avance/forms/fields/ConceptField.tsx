@@ -50,6 +50,7 @@ export function ConceptField() {
             disabled={!partidaId}
             isLoading={isLoadingAvanceBase}
             loadingLabel="Cargando Conceptos"
+            maxDisplayLines={2}
           />
         )}
       />

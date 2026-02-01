@@ -42,6 +42,12 @@ const ConfirmModal = React.lazy(() =>
 const PendingModal = React.lazy(
   () => import("./components/AdvancePendingModal"),
 );
+const InfoDetailModal = React.lazy(
+  () => import("./components/InfoDetailModal"),
+);
+const SearchablePickerModal = React.lazy(
+  () => import("./components/SearchablePickerModal"),
+);
 
 const MODAL_MAP = {
   // Backward compatibility
@@ -55,6 +61,8 @@ const MODAL_MAP = {
   [ModalEnum.Failure]: FailureModal,
   [ModalEnum.Confirm]: ConfirmModal,
   [ModalEnum.Pending]: PendingModal,
+  [ModalEnum.InfoDetail]: InfoDetailModal,
+  [ModalEnum.SearchablePicker]: SearchablePickerModal,
 };
 
 export default function ModalRenderer({
