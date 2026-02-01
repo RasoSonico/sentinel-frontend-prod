@@ -1,5 +1,8 @@
 import * as SecureStore from "expo-secure-store";
 import { refreshAsync, TokenResponse } from "expo-auth-session";
+import { store } from "src/redux/store";
+import { clearCredentials } from "src/redux/slices/authSlice";
+import { queryClient } from "src/providers/QueryProvider";
 
 const STORAGE_KEY = "auth-token";
 
@@ -61,4 +64,29 @@ export async function maybeRefreshToken(
   console.log("Token refresh failed.");
   console.groupEnd();
   return null;
+}
+
+/**
+ * Force logout the user from anywhere in the app.
+ * This clears tokens, Redux state, and React Query cache.
+ * Use this when receiving 401 Unauthorized responses.
+ */
+export async function forceLogout(): Promise<void> {
+  console.log("[Auth] Force logout - clearing all auth state");
+
+  try {
+    // Clear token from SecureStore
+    await deleteToken();
+
+    // Clear Redux auth state
+    store.dispatch(clearCredentials());
+
+    // Invalidate auth-related queries
+    queryClient.invalidateQueries({ queryKey: ["authMe"] });
+
+    // Clear all query cache to prevent stale authenticated data
+    queryClient.clear();
+  } catch (error) {
+    console.error("[Auth] Error during force logout:", error);
+  }
 }

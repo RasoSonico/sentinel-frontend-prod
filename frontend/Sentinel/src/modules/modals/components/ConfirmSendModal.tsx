@@ -37,6 +37,7 @@ export interface ConfirmSendModalProps extends BaseModalProps {
     unit: string;
     notes: string;
   };
+  photoCount?: number;
 }
 
 // Generic ConfirmModal component
@@ -120,6 +121,7 @@ const ConfirmSendModal: React.FC<ConfirmSendModalProps> = ({
   onConfirm,
   onClose,
   summary,
+  photoCount = 0,
 }) => {
   const fields = [
     { label: "Catalogo", value: summary.catalog },
@@ -127,6 +129,10 @@ const ConfirmSendModal: React.FC<ConfirmSendModalProps> = ({
     { label: "Concepto", value: summary.concept },
     { label: "Volumen", value: `${summary.volume} ${summary.unit}` },
     { label: "Notas", value: summary.notes },
+    {
+      label: "Fotos",
+      value: photoCount > 0 ? `${photoCount} foto${photoCount > 1 ? "s" : ""} adjunta${photoCount > 1 ? "s" : ""}` : "",
+    },
   ];
 
   return (

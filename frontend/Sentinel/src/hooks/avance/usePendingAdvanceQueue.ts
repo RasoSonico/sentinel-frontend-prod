@@ -1,9 +1,11 @@
 import { useCallback, useMemo } from "react";
 import { useRealm, useQuery } from "@realm/react";
+import * as FileSystem from "expo-file-system";
 import {
   PendingAdvanceSubmission,
   PendingAdvanceStatus,
 } from "src/realm/pendingAdvance/PendingAdvanceSubmission";
+import { PendingPhotoSubmission } from "src/realm/pendingAdvance/PendingPhotoSubmission";
 import { uuid } from "expo-modules-core";
 
 export interface PendingAdvanceInput {
@@ -26,21 +28,22 @@ export function usePendingAdvanceQueue() {
 
   // Reactive queries for all items
   const allItems = useQuery(PendingAdvanceSubmission);
+  const allPhotos = useQuery(PendingPhotoSubmission);
 
   // Filtered queries
   const pendingItems = useMemo(
     () => allItems.filtered('status == "pending"'),
-    [allItems],
+    [allItems]
   );
 
   const syncingItems = useMemo(
     () => allItems.filtered('status == "syncing"'),
-    [allItems],
+    [allItems]
   );
 
   const failedItems = useMemo(
     () => allItems.filtered('status == "failed"'),
-    [allItems],
+    [allItems]
   );
 
   // Counts
@@ -72,11 +75,12 @@ export function usePendingAdvanceQueue() {
 
       return _id;
     },
-    [realm],
+    [realm]
   );
 
   /**
-   * Remove an item from the queue
+   * Remove an item from the queue (does NOT cascade delete photos)
+   * Use removeFromQueueWithPhotos for cascade delete
    */
   const removeFromQueue = useCallback(
     (id: string): boolean => {
@@ -89,7 +93,56 @@ export function usePendingAdvanceQueue() {
 
       return true;
     },
-    [realm],
+    [realm]
+  );
+
+  /**
+   * Remove an item from the queue AND cascade delete associated photos
+   * Also deletes local photo files
+   */
+  const removeFromQueueWithPhotos = useCallback(
+    async (id: string, deleteFiles: boolean = true): Promise<boolean> => {
+      const item = realm.objectForPrimaryKey(PendingAdvanceSubmission, id);
+      if (!item) return false;
+
+      // Find associated photos
+      const photosToDelete = allPhotos.filtered("advanceLocalId == $0", id);
+
+      // Collect URIs before deleting from Realm
+      const localUris = deleteFiles
+        ? [...photosToDelete].map((p) => p.localUri)
+        : [];
+
+      realm.write(() => {
+        // Delete photos first
+        if (photosToDelete.length > 0) {
+          realm.delete(photosToDelete);
+        }
+        // Delete advance
+        realm.delete(item);
+      });
+
+      // Delete local files if requested
+      if (deleteFiles) {
+        for (const uri of localUris) {
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(uri);
+            if (fileInfo.exists) {
+              await FileSystem.deleteAsync(uri, { idempotent: true });
+            }
+          } catch (error) {
+            console.warn("[AdvanceQueue] Error deleting photo file:", error);
+          }
+        }
+      }
+
+      console.log(
+        `[AdvanceQueue] Removed advance ${id} with ${localUris.length} photos`
+      );
+
+      return true;
+    },
+    [realm, allPhotos]
   );
 
   /**
@@ -107,7 +160,7 @@ export function usePendingAdvanceQueue() {
 
       return true;
     },
-    [realm],
+    [realm]
   );
 
   /**
@@ -127,7 +180,7 @@ export function usePendingAdvanceQueue() {
 
       return true;
     },
-    [realm],
+    [realm]
   );
 
   /**
@@ -146,7 +199,7 @@ export function usePendingAdvanceQueue() {
 
       return true;
     },
-    [realm],
+    [realm]
   );
 
   /**
@@ -165,7 +218,7 @@ export function usePendingAdvanceQueue() {
 
       return newCount;
     },
-    [realm],
+    [realm]
   );
 
   /**
@@ -188,20 +241,47 @@ export function usePendingAdvanceQueue() {
   }, [realm, allItems]);
 
   /**
-   * Clear all failed items from the queue
+   * Clear all failed items from the queue (with cascade photo delete)
    */
-  const clearAllFailed = useCallback((): number => {
+  const clearAllFailed = useCallback(async (): Promise<number> => {
     const failed = allItems.filtered('status == "failed"');
     const count = failed.length;
 
-    if (count > 0) {
-      realm.write(() => {
-        realm.delete(failed);
-      });
+    if (count === 0) return 0;
+
+    // Collect all advance IDs
+    const advanceIds = [...failed].map((item) => item._id);
+
+    // Find all photos for these advances
+    const photosToDelete = allPhotos.filtered(
+      advanceIds.map((_, i) => `advanceLocalId == $${i}`).join(" OR "),
+      ...advanceIds
+    );
+
+    // Collect URIs before deleting
+    const localUris = [...photosToDelete].map((p) => p.localUri);
+
+    realm.write(() => {
+      if (photosToDelete.length > 0) {
+        realm.delete(photosToDelete);
+      }
+      realm.delete(failed);
+    });
+
+    // Delete local files
+    for (const uri of localUris) {
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(uri);
+        if (fileInfo.exists) {
+          await FileSystem.deleteAsync(uri, { idempotent: true });
+        }
+      } catch (error) {
+        console.warn("[AdvanceQueue] Error deleting photo file:", error);
+      }
     }
 
     return count;
-  }, [realm, allItems]);
+  }, [realm, allItems, allPhotos]);
 
   /**
    * Get a single item by ID
@@ -210,7 +290,17 @@ export function usePendingAdvanceQueue() {
     (id: string): PendingAdvanceSubmission | null => {
       return realm.objectForPrimaryKey(PendingAdvanceSubmission, id);
     },
-    [realm],
+    [realm]
+  );
+
+  /**
+   * Get photo count for an advance
+   */
+  const getPhotoCountForAdvance = useCallback(
+    (advanceId: string): number => {
+      return allPhotos.filtered("advanceLocalId == $0", advanceId).length;
+    },
+    [allPhotos]
   );
 
   return {
@@ -229,6 +319,7 @@ export function usePendingAdvanceQueue() {
     // Write operations
     addToQueue,
     removeFromQueue,
+    removeFromQueueWithPhotos,
     markAsSyncing,
     markAsFailed,
     markAsPending,
@@ -238,5 +329,6 @@ export function usePendingAdvanceQueue() {
 
     // Read operations
     getItemById,
+    getPhotoCountForAdvance,
   };
 }

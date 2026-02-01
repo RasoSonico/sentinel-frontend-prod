@@ -7,6 +7,11 @@ import { useAdvanceFormContext } from "../context/AdvanceFormContext";
 import { useAdvanceSubmit } from "../hooks/useAdvanceSubmit";
 import { useModal } from "src/modules/modals/ModalContext";
 import { ModalEnum } from "src/modules/modals/modalTypes";
+import { useAppSelector, useAppDispatch } from "src/redux/hooks";
+import {
+  selectCurrentAdvance,
+  clearCurrentAdvance,
+} from "src/redux/slices/avance/advanceSlice";
 
 interface SubmitSectionProps {
   scrollViewRef: React.RefObject<ScrollView | null>;
@@ -17,6 +22,10 @@ export function SubmitSection({ scrollViewRef }: SubmitSectionProps) {
   const { isLoadingAvanceBase } = useAdvanceFormContext();
   const { onFormSubmit, getSummary, isAdding } = useAdvanceSubmit();
   const { openModal, closeModal } = useModal();
+  const dispatch = useAppDispatch();
+
+  // Get photos from Redux state
+  const { photos } = useAppSelector(selectCurrentAdvance);
 
   const scrollToTop = useCallback(() => {
     scrollViewRef.current?.scrollTo({
@@ -31,10 +40,15 @@ export function SubmitSection({ scrollViewRef }: SubmitSectionProps) {
   }, [closeModal, scrollToTop]);
 
   const handleConfirmSendModal = useCallback(() => {
-    handleSubmit((data: AdvanceFormFieldsZod) =>
-      onFormSubmit(data, scrollToTop),
-    )();
-  }, [handleSubmit, onFormSubmit, scrollToTop]);
+    handleSubmit(async (data: AdvanceFormFieldsZod) => {
+      // Pass photos to onFormSubmit
+      await onFormSubmit(data, photos, () => {
+        // Clear photos from Redux after successful submission
+        dispatch(clearCurrentAdvance());
+        scrollToTop();
+      });
+    })();
+  }, [handleSubmit, onFormSubmit, photos, dispatch, scrollToTop]);
 
   const handleSubmitForm = useCallback(async () => {
     const valid = await trigger();
@@ -44,6 +58,7 @@ export function SubmitSection({ scrollViewRef }: SubmitSectionProps) {
         onEdit: handleEditConfirmSendModal,
         onConfirm: handleConfirmSendModal,
         summary,
+        photoCount: photos.length,
       });
     } else {
       scrollToTop();
@@ -55,6 +70,7 @@ export function SubmitSection({ scrollViewRef }: SubmitSectionProps) {
     handleEditConfirmSendModal,
     handleConfirmSendModal,
     scrollToTop,
+    photos.length,
   ]);
 
   return (

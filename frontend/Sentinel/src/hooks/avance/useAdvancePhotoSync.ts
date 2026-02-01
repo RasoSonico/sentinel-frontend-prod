@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePhotoCapture } from "./usePhotoCapture";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import {
-  setCurrentAdvancePhotos,
+  addPhotoToCurrentAdvance,
+  removePhotoFromCurrentAdvance,
   selectCurrentAdvance,
 } from "../../redux/slices/avance/advanceSlice";
 
@@ -12,17 +13,45 @@ export function useAdvancePhotoSync(
   const dispatch = useAppDispatch();
   const currentAdvance = useAppSelector(selectCurrentAdvance);
   const photoCapture = usePhotoCapture(options);
-  const { photos } = photoCapture;
+  const { photos: localPhotos, clearPhotos: clearLocalPhotos } = photoCapture;
 
-  // Sync local photos with redux/global state
+  // Track previous local photos count to detect new photos
+  const prevLocalPhotosCountRef = useRef(localPhotos.length);
+
+  // Sync local photos to Redux when new photos are added
   useEffect(() => {
-    if (currentAdvance.photos.length > 0) {
-      // Prefer global state if present
-      // Optionally, you could merge or handle conflicts here
-    } else if (photos.length > 0) {
-      dispatch(setCurrentAdvancePhotos(photos));
-    }
-  }, [photos, dispatch, currentAdvance.photos.length]);
+    const prevCount = prevLocalPhotosCountRef.current;
+    const currentCount = localPhotos.length;
 
-  return photoCapture;
+    if (currentCount > prevCount) {
+      // New photo was added - sync the new photo to Redux
+      const newPhoto = localPhotos[currentCount - 1];
+      if (newPhoto) {
+        dispatch(addPhotoToCurrentAdvance(newPhoto));
+      }
+    }
+
+    prevLocalPhotosCountRef.current = currentCount;
+  }, [localPhotos, dispatch]);
+
+  // Clear local photos when Redux is cleared (e.g., after form submission)
+  useEffect(() => {
+    if (currentAdvance.photos.length === 0 && localPhotos.length > 0) {
+      clearLocalPhotos();
+      prevLocalPhotosCountRef.current = 0;
+    }
+  }, [currentAdvance.photos.length, localPhotos.length, clearLocalPhotos]);
+
+  // Wrap removePhoto to also remove from Redux
+  const removePhoto = (photoId: string) => {
+    photoCapture.removePhoto(photoId);
+    dispatch(removePhotoFromCurrentAdvance(photoId));
+  };
+
+  // Return Redux photos as source of truth, with local capture functions
+  return {
+    ...photoCapture,
+    photos: currentAdvance.photos,
+    removePhoto,
+  };
 }

@@ -17,6 +17,7 @@ import { ConceptoItemRealm } from "src/realm/conceptsByWorkItem/ConceptoItem";
 import { AssignedConstructionResponse } from "src/realm/assignedConstruction/Response";
 import { ConstructionRealm } from "src/realm/assignedConstruction/Construction";
 import { PendingAdvanceSubmission } from "src/realm/pendingAdvance/PendingAdvanceSubmission";
+import { PendingPhotoSubmission } from "src/realm/pendingAdvance/PendingPhotoSubmission";
 
 export default function RealmProviderWrapper({
   children,
@@ -50,8 +51,10 @@ export default function RealmProviderWrapper({
         ConstructionRealm,
         // Pending Advance Submission schema
         PendingAdvanceSubmission,
+        // Pending Photo Submission schema
+        PendingPhotoSubmission,
       ]}
-      schemaVersion={3}
+      schemaVersion={6}
     >
       {children}
     </RealmProvider>

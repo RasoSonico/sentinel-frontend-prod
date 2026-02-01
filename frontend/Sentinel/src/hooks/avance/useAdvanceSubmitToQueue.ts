@@ -3,8 +3,10 @@ import {
   usePendingAdvanceQueue,
   PendingAdvanceInput,
 } from "./usePendingAdvanceQueue";
+import { usePendingPhotoQueue } from "./usePendingPhotoQueue";
 import { useSnackbar } from "../useSnackbar";
 import { useNetworkStatus } from "../utils/useNetworkStatus";
+import { Photo } from "./usePhotoCapture";
 
 export interface AdvanceFormContext {
   catalogId: number;
@@ -23,6 +25,7 @@ export interface AdvanceFormData {
 
 export function useAdvanceSubmitToQueue() {
   const { addToQueue, pendingCount, failedCount } = usePendingAdvanceQueue();
+  const { addPhotosToQueue, getPhotoCounts } = usePendingPhotoQueue();
   const { showSnackbar } = useSnackbar();
   const isOnline = useNetworkStatus();
   const [isAdding, setIsAdding] = useState(false);
@@ -32,7 +35,11 @@ export function useAdvanceSubmitToQueue() {
    * Returns the queue item ID
    */
   const submitToQueue = useCallback(
-    (formData: AdvanceFormData, context: AdvanceFormContext): string => {
+    async (
+      formData: AdvanceFormData,
+      context: AdvanceFormContext,
+      photos: Photo[] = []
+    ): Promise<string> => {
       setIsAdding(true);
 
       try {
@@ -48,25 +55,38 @@ export function useAdvanceSubmitToQueue() {
           constructionId: context.constructionId,
         };
 
-        const itemId = addToQueue(queueInput);
+        // Add advance to queue first
+        const advanceLocalId = addToQueue(queueInput);
 
-        // Show appropriate message based on network status
+        // If there are photos, add them to the photo queue
+        if (photos.length > 0) {
+          await addPhotosToQueue(advanceLocalId, photos, context.constructionId);
+          console.log(
+            `[SubmitToQueue] Queued ${photos.length} photos for advance ${advanceLocalId}`
+          );
+        }
+
+        // Show appropriate message based on network status and photos
+        const photoText = photos.length > 0 ? ` con ${photos.length} foto${photos.length > 1 ? "s" : ""}` : "";
         if (isOnline) {
-          showSnackbar("Avance guardado. Sincronizando...", "info");
+          showSnackbar(`Avance${photoText} guardado. Sincronizando...`, "info");
         } else {
           showSnackbar(
-            "Avance guardado. Se enviará cuando haya conexión.",
+            `Avance${photoText} guardado. Se enviará cuando haya conexión.`,
             "info"
           );
         }
 
-        return itemId;
+        return advanceLocalId;
       } finally {
         setIsAdding(false);
       }
     },
-    [addToQueue, isOnline, showSnackbar]
+    [addToQueue, addPhotosToQueue, isOnline, showSnackbar]
   );
+
+  // Get photo counts
+  const photoCounts = getPhotoCounts();
 
   return {
     submitToQueue,
@@ -74,5 +94,7 @@ export function useAdvanceSubmitToQueue() {
     pendingCount,
     failedCount,
     isOnline,
+    pendingPhotosCount: photoCounts.pending + photoCounts.waiting,
+    failedPhotosCount: photoCounts.failed,
   };
 }

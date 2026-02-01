@@ -60,7 +60,7 @@ export const usePhotoCapture = ({
         Alert.alert(
           "Se requieren permisos",
           "Necesitamos acceso a la cámara para capturar evidencia fotográfica.",
-          [{ text: "Entendido", style: "default" }]
+          [{ text: "Entendido", style: "default" }],
         );
       }
     })();
@@ -74,7 +74,7 @@ export const usePhotoCapture = ({
       const manipResult = await manipulateAsync(
         uri,
         [{ resize: { width: 1200 } }], // Redimensionar a máximo 1200px de ancho
-        { compress: compressionQuality, format: SaveFormat.JPEG }
+        { compress: compressionQuality, format: SaveFormat.JPEG },
       );
       return manipResult.uri;
     } catch (error) {
@@ -85,25 +85,35 @@ export const usePhotoCapture = ({
 
   /**
    * Guarda una imagen localmente para disponibilidad offline
+   * Throws an error if the save fails
    */
   const saveImageLocally = async (uri: string): Promise<string> => {
-    try {
-      const fileName = `sentinel-photo-${Date.now()}.jpg`;
-      const directory = `${FileSystem.documentDirectory}photos/`;
+    const fileName = `sentinel-photo-${Date.now()}.jpg`;
+    const directory = `${FileSystem.documentDirectory}photos/`;
 
-      // Asegurarse de que el directorio existe
-      const dirInfo = await FileSystem.getInfoAsync(directory);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
-      }
+    console.log("[PhotoCapture] Saving photo to:", `${directory}${fileName}`);
 
-      const localUri = `${directory}${fileName}`;
-      await FileSystem.copyAsync({ from: uri, to: localUri });
-      return localUri;
-    } catch (error) {
-      console.error("Error al guardar imagen localmente:", error);
-      return uri; // En caso de error, devolver la URI original
+    // Asegurarse de que el directorio existe
+    const dirInfo = await FileSystem.getInfoAsync(directory);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
     }
+
+    const localUri = `${directory}${fileName}`;
+    await FileSystem.copyAsync({ from: uri, to: localUri });
+
+    // Verify the copy succeeded
+    const savedInfo = await FileSystem.getInfoAsync(localUri);
+    if (!savedInfo.exists) {
+      throw new Error(`Failed to save photo to ${localUri}`);
+    }
+
+    console.log(
+      "[PhotoCapture] Photo saved successfully, size:",
+      "size" in savedInfo ? savedInfo.size : "unknown",
+    );
+
+    return localUri;
   };
 
   /**
@@ -114,7 +124,7 @@ export const usePhotoCapture = ({
       Alert.alert(
         "Permiso denegado",
         "No tienes permisos para acceder a la cámara.",
-        [{ text: "Entendido", style: "default" }]
+        [{ text: "Entendido", style: "default" }],
       );
       return;
     }
@@ -123,7 +133,7 @@ export const usePhotoCapture = ({
       Alert.alert(
         "Límite alcanzado",
         `Solo puedes tomar hasta ${maxPhotos} fotos.`,
-        [{ text: "Entendido", style: "default" }]
+        [{ text: "Entendido", style: "default" }],
       );
       return;
     }
@@ -141,7 +151,23 @@ export const usePhotoCapture = ({
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const photoUri = result.assets[0].uri;
         const optimizedUri = await optimizeImage(photoUri);
-        const localUri = await saveImageLocally(optimizedUri);
+
+        // Save to persistent storage - will throw if save fails
+        let localUri: string;
+        try {
+          localUri = await saveImageLocally(optimizedUri);
+        } catch (saveError) {
+          console.error(
+            "[PhotoCapture] Failed to save photo locally:",
+            saveError,
+          );
+          Alert.alert(
+            "Error al guardar",
+            "No se pudo guardar la foto localmente. Intenta de nuevo.",
+            [{ text: "Entendido", style: "default" }],
+          );
+          return;
+        }
 
         const newPhoto: Photo = {
           id: `photo-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -167,7 +193,7 @@ export const usePhotoCapture = ({
       Alert.alert(
         "Error al capturar",
         "No se pudo tomar la foto. Intenta de nuevo.",
-        [{ text: "Entendido", style: "default" }]
+        [{ text: "Entendido", style: "default" }],
       );
     } finally {
       setLoading(false);
@@ -182,7 +208,7 @@ export const usePhotoCapture = ({
       Alert.alert(
         "Límite alcanzado",
         `Solo puedes seleccionar hasta ${maxPhotos} fotos.`,
-        [{ text: "Entendido", style: "default" }]
+        [{ text: "Entendido", style: "default" }],
       );
       return;
     }
@@ -200,7 +226,23 @@ export const usePhotoCapture = ({
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const photoUri = result.assets[0].uri;
         const optimizedUri = await optimizeImage(photoUri);
-        const localUri = await saveImageLocally(optimizedUri);
+
+        // Save to persistent storage - will throw if save fails
+        let localUri: string;
+        try {
+          localUri = await saveImageLocally(optimizedUri);
+        } catch (saveError) {
+          console.error(
+            "[PhotoCapture] Failed to save photo locally:",
+            saveError,
+          );
+          Alert.alert(
+            "Error al guardar",
+            "No se pudo guardar la foto localmente. Intenta de nuevo.",
+            [{ text: "Entendido", style: "default" }],
+          );
+          return;
+        }
 
         const newPhoto: Photo = {
           id: `photo-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -226,7 +268,7 @@ export const usePhotoCapture = ({
       Alert.alert(
         "Error al seleccionar",
         "No se pudo seleccionar la imagen. Intenta de nuevo.",
-        [{ text: "Entendido", style: "default" }]
+        [{ text: "Entendido", style: "default" }],
       );
     } finally {
       setLoading(false);
@@ -238,7 +280,7 @@ export const usePhotoCapture = ({
    */
   const removePhoto = (photoId: string) => {
     setPhotos((prevPhotos) =>
-      prevPhotos.filter((photo) => photo.id !== photoId)
+      prevPhotos.filter((photo) => photo.id !== photoId),
     );
   };
 
@@ -255,8 +297,8 @@ export const usePhotoCapture = ({
   const markPhotoAsSynced = (photoId: string) => {
     setPhotos((prevPhotos) =>
       prevPhotos.map((photo) =>
-        photo.id === photoId ? { ...photo, synced: true } : photo
-      )
+        photo.id === photoId ? { ...photo, synced: true } : photo,
+      ),
     );
   };
 
@@ -269,8 +311,10 @@ export const usePhotoCapture = ({
 
     setPhotos((prevPhotos) =>
       prevPhotos.map((photo) =>
-        photo.id === photoId ? { ...photo, filename: sanitizedFilename } : photo
-      )
+        photo.id === photoId
+          ? { ...photo, filename: sanitizedFilename }
+          : photo,
+      ),
     );
   };
 

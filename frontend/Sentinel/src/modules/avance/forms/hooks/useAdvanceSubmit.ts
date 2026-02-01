@@ -4,21 +4,32 @@ import { AdvanceFormFieldsZod } from "../util/advanceFormValidation";
 import { useAdvanceFormContext } from "../context/AdvanceFormContext";
 import { useAdvanceSubmitToQueue } from "src/hooks/avance/useAdvanceSubmitToQueue";
 import { useModal } from "src/modules/modals/ModalContext";
+import { Photo } from "src/hooks/avance/usePhotoCapture";
 
 export function useAdvanceSubmit() {
   const { getValues, reset } = useFormContext<AdvanceFormFieldsZod>();
   const { constructionId, catalogs } = useAdvanceFormContext();
-  const { submitToQueue, isAdding, pendingCount, failedCount } =
-    useAdvanceSubmitToQueue();
+  const {
+    submitToQueue,
+    isAdding,
+    pendingCount,
+    failedCount,
+    pendingPhotosCount,
+    failedPhotosCount,
+  } = useAdvanceSubmitToQueue();
   const { closeModal } = useModal();
 
   const onFormSubmit = useCallback(
-    (data: AdvanceFormFieldsZod, onSuccess?: () => void) => {
+    async (
+      data: AdvanceFormFieldsZod,
+      photos: Photo[] = [],
+      onSuccess?: () => void
+    ) => {
       const catalog = catalogs?.find((c) => c.id === data.catalog);
       const partida = catalog?.work_items.find((p) => p.id === data.partida);
       const concept = partida?.concepts.find((c) => c.id === data.concept);
 
-      submitToQueue(
+      await submitToQueue(
         {
           concept: data.concept,
           quantity: data.quantity,
@@ -32,13 +43,14 @@ export function useAdvanceSubmit() {
           conceptDescription: concept?.description ?? "",
           constructionId,
         },
+        photos
       );
 
       closeModal();
       reset();
       onSuccess?.();
     },
-    [catalogs, constructionId, submitToQueue, closeModal, reset],
+    [catalogs, constructionId, submitToQueue, closeModal, reset]
   );
 
   const getSummary = useCallback(() => {
@@ -63,5 +75,7 @@ export function useAdvanceSubmit() {
     isAdding,
     pendingCount,
     failedCount,
+    pendingPhotosCount,
+    failedPhotosCount,
   };
 }

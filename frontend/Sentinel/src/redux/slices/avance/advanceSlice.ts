@@ -55,6 +55,12 @@ interface AdvanceState {
     lastSyncTime: number | null;
     isSyncing: boolean;
     isOnline: boolean;
+    // Photo sync counts
+    pendingPhotosCount: number;
+    waitingPhotosCount: number;
+    syncingPhotosCount: number;
+    uploadedPhotosCount: number;
+    failedPhotosCount: number;
   };
 }
 
@@ -95,6 +101,12 @@ const initialState: AdvanceState = {
     lastSyncTime: null,
     isSyncing: false,
     isOnline: true,
+    // Photo sync counts
+    pendingPhotosCount: 0,
+    waitingPhotosCount: 0,
+    syncingPhotosCount: 0,
+    uploadedPhotosCount: 0,
+    failedPhotosCount: 0,
   },
 };
 
@@ -383,6 +395,27 @@ const advanceSlice = createSlice({
     resetCurrentAdvanceSuccess: (state) => {
       state.currentAdvance.success = false;
     },
+
+    // Photo sync count actions
+    updatePendingPhotosCount: (state, action: PayloadAction<number>) => {
+      state.offlineSync.pendingPhotosCount = action.payload;
+    },
+
+    updateWaitingPhotosCount: (state, action: PayloadAction<number>) => {
+      state.offlineSync.waitingPhotosCount = action.payload;
+    },
+
+    updateSyncingPhotosCount: (state, action: PayloadAction<number>) => {
+      state.offlineSync.syncingPhotosCount = action.payload;
+    },
+
+    updateUploadedPhotosCount: (state, action: PayloadAction<number>) => {
+      state.offlineSync.uploadedPhotosCount = action.payload;
+    },
+
+    updateFailedPhotosCount: (state, action: PayloadAction<number>) => {
+      state.offlineSync.failedPhotosCount = action.payload;
+    },
   },
   extraReducers: (builder) => {
     // Manejar fetchAvailableConcepts
@@ -508,6 +541,12 @@ export const {
   clearCurrentAdvance,
   clearCurrentAdvanceError,
   resetCurrentAdvanceSuccess,
+  // Photo sync count actions
+  updatePendingPhotosCount,
+  updateWaitingPhotosCount,
+  updateSyncingPhotosCount,
+  updateUploadedPhotosCount,
+  updateFailedPhotosCount,
 } = advanceSlice.actions;
 
 // Selectores

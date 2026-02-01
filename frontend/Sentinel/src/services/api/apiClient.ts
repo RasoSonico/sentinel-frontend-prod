@@ -5,10 +5,8 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
-import { deleteToken, getTokenResponse } from "../../utils/auth";
+import { getTokenResponse, forceLogout } from "../../utils/auth";
 import { API_CONFIG, isDevelopment } from "./config";
-import { store } from "src/redux/store";
-import { clearCredentials } from "src/redux/slices/authSlice";
 
 // Interceptor to add token to requests - prioritizes SecureStore over AsyncStorage
 const addTokenToRequestsInterceptor = (client: AxiosInstance) =>
@@ -74,15 +72,10 @@ const responseHandlerInterceptor = (client: AxiosInstance) =>
           url: error.config?.url,
         });
 
-        // Handle 401 Unauthorized - clear tokens and redirect to login
+        // Handle 401 Unauthorized - force logout
         if (error.response.status === 401) {
-          console.log("401 Unauthorized - clearing tokens");
-          try {
-            await deleteToken();
-            store.dispatch(clearCredentials());
-          } catch (clearError: unknown) {
-            console.error("Error clearing tokens:", clearError);
-          }
+          console.log("401 Unauthorized - forcing logout");
+          await forceLogout();
         }
       } else if (error.request) {
         console.error("Network error - No response:", {

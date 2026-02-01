@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePendingAdvanceQueue } from "./usePendingAdvanceQueue";
+import { usePendingPhotoQueue } from "./usePendingPhotoQueue";
 import { useNetworkStatus } from "../utils/useNetworkStatus";
 import { useSnackbar } from "../useSnackbar";
 import { submitAdvance } from "../data/api/avanceApi";
@@ -25,6 +26,12 @@ export function useAdvanceSyncWorker() {
     resetStuckSyncingItems,
     getItemById,
   } = usePendingAdvanceQueue();
+
+  const {
+    updatePhysicalAdvanceId,
+    markPhotosAsWaiting,
+    getPhotosByAdvanceId,
+  } = usePendingPhotoQueue();
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
@@ -90,16 +97,41 @@ export function useAdvanceSyncWorker() {
 
         try {
           // Attempt to submit
-          await submitMutation.mutateAsync(item);
+          const response = await submitMutation.mutateAsync(item);
 
-          // Success - remove from queue
+          // Get the physical_advance_id from the API response
+          const physicalAdvanceId = response.id;
+
+          // Check if there are photos for this advance
+          const advancePhotos = getPhotosByAdvanceId(item._id);
+          const hasPhotos = advancePhotos.length > 0;
+
+          if (hasPhotos && physicalAdvanceId) {
+            // Update photos with the physicalAdvanceId
+            const photosUpdated = updatePhysicalAdvanceId(
+              item._id,
+              physicalAdvanceId
+            );
+            console.log(
+              `[SyncWorker] Updated ${photosUpdated} photos with physicalAdvanceId: ${physicalAdvanceId}`
+            );
+
+            // Transition photos from pending to waiting
+            const photosMarkedWaiting = markPhotosAsWaiting(item._id);
+            console.log(
+              `[SyncWorker] Marked ${photosMarkedWaiting} photos as waiting for upload`
+            );
+          }
+
+          // Success - remove advance from queue (photos remain for photo worker)
           removeFromQueue(item._id);
           successCount++;
 
           // Show individual success notification
+          const photoText = hasPhotos ? " (fotos en cola)" : "";
           showSnackbar(
-            `Avance enviado: ${item.conceptDescription.substring(0, 30)}${item.conceptDescription.length > 30 ? "..." : ""}`,
-            "success",
+            `Avance enviado: ${item.conceptDescription.substring(0, 30)}${item.conceptDescription.length > 30 ? "..." : ""}${photoText}`,
+            "success"
           );
         } catch (error) {
           const errorMessage =
@@ -122,7 +154,7 @@ export function useAdvanceSyncWorker() {
                   // This will be handled by the UI to open the sync sheet
                   console.log("[SyncWorker] User wants to see error details");
                 },
-              },
+              }
             );
           } else {
             // Increment retry and keep as pending for next attempt
@@ -147,14 +179,14 @@ export function useAdvanceSyncWorker() {
         if (failCount === 0) {
           showSnackbar(
             `${successCount} avances sincronizados correctamente`,
-            "success",
+            "success"
           );
         } else if (successCount === 0) {
           showSnackbar(`${failCount} avances fallaron al sincronizar`, "error");
         } else {
           showSnackbar(
             `${successCount} sincronizados, ${failCount} fallidos`,
-            "info",
+            "info"
           );
         }
       }
@@ -173,6 +205,9 @@ export function useAdvanceSyncWorker() {
     submitMutation,
     queryClient,
     showSnackbar,
+    getPhotosByAdvanceId,
+    updatePhysicalAdvanceId,
+    markPhotosAsWaiting,
   ]);
 
   // Debounced effect to trigger sync when conditions are met
@@ -195,7 +230,7 @@ export function useAdvanceSyncWorker() {
     if (isOnline && !prevOnlineRef.current && pendingCount > 0) {
       showSnackbar(
         `Conexión restaurada. Sincronizando ${pendingCount} avance${pendingCount > 1 ? "s" : ""}...`,
-        "info",
+        "info"
       );
     }
     prevOnlineRef.current = isOnline;
@@ -230,7 +265,7 @@ export function useAdvanceSyncWorker() {
         await processQueue();
       }
     },
-    [isOnline, processQueue, getItemById, markAsPending],
+    [isOnline, processQueue, getItemById, markAsPending]
   );
 
   return {

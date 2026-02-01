@@ -5,8 +5,14 @@ import {
   updateFailedCount,
   setSyncingStatus,
   setOnlineStatus,
+  updatePendingPhotosCount,
+  updateWaitingPhotosCount,
+  updateSyncingPhotosCount,
+  updateUploadedPhotosCount,
+  updateFailedPhotosCount,
 } from "src/redux/slices/avance/advanceSlice";
 import { usePendingAdvanceQueue } from "./usePendingAdvanceQueue";
+import { usePendingPhotoQueue } from "./usePendingPhotoQueue";
 import { useNetworkStatus } from "../utils/useNetworkStatus";
 
 /**
@@ -17,19 +23,26 @@ import { useNetworkStatus } from "../utils/useNetworkStatus";
 export function useSyncQueueToRedux() {
   const dispatch = useAppDispatch();
   const { pendingCount, failedCount, syncingCount } = usePendingAdvanceQueue();
+  const {
+    pendingPhotos,
+    waitingPhotos,
+    syncingPhotos,
+    uploadedPhotos,
+    failedPhotos,
+  } = usePendingPhotoQueue();
   const isOnline = useNetworkStatus();
 
-  // Sync pending count to Redux
+  // Sync advance pending count to Redux
   useEffect(() => {
     dispatch(updatePendingCount(pendingCount));
   }, [dispatch, pendingCount]);
 
-  // Sync failed count to Redux
+  // Sync advance failed count to Redux
   useEffect(() => {
     dispatch(updateFailedCount(failedCount));
   }, [dispatch, failedCount]);
 
-  // Sync syncing status to Redux
+  // Sync advance syncing status to Redux
   useEffect(() => {
     dispatch(setSyncingStatus(syncingCount > 0));
   }, [dispatch, syncingCount]);
@@ -40,4 +53,29 @@ export function useSyncQueueToRedux() {
       dispatch(setOnlineStatus(isOnline));
     }
   }, [dispatch, isOnline]);
+
+  // Sync photo pending count to Redux
+  useEffect(() => {
+    dispatch(updatePendingPhotosCount(pendingPhotos.length));
+  }, [dispatch, pendingPhotos.length]);
+
+  // Sync photo waiting count to Redux
+  useEffect(() => {
+    dispatch(updateWaitingPhotosCount(waitingPhotos.length));
+  }, [dispatch, waitingPhotos.length]);
+
+  // Sync photo syncing count to Redux
+  useEffect(() => {
+    dispatch(updateSyncingPhotosCount(syncingPhotos.length));
+  }, [dispatch, syncingPhotos.length]);
+
+  // Sync photo uploaded count to Redux
+  useEffect(() => {
+    dispatch(updateUploadedPhotosCount(uploadedPhotos.length));
+  }, [dispatch, uploadedPhotos.length]);
+
+  // Sync photo failed count to Redux
+  useEffect(() => {
+    dispatch(updateFailedPhotosCount(failedPhotos.length));
+  }, [dispatch, failedPhotos.length]);
 }
