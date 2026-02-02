@@ -1,19 +1,44 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  FlatList,
   ActivityIndicator,
   SafeAreaView,
+  Image,
+  ScrollView,
+  SectionList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { usePendingAdvanceQueue } from "src/hooks/avance/usePendingAdvanceQueue";
+import { usePendingPhotoQueue } from "src/hooks/avance/usePendingPhotoQueue";
+import { usePhotoSyncWorker } from "src/hooks/avance/usePhotoSyncWorker";
 import { useSyncWorker } from "src/providers/SyncWorkerProvider";
 import { PendingAdvanceSubmission } from "src/realm/pendingAdvance/PendingAdvanceSubmission";
+import { PendingPhotoSubmission } from "src/realm/pendingAdvance/PendingPhotoSubmission";
 import { DesignTokens } from "src/styles/designTokens";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+
+// Types for section list
+interface PendingAdvanceItem {
+  type: "advance";
+  data: PendingAdvanceSubmission;
+}
+
+interface SyncedAdvancePhotosItem {
+  type: "synced-photos";
+  physicalAdvanceId: number;
+  photos: PendingPhotoSubmission[];
+  createdAt: Date;
+}
+
+type SyncItem = PendingAdvanceItem | SyncedAdvancePhotosItem;
+
+interface Section {
+  title: string;
+  data: SyncItem[];
+}
 
 const PendingSyncScreen: React.FC = () => {
   const {
@@ -25,8 +50,90 @@ const PendingSyncScreen: React.FC = () => {
     markAsPending,
   } = usePendingAdvanceQueue();
 
+  const {
+    getPhotosByAdvanceId,
+    allPhotos,
+    waitingPhotos,
+    syncingPhotos,
+    uploadedPhotos,
+    failedPhotos,
+    markPhotoAsWaiting,
+    removePhoto,
+  } = usePendingPhotoQueue();
+
+  const { syncNow: syncPhotosNow, retryPhoto } = usePhotoSyncWorker();
   const { syncNow, isSyncing } = useSyncWorker();
   const isOnline = useNetworkStatus();
+
+  // Get photos whose advance has synced (physicalAdvanceId is set)
+  // These are "orphaned" photos that need to be shown separately
+  const syncedAdvancePhotos = useMemo(() => {
+    const photosWithSyncedAdvance = [...allPhotos].filter(
+      (p) => p.physicalAdvanceId !== null
+    );
+
+    // Group by physicalAdvanceId
+    const grouped = new Map<number, PendingPhotoSubmission[]>();
+    photosWithSyncedAdvance.forEach((photo) => {
+      const id = photo.physicalAdvanceId!;
+      if (!grouped.has(id)) {
+        grouped.set(id, []);
+      }
+      grouped.get(id)!.push(photo);
+    });
+
+    // Convert to array and sort by most recent
+    return Array.from(grouped.entries())
+      .map(([physicalAdvanceId, photos]) => ({
+        physicalAdvanceId,
+        photos,
+        createdAt: photos.reduce(
+          (latest, p) => (p.createdAt > latest ? p.createdAt : latest),
+          photos[0]?.createdAt || new Date()
+        ),
+      }))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }, [allPhotos]);
+
+  // Photo counts for synced advances
+  const syncedPhotosCounts = useMemo(() => {
+    const waiting = [...waitingPhotos].filter((p) => p.physicalAdvanceId !== null).length;
+    const syncing = [...syncingPhotos].filter((p) => p.physicalAdvanceId !== null).length;
+    const uploaded = [...uploadedPhotos].filter((p) => p.physicalAdvanceId !== null).length;
+    const failed = [...failedPhotos].filter((p) => p.physicalAdvanceId !== null).length;
+    return { waiting, syncing, uploaded, failed, total: waiting + syncing + uploaded + failed };
+  }, [waitingPhotos, syncingPhotos, uploadedPhotos, failedPhotos]);
+
+  // Build sections for SectionList
+  const sections: Section[] = useMemo(() => {
+    const result: Section[] = [];
+
+    // Section 1: Pending advances
+    if (allItems.length > 0) {
+      const sortedItems = [...allItems].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      );
+      result.push({
+        title: "Avances pendientes de envío",
+        data: sortedItems.map((item) => ({ type: "advance" as const, data: item })),
+      });
+    }
+
+    // Section 2: Synced advances with pending photos
+    if (syncedAdvancePhotos.length > 0) {
+      result.push({
+        title: "Fotos pendientes de envío",
+        data: syncedAdvancePhotos.map((group) => ({
+          type: "synced-photos" as const,
+          physicalAdvanceId: group.physicalAdvanceId,
+          photos: group.photos,
+          createdAt: group.createdAt,
+        })),
+      });
+    }
+
+    return result;
+  }, [allItems, syncedAdvancePhotos]);
 
   const handleRetry = useCallback(
     (id: string) => {
@@ -42,6 +149,29 @@ const PendingSyncScreen: React.FC = () => {
     },
     [removeFromQueue]
   );
+
+  const handleRetryPhoto = useCallback(
+    (photoId: string) => {
+      retryPhoto(photoId);
+    },
+    [retryPhoto]
+  );
+
+  const handleDeletePhoto = useCallback(
+    async (photoId: string) => {
+      await removePhoto(photoId, true);
+    },
+    [removePhoto]
+  );
+
+  const handleRetryAllPhotos = useCallback(() => {
+    [...failedPhotos]
+      .filter((p) => p.physicalAdvanceId !== null)
+      .forEach((photo) => {
+        markPhotoAsWaiting(photo._id);
+      });
+    syncPhotosNow();
+  }, [failedPhotos, markPhotoAsWaiting, syncPhotosNow]);
 
   const handleRetryAll = useCallback(() => {
     allItems.forEach((item) => {
@@ -78,6 +208,23 @@ const PendingSyncScreen: React.FC = () => {
     }
   };
 
+  const getPhotoStatusLabel = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "Esperando avance";
+      case "waiting":
+        return "En cola";
+      case "syncing":
+        return "Subiendo";
+      case "uploaded":
+        return "Confirmando";
+      case "failed":
+        return "Fallido";
+      default:
+        return status;
+    }
+  };
+
   const formatDate = (date: Date) => {
     return date.toLocaleString("es-MX", {
       day: "2-digit",
@@ -87,10 +234,14 @@ const PendingSyncScreen: React.FC = () => {
     });
   };
 
-  const renderItem = ({ item }: { item: PendingAdvanceSubmission }) => {
+  const renderAdvanceItem = (item: PendingAdvanceSubmission) => {
     const statusIcon = getStatusIcon(item.status);
     const isFailed = item.status === "failed";
     const isItemSyncing = item.status === "syncing";
+
+    // Get photos for this advance (photos with matching advanceLocalId)
+    const advancePhotos = getPhotosByAdvanceId(item._id);
+    const photoCount = advancePhotos.length;
 
     return (
       <View style={styles.itemContainer}>
@@ -115,6 +266,39 @@ const PendingSyncScreen: React.FC = () => {
             Volumen: {item.volume} | {item.workItemName}
           </Text>
         </View>
+
+        {/* Photo thumbnails */}
+        {photoCount > 0 && (
+          <View style={styles.photosSection}>
+            <View style={styles.photosSectionHeader}>
+              <Ionicons name="camera-outline" size={14} color={DesignTokens.colors.neutral[600]} />
+              <Text style={styles.photosLabel}>
+                {photoCount} foto{photoCount !== 1 ? "s" : ""} (esperando envío del avance)
+              </Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.photoThumbnailsContainer}
+            >
+              {[...advancePhotos].map((photo) => (
+                <View key={photo._id} style={styles.photoThumbnailWrapper}>
+                  <Image
+                    source={{ uri: photo.localUri }}
+                    style={styles.photoThumbnail}
+                    resizeMode="cover"
+                  />
+                  <View
+                    style={[
+                      styles.photoStatusDot,
+                      styles.photoStatusPending,
+                    ]}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {isFailed && item.errorMessage && (
           <View style={styles.errorContainer}>
@@ -148,12 +332,170 @@ const PendingSyncScreen: React.FC = () => {
         {isItemSyncing && (
           <View style={styles.syncingIndicator}>
             <ActivityIndicator size="small" color={DesignTokens.colors.primary[500]} />
-            <Text style={styles.syncingText}>Enviando...</Text>
+            <Text style={styles.syncingText}>Enviando avance...</Text>
           </View>
         )}
       </View>
     );
   };
+
+  const renderSyncedPhotosItem = (
+    physicalAdvanceId: number,
+    photos: PendingPhotoSubmission[],
+    createdAt: Date
+  ) => {
+    const waitingCount = photos.filter((p) => p.status === "waiting").length;
+    const syncingCount = photos.filter((p) => p.status === "syncing").length;
+    const uploadedCount = photos.filter((p) => p.status === "uploaded").length;
+    const failedCount = photos.filter((p) => p.status === "failed").length;
+
+    const hasFailedPhotos = failedCount > 0;
+    const allUploaded = uploadedCount === photos.length;
+    const isSyncingPhotos = syncingCount > 0;
+
+    return (
+      <View style={[styles.itemContainer, styles.syncedAdvanceContainer]}>
+        {/* Header with success indicator */}
+        <View style={styles.itemHeader}>
+          <View style={styles.statusBadge}>
+            <Ionicons
+              name="checkmark-circle"
+              size={14}
+              color={DesignTokens.colors.success[500]}
+            />
+            <Text style={[styles.statusText, { color: DesignTokens.colors.success[600] }]}>
+              Avance enviado
+            </Text>
+          </View>
+          <Text style={styles.dateText}>{formatDate(createdAt)}</Text>
+        </View>
+
+        {/* Advance ID reference */}
+        <View style={styles.syncedAdvanceInfo}>
+          <Text style={styles.syncedAdvanceId}>Avance #{physicalAdvanceId}</Text>
+          <Text style={styles.syncedAdvanceSubtitle}>
+            {photos.length} foto{photos.length !== 1 ? "s" : ""} pendiente{photos.length !== 1 ? "s" : ""} de subir
+          </Text>
+        </View>
+
+        {/* Photo status summary */}
+        <View style={styles.photoStatusSummary}>
+          {waitingCount > 0 && (
+            <View style={[styles.photoStatusBadge, styles.photoStatusWaitingBadge]}>
+              <Ionicons name="time-outline" size={12} color={DesignTokens.colors.warning[600]} />
+              <Text style={styles.photoStatusBadgeText}>{waitingCount} en cola</Text>
+            </View>
+          )}
+          {syncingCount > 0 && (
+            <View style={[styles.photoStatusBadge, styles.photoStatusSyncingBadge]}>
+              <ActivityIndicator size={10} color={DesignTokens.colors.primary[600]} />
+              <Text style={styles.photoStatusBadgeText}>{syncingCount} subiendo</Text>
+            </View>
+          )}
+          {uploadedCount > 0 && (
+            <View style={[styles.photoStatusBadge, styles.photoStatusUploadedBadge]}>
+              <Ionicons name="cloud-done-outline" size={12} color={DesignTokens.colors.success[600]} />
+              <Text style={styles.photoStatusBadgeText}>{uploadedCount} confirmando</Text>
+            </View>
+          )}
+          {failedCount > 0 && (
+            <View style={[styles.photoStatusBadge, styles.photoStatusFailedBadge]}>
+              <Ionicons name="alert-circle" size={12} color={DesignTokens.colors.error[600]} />
+              <Text style={styles.photoStatusBadgeText}>{failedCount} fallido{failedCount !== 1 ? "s" : ""}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Photo thumbnails with individual status */}
+        <View style={styles.photosSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photoThumbnailsContainer}
+          >
+            {photos.map((photo) => (
+              <View key={photo._id} style={styles.photoThumbnailWrapper}>
+                <Image
+                  source={{ uri: photo.localUri }}
+                  style={[
+                    styles.photoThumbnail,
+                    photo.status === "failed" && styles.photoThumbnailFailed,
+                  ]}
+                  resizeMode="cover"
+                />
+                <View
+                  style={[
+                    styles.photoStatusDot,
+                    photo.status === "failed"
+                      ? styles.photoStatusFailed
+                      : photo.status === "uploaded"
+                        ? styles.photoStatusUploaded
+                        : photo.status === "syncing"
+                          ? styles.photoStatusSyncing
+                          : styles.photoStatusWaiting,
+                  ]}
+                />
+                {photo.status === "syncing" && (
+                  <View style={styles.photoSyncingOverlay}>
+                    <ActivityIndicator size="small" color="#fff" />
+                  </View>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Failed photo errors */}
+        {hasFailedPhotos && (
+          <View style={styles.errorContainer}>
+            <Ionicons name="warning-outline" size={14} color={DesignTokens.colors.error[500]} />
+            <Text style={styles.errorText} numberOfLines={2}>
+              {photos.find((p) => p.status === "failed")?.errorMessage || "Error al subir fotos"}
+            </Text>
+          </View>
+        )}
+
+        {/* Actions for failed photos */}
+        {hasFailedPhotos && (
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.retryButton]}
+              onPress={() => {
+                photos
+                  .filter((p) => p.status === "failed")
+                  .forEach((p) => handleRetryPhoto(p._id));
+              }}
+            >
+              <Ionicons name="refresh" size={16} color="#fff" />
+              <Text style={styles.actionButtonText}>Reintentar fotos</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Syncing indicator */}
+        {isSyncingPhotos && (
+          <View style={styles.syncingIndicator}>
+            <ActivityIndicator size="small" color={DesignTokens.colors.primary[500]} />
+            <Text style={styles.syncingText}>Subiendo fotos...</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderItem = ({ item }: { item: SyncItem }) => {
+    if (item.type === "advance") {
+      return renderAdvanceItem(item.data);
+    } else {
+      return renderSyncedPhotosItem(item.physicalAdvanceId, item.photos, item.createdAt);
+    }
+  };
+
+  const renderSectionHeader = ({ section }: { section: Section }) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionHeaderText}>{section.title}</Text>
+    </View>
+  );
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -174,11 +516,12 @@ const PendingSyncScreen: React.FC = () => {
       </View>
 
       <View style={styles.countsContainer}>
+        {/* Advance counts */}
         {pendingCount > 0 && (
           <View style={[styles.countBadge, styles.pendingBadge]}>
-            <Ionicons name="time-outline" size={12} color={DesignTokens.colors.warning[600]} />
+            <Ionicons name="document-text-outline" size={12} color={DesignTokens.colors.warning[600]} />
             <Text style={[styles.countBadgeText, { color: DesignTokens.colors.warning[700] }]}>
-              {pendingCount} pendiente{pendingCount !== 1 ? "s" : ""}
+              {pendingCount} avance{pendingCount !== 1 ? "s" : ""}
             </Text>
           </View>
         )}
@@ -198,6 +541,16 @@ const PendingSyncScreen: React.FC = () => {
             </Text>
           </View>
         )}
+
+        {/* Photo counts */}
+        {syncedPhotosCounts.total > 0 && (
+          <View style={[styles.countBadge, styles.photoBadge]}>
+            <Ionicons name="camera-outline" size={12} color={DesignTokens.colors.primary[600]} />
+            <Text style={[styles.countBadgeText, { color: DesignTokens.colors.primary[700] }]}>
+              {syncedPhotosCounts.total} foto{syncedPhotosCounts.total !== 1 ? "s" : ""}
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -211,14 +564,13 @@ const PendingSyncScreen: React.FC = () => {
       />
       <Text style={styles.emptyTitle}>Todo sincronizado</Text>
       <Text style={styles.emptySubtitle}>
-        No hay avances pendientes de enviar
+        No hay avances ni fotos pendientes de enviar
       </Text>
     </View>
   );
 
-  const sortedItems = [...allItems].sort(
-    (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-  );
+  const hasContent = allItems.length > 0 || syncedAdvancePhotos.length > 0;
+  const hasFailedItems = failedCount > 0 || syncedPhotosCounts.failed > 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -228,34 +580,42 @@ const PendingSyncScreen: React.FC = () => {
 
       {renderHeader()}
 
-      {allItems.length === 0 ? (
+      {!hasContent ? (
         renderEmpty()
       ) : (
-        <FlatList
-          data={sortedItems}
-          keyExtractor={(item) => item._id}
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) =>
+            item.type === "advance" ? item.data._id : `photos-${item.physicalAdvanceId}`
+          }
           renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
         />
       )}
 
-      {allItems.length > 0 && !isSyncing && isOnline && (
+      {hasContent && !isSyncing && isOnline && (
         <View style={styles.bottomActions}>
-          {failedCount > 0 && (
+          {hasFailedItems && (
             <TouchableOpacity
               style={[styles.bottomButton, styles.retryAllButton]}
-              onPress={handleRetryAll}
+              onPress={() => {
+                handleRetryAll();
+                handleRetryAllPhotos();
+              }}
             >
               <Ionicons name="refresh" size={20} color="#fff" />
-              <Text style={styles.bottomButtonText}>
-                Reintentar fallidos ({failedCount})
-              </Text>
+              <Text style={styles.bottomButtonText}>Reintentar todo</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
             style={[styles.bottomButton, styles.syncAllButton]}
-            onPress={syncNow}
+            onPress={() => {
+              syncNow();
+              syncPhotosNow();
+            }}
           >
             <Ionicons name="sync" size={20} color="#fff" />
             <Text style={styles.bottomButtonText}>Sincronizar ahora</Text>
@@ -328,9 +688,24 @@ const styles = StyleSheet.create({
   syncingBadge: {
     backgroundColor: DesignTokens.colors.primary[100],
   },
+  photoBadge: {
+    backgroundColor: DesignTokens.colors.primary[50],
+  },
   countBadgeText: {
     fontSize: 12,
     fontWeight: "600",
+  },
+  sectionHeader: {
+    paddingHorizontal: 4,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  sectionHeaderText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: DesignTokens.colors.neutral[600],
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   listContent: {
     padding: 16,
@@ -344,6 +719,55 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: DesignTokens.colors.neutral[200],
     ...DesignTokens.shadows.sm,
+  },
+  syncedAdvanceContainer: {
+    borderColor: DesignTokens.colors.success[200],
+    borderLeftWidth: 3,
+    borderLeftColor: DesignTokens.colors.success[500],
+  },
+  syncedAdvanceInfo: {
+    marginBottom: 12,
+  },
+  syncedAdvanceId: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: DesignTokens.colors.neutral[800],
+  },
+  syncedAdvanceSubtitle: {
+    fontSize: 13,
+    color: DesignTokens.colors.neutral[500],
+    marginTop: 2,
+  },
+  photoStatusSummary: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 12,
+  },
+  photoStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  photoStatusWaitingBadge: {
+    backgroundColor: DesignTokens.colors.warning[100],
+  },
+  photoStatusSyncingBadge: {
+    backgroundColor: DesignTokens.colors.primary[100],
+  },
+  photoStatusUploadedBadge: {
+    backgroundColor: DesignTokens.colors.success[100],
+  },
+  photoStatusFailedBadge: {
+    backgroundColor: DesignTokens.colors.error[100],
+  },
+  photoStatusBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: DesignTokens.colors.neutral[700],
   },
   itemHeader: {
     flexDirection: "row",
@@ -379,6 +803,74 @@ const styles = StyleSheet.create({
   volumeText: {
     fontSize: 12,
     color: DesignTokens.colors.neutral[500],
+  },
+  photosSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.neutral[100],
+  },
+  photosSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  photosLabel: {
+    fontSize: 12,
+    color: DesignTokens.colors.neutral[600],
+    fontWeight: "500",
+  },
+  photoThumbnailsContainer: {
+    gap: 8,
+  },
+  photoThumbnailWrapper: {
+    position: "relative",
+  },
+  photoThumbnail: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: DesignTokens.colors.neutral[100],
+  },
+  photoThumbnailFailed: {
+    opacity: 0.6,
+  },
+  photoSyncingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  photoStatusDot: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: DesignTokens.colors.background.primary,
+  },
+  photoStatusPending: {
+    backgroundColor: DesignTokens.colors.neutral[400],
+  },
+  photoStatusWaiting: {
+    backgroundColor: DesignTokens.colors.warning[500],
+  },
+  photoStatusSyncing: {
+    backgroundColor: DesignTokens.colors.primary[500],
+  },
+  photoStatusUploaded: {
+    backgroundColor: DesignTokens.colors.success[500],
+  },
+  photoStatusFailed: {
+    backgroundColor: DesignTokens.colors.error[500],
   },
   errorContainer: {
     flexDirection: "row",
