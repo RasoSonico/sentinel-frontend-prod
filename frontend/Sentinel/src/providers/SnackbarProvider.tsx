@@ -22,13 +22,13 @@ interface SnackbarContextValue {
     message: string,
     type?: SnackbarType,
     action?: SnackbarAction,
-    duration?: number
+    duration?: number,
   ) => void;
   hideSnackbar: () => void;
 }
 
 const SnackbarContext = createContext<SnackbarContextValue | undefined>(
-  undefined
+  undefined,
 );
 
 const SNACKBAR_COLORS: Record<SnackbarType, string> = {
@@ -51,7 +51,7 @@ export function SnackbarProvider({ children }: { children: React.ReactNode }) {
       message: string,
       type: SnackbarType = "info",
       action?: SnackbarAction,
-      duration: number = DEFAULT_DURATION
+      duration: number = DEFAULT_DURATION,
     ) => {
       setSnackbar({
         visible: true,
@@ -61,7 +61,7 @@ export function SnackbarProvider({ children }: { children: React.ReactNode }) {
         duration,
       });
     },
-    []
+    [],
   );
 
   const hideSnackbar = useCallback(() => {

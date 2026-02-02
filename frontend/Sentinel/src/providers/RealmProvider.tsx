@@ -1,5 +1,8 @@
-import { RealmProvider } from "@realm/react";
-import React from "react";
+import { RealmProvider, useRealm } from "@realm/react";
+import React, { useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as FileSystem from "expo-file-system";
+import Realm from "realm";
 import { AvanceBaseCatalog } from "src/realm/avanceBase/Catalog";
 import { AvanceBaseConcept } from "src/realm/avanceBase/Concept";
 import { AvanceBaseFiltersApplied } from "src/realm/avanceBase/FiltersApplied";
@@ -18,6 +21,47 @@ import { AssignedConstructionResponse } from "src/realm/assignedConstruction/Res
 import { ConstructionRealm } from "src/realm/assignedConstruction/Construction";
 import { PendingAdvanceSubmission } from "src/realm/pendingAdvance/PendingAdvanceSubmission";
 import { PendingPhotoSubmission } from "src/realm/pendingAdvance/PendingPhotoSubmission";
+
+// One-time wipe function - REMOVE AFTER DEPLOYMENT
+const performDatabaseWipe = async (realm: Realm) => {
+  const WIPE_VERSION = 1; // Increment to trigger new wipe
+  const WIPE_KEY = `realm_wipe_v${WIPE_VERSION}`;
+
+  // Check if already wiped
+  const hasWiped = await AsyncStorage.getItem(WIPE_KEY);
+  if (hasWiped) return;
+
+  console.log("[RealmWipe] Starting FULL database wipe...");
+
+  // Wipe ALL Realm data
+  realm.write(() => {
+    realm.deleteAll();
+  });
+
+  // Delete local photo files
+  const photosDir = `${FileSystem.documentDirectory}photos/`;
+  await FileSystem.deleteAsync(photosDir, { idempotent: true });
+
+  // Mark as wiped
+  await AsyncStorage.setItem(WIPE_KEY, "true");
+  console.log("[RealmWipe] Full database wipe complete");
+};
+
+// Wrapper component to trigger wipe - REMOVE AFTER DEPLOYMENT
+function RealmWipeHandler({ children }: { children: React.ReactNode }) {
+  const realm = useRealm();
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    performDatabaseWipe(realm).then(() => setIsReady(true));
+  }, [realm]);
+
+  if (!isReady) {
+    return null;
+  }
+
+  return <>{children}</>;
+}
 
 export default function RealmProviderWrapper({
   children,
@@ -57,6 +101,8 @@ export default function RealmProviderWrapper({
       schemaVersion={6}
     >
       {children}
+      {/* Hanlder to Wipe Realm Data for Dev Purposes */}
+      {/* <RealmWipeHandler>{children}</RealmWipeHandler> */}
     </RealmProvider>
   );
 }

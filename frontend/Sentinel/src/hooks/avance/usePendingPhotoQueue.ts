@@ -6,6 +6,7 @@ import {
   PendingPhotoSubmission,
   PendingPhotoStatus,
 } from "src/realm/pendingAdvance/PendingPhotoSubmission";
+import { PendingAdvanceSubmission } from "src/realm/pendingAdvance/PendingAdvanceSubmission";
 import { Photo } from "./usePhotoCapture";
 
 export interface PendingPhotoInput {
@@ -33,6 +34,9 @@ export function usePendingPhotoQueue() {
 
   // Reactive queries for all photos
   const allPhotos = useQuery(PendingPhotoSubmission);
+
+  // Query for pending advances (used for orphan detection)
+  const allAdvances = useQuery(PendingAdvanceSubmission);
 
   // Filtered queries by status
   const pendingPhotos = useMemo(
@@ -434,6 +438,69 @@ export function usePendingPhotoQueue() {
   }, [realm, allPhotos]);
 
   /**
+   * Detect and handle orphaned photos.
+   *
+   * Orphaned photos are photos where:
+   * - physicalAdvanceId is null (advance never synced to server)
+   * - advanceLocalId doesn't match any existing PendingAdvanceSubmission
+   *
+   * This can happen if the app crashes after the advance is deleted from the
+   * local queue but before the photos are updated with the physicalAdvanceId.
+   *
+   * @returns Object with counts of orphaned photos found and handled
+   */
+  const detectAndHandleOrphanedPhotos = useCallback((): {
+    orphanedCount: number;
+    handledCount: number;
+  } => {
+    // Get photos that are waiting for their advance to sync
+    // (physicalAdvanceId is null means advance hasn't synced yet)
+    const photosWaitingForAdvance = allPhotos.filtered(
+      "physicalAdvanceId == null"
+    );
+
+    if (photosWaitingForAdvance.length === 0) {
+      return { orphanedCount: 0, handledCount: 0 };
+    }
+
+    // Build a Set of existing advance IDs for fast lookup
+    const existingAdvanceIds = new Set(
+      [...allAdvances].map((advance) => advance._id)
+    );
+
+    // Find orphaned photos (linked to advances that no longer exist)
+    const orphanedPhotos = [...photosWaitingForAdvance].filter(
+      (photo) => !existingAdvanceIds.has(photo.advanceLocalId)
+    );
+
+    if (orphanedPhotos.length === 0) {
+      return { orphanedCount: 0, handledCount: 0 };
+    }
+
+    console.warn(
+      `[PhotoQueue] Found ${orphanedPhotos.length} orphaned photos (advance was deleted but photos remain)`
+    );
+
+    // Mark orphaned photos as failed with a descriptive error
+    realm.write(() => {
+      orphanedPhotos.forEach((photo) => {
+        photo.status = "failed";
+        photo.errorMessage =
+          "El avance asociado fue eliminado. La foto no pudo sincronizarse debido a un error durante el envío.";
+      });
+    });
+
+    console.log(
+      `[PhotoQueue] Marked ${orphanedPhotos.length} orphaned photos as failed`
+    );
+
+    return {
+      orphanedCount: orphanedPhotos.length,
+      handledCount: orphanedPhotos.length,
+    };
+  }, [realm, allPhotos, allAdvances]);
+
+  /**
    * Get a single photo by ID
    */
   const getPhotoById = useCallback(
@@ -485,6 +552,7 @@ export function usePendingPhotoQueue() {
     removePhotosByAdvanceId,
     resetStuckSyncingPhotos,
     clearAllFailedPhotos,
+    detectAndHandleOrphanedPhotos,
 
     // Read operations
     getPhotosByAdvanceId,

@@ -22,16 +22,12 @@ export function useAdvanceSyncWorker() {
     markAsSyncing,
     markAsFailed,
     markAsPending,
-    removeFromQueue,
+    completeAdvanceSyncAtomic,
     resetStuckSyncingItems,
     getItemById,
   } = usePendingAdvanceQueue();
 
-  const {
-    updatePhysicalAdvanceId,
-    markPhotosAsWaiting,
-    getPhotosByAdvanceId,
-  } = usePendingPhotoQueue();
+  const { getPhotosByAdvanceId } = usePendingPhotoQueue();
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
@@ -106,25 +102,25 @@ export function useAdvanceSyncWorker() {
           const advancePhotos = getPhotosByAdvanceId(item._id);
           const hasPhotos = advancePhotos.length > 0;
 
-          if (hasPhotos && physicalAdvanceId) {
-            // Update photos with the physicalAdvanceId
-            const photosUpdated = updatePhysicalAdvanceId(
-              item._id,
-              physicalAdvanceId
-            );
-            console.log(
-              `[SyncWorker] Updated ${photosUpdated} photos with physicalAdvanceId: ${physicalAdvanceId}`
-            );
+          // ATOMIC: Complete the sync in a single Realm transaction
+          // This ensures crash safety - either all operations complete or none do:
+          // 1. Update photos with physicalAdvanceId
+          // 2. Mark photos as "waiting"
+          // 3. Remove advance from queue
+          const atomicSuccess = completeAdvanceSyncAtomic(
+            item._id,
+            physicalAdvanceId
+          );
 
-            // Transition photos from pending to waiting
-            const photosMarkedWaiting = markPhotosAsWaiting(item._id);
-            console.log(
-              `[SyncWorker] Marked ${photosMarkedWaiting} photos as waiting for upload`
+          if (!atomicSuccess) {
+            console.error(
+              `[SyncWorker] Failed to atomically complete sync for advance ${item._id}`
             );
+            markAsFailed(item._id, "Error al completar la sincronización local");
+            failCount++;
+            continue;
           }
 
-          // Success - remove advance from queue (photos remain for photo worker)
-          removeFromQueue(item._id);
           successCount++;
 
           // Show individual success notification
@@ -201,13 +197,11 @@ export function useAdvanceSyncWorker() {
     pendingItems,
     markAsSyncing,
     markAsFailed,
-    removeFromQueue,
+    completeAdvanceSyncAtomic,
     submitMutation,
     queryClient,
     showSnackbar,
     getPhotosByAdvanceId,
-    updatePhysicalAdvanceId,
-    markPhotosAsWaiting,
   ]);
 
   // Debounced effect to trigger sync when conditions are met

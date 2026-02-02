@@ -34,6 +34,7 @@ export function usePhotoSyncWorker() {
     markPhotoAsWaiting,
     removePhoto,
     resetStuckSyncingPhotos,
+    detectAndHandleOrphanedPhotos,
     getPhotoById,
     checkPhotoFileExists,
   } = usePendingPhotoQueue();
@@ -43,13 +44,24 @@ export function usePhotoSyncWorker() {
   const syncInProgressRef = useRef(false);
   const mountedRef = useRef(true);
 
-  // Reset stuck photos on mount
+  // Reset stuck photos and detect orphaned photos on mount
   useEffect(() => {
+    // Reset photos stuck in syncing state (e.g., from app crash during upload)
     const resetCount = resetStuckSyncingPhotos();
     if (resetCount > 0) {
       console.log(`[PhotoSyncWorker] Reset ${resetCount} stuck syncing photos`);
     }
-  }, [resetStuckSyncingPhotos]);
+
+    // Detect and handle orphaned photos
+    // (photos whose parent advance was deleted but photos weren't updated)
+    const orphanResult = detectAndHandleOrphanedPhotos();
+    if (orphanResult.orphanedCount > 0) {
+      console.log(
+        `[PhotoSyncWorker] Detected ${orphanResult.orphanedCount} orphaned photos, ` +
+          `handled ${orphanResult.handledCount}`
+      );
+    }
+  }, [resetStuckSyncingPhotos, detectAndHandleOrphanedPhotos]);
 
   // Cleanup on unmount
   useEffect(() => {

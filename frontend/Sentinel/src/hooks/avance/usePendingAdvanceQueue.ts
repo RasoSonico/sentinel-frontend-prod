@@ -97,6 +97,61 @@ export function usePendingAdvanceQueue() {
   );
 
   /**
+   * Atomically complete an advance sync:
+   * 1. Update all photos with physicalAdvanceId
+   * 2. Transition photos from "pending" to "waiting"
+   * 3. Remove advance from queue
+   *
+   * This ensures crash safety - if the app crashes during sync,
+   * either all operations complete or none do.
+   */
+  const completeAdvanceSyncAtomic = useCallback(
+    (advanceLocalId: string, physicalAdvanceId: number): boolean => {
+      const advance = realm.objectForPrimaryKey(
+        PendingAdvanceSubmission,
+        advanceLocalId
+      );
+      if (!advance) {
+        console.warn(
+          "[AdvanceQueue] completeAdvanceSyncAtomic: Advance not found:",
+          advanceLocalId
+        );
+        return false;
+      }
+
+      // Find all photos for this advance
+      const photosToUpdate = allPhotos.filtered(
+        "advanceLocalId == $0",
+        advanceLocalId
+      );
+
+      const photoCount = photosToUpdate.length;
+
+      // Perform ALL operations in a single atomic Realm write
+      realm.write(() => {
+        // Step 1 & 2: Update photos with physicalAdvanceId and mark as waiting
+        photosToUpdate.forEach((photo) => {
+          photo.physicalAdvanceId = physicalAdvanceId;
+          if (photo.status === "pending") {
+            photo.status = "waiting";
+          }
+        });
+
+        // Step 3: Remove advance from queue
+        realm.delete(advance);
+      });
+
+      console.log(
+        `[AdvanceQueue] Atomically completed sync for advance ${advanceLocalId}, ` +
+          `physicalAdvanceId: ${physicalAdvanceId}, photos updated: ${photoCount}`
+      );
+
+      return true;
+    },
+    [realm, allPhotos]
+  );
+
+  /**
    * Remove an item from the queue AND cascade delete associated photos
    * Also deletes local photo files
    */
@@ -320,6 +375,7 @@ export function usePendingAdvanceQueue() {
     addToQueue,
     removeFromQueue,
     removeFromQueueWithPhotos,
+    completeAdvanceSyncAtomic,
     markAsSyncing,
     markAsFailed,
     markAsPending,
