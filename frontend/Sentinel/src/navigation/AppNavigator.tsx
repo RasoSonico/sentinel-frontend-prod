@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AppTabParamList } from "./types";
-import { ObraNavigator } from "./moduleNavigators/ObraNavigator";
 import { AvanceNavigator } from "./moduleNavigators/AvanceNavigator";
 import { IncidenciaNavigator } from "./moduleNavigators/IncidenciaNavigator";
 import { Ionicons } from "@expo/vector-icons";
-import { View, Text } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import PerfilScreen from "../modules/profiles/PerfilScreen";
+import PendingSyncScreen from "../modules/avance/screens/PendingSyncScreen";
 import { ActivityIndicator } from "react-native-paper";
 import { useAuthMeQuery } from "src/hooks/data/query/useAuthQueries";
 import styles from "./styles/AppNavigator.styles";
@@ -15,6 +15,7 @@ import { UserRole } from "src/types/auth";
 import ObrasListScreen from "src/modules/obra/screens/ObraListScreen";
 import ServerErrorModal from "src/components/ServerErrorModal";
 import { DesignTokens } from "../styles/designTokens";
+import { usePendingAdvanceQueue } from "src/hooks/avance/usePendingAdvanceQueue";
 
 // --- Skeletons for role-based screens ---
 const AprobacionAvancesScreen = () => (
@@ -51,6 +52,78 @@ const EstatusFinancieroScreen = () => (
 // ----------------------------------------
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
+
+// Custom icon component for Cola tab with badge
+interface QueueTabIconProps {
+  focused: boolean;
+  size: number;
+}
+
+const QueueTabIcon: React.FC<QueueTabIconProps> = ({ focused, size }) => {
+  const { pendingCount, failedCount, syncingCount } = usePendingAdvanceQueue();
+  const totalCount = pendingCount + failedCount + syncingCount;
+
+  // Determine icon color based on status
+  const hasFailures = failedCount > 0;
+  const hasPending = pendingCount > 0 || syncingCount > 0;
+
+  let iconColor: string;
+  let badgeColor: string;
+
+  if (hasFailures) {
+    iconColor = focused
+      ? DesignTokens.colors.error[500]
+      : DesignTokens.colors.error[400];
+    badgeColor = DesignTokens.colors.error[500];
+  } else if (hasPending) {
+    iconColor = focused
+      ? DesignTokens.colors.warning[500]
+      : DesignTokens.colors.warning[400];
+    badgeColor = DesignTokens.colors.warning[500];
+  } else {
+    iconColor = focused
+      ? DesignTokens.colors.success[500]
+      : DesignTokens.colors.neutral[400];
+    badgeColor = DesignTokens.colors.success[500];
+  }
+
+  const iconName = focused ? "cloud-upload" : "cloud-upload-outline";
+
+  return (
+    <View style={tabIconStyles.container}>
+      <Ionicons name={iconName} size={size} color={iconColor} />
+      {totalCount > 0 && (
+        <View style={[tabIconStyles.badge, { backgroundColor: badgeColor }]}>
+          <Text style={tabIconStyles.badgeText}>
+            {totalCount > 99 ? "99+" : totalCount}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const tabIconStyles = StyleSheet.create({
+  container: {
+    position: "relative",
+  },
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+});
 
 export const AppNavigator = () => {
   const {
@@ -97,12 +170,16 @@ export const AppNavigator = () => {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
-          const iconName = getTabBarIconName(route.name, focused);
+          // Use custom icon for Cola tab
+          if (route.name === "Cola") {
+            return <QueueTabIcon focused={focused} size={size} />;
+          }
 
+          const iconName = getTabBarIconName(route.name, focused);
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: DesignTokens.colors.executive.primary, // ✅ COLOR EJECUTIVO
-        tabBarInactiveTintColor: DesignTokens.colors.neutral[400], // ✅ GRIS NEUTRO
+        tabBarActiveTintColor: DesignTokens.colors.executive.primary,
+        tabBarInactiveTintColor: DesignTokens.colors.neutral[400],
         headerShown: false,
       })}
     >
@@ -137,6 +214,16 @@ export const AppNavigator = () => {
           <Tab.Screen name="Dashboard" component={DashboardAvanceObraScreen} />
           <Tab.Screen name="Financiero" component={EstatusFinancieroScreen} />
         </>
+      )}
+
+      {hasRole("CONTRATISTA") && (
+        <Tab.Screen
+          name="Cola"
+          component={PendingSyncScreen}
+          options={{
+            tabBarLabel: "Cola",
+          }}
+        />
       )}
 
       <Tab.Screen name="Perfil" component={PerfilScreen} />

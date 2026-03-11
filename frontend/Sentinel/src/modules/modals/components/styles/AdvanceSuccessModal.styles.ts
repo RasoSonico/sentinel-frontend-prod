@@ -20,7 +20,7 @@ export default StyleSheet.create({
   },
   title: {
     fontSize: DesignTokens.typography.fontSize["2xl"],
-    fontWeight: DesignTokens.typography.fontWeight.bold as any,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     marginBottom: DesignTokens.spacing.sm,
     color: DesignTokens.colors.neutral[900],
   },
@@ -29,7 +29,9 @@ export default StyleSheet.create({
     color: DesignTokens.colors.neutral[600],
     marginBottom: DesignTokens.spacing["2xl"],
     textAlign: "center",
-    lineHeight: DesignTokens.typography.fontSize.base * DesignTokens.typography.lineHeight.normal,
+    lineHeight:
+      DesignTokens.typography.fontSize.base *
+      DesignTokens.typography.lineHeight.normal,
   },
   registerButton: {
     backgroundColor: DesignTokens.colors.executive.primary,
@@ -41,7 +43,7 @@ export default StyleSheet.create({
   },
   registerButtonText: {
     color: DesignTokens.colors.background.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold as any,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     fontSize: DesignTokens.typography.fontSize.base,
     textAlign: "center",
   },
@@ -55,7 +57,7 @@ export default StyleSheet.create({
   },
   homeButtonText: {
     color: DesignTokens.colors.background.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold as any,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     fontSize: DesignTokens.typography.fontSize.base,
     textAlign: "center",
   },

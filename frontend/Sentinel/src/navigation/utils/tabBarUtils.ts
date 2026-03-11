@@ -21,6 +21,8 @@ export function getTabBarIconName(
       return focused ? "warning" : "warning-outline";
     case "Perfil":
       return focused ? "person" : "person-outline";
+    case "Cola":
+      return focused ? "cloud-upload" : "cloud-upload-outline";
     default:
       return "ellipse-outline";
   }

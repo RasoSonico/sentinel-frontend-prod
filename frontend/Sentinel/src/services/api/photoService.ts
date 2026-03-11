@@ -1,3 +1,5 @@
+import { Image } from "react-native";
+import * as Device from "expo-device";
 import { apiRequest } from "./apiClient";
 import { API_CONFIG } from "./config";
 
@@ -79,6 +81,38 @@ export interface ConfirmUploadResponse {
 }
 
 /**
+ * Result of Azure Blob upload with detailed error info
+ */
+export interface AzureUploadResult {
+  success: boolean;
+  statusCode?: number;
+  errorType?: "network" | "expired_sas" | "forbidden" | "not_found" | "server_error" | "unknown";
+  errorMessage?: string;
+}
+
+/**
+ * Get user-friendly error message for Azure upload failures
+ */
+export function getAzureUploadErrorMessage(result: AzureUploadResult): string {
+  if (result.success) return "";
+
+  switch (result.errorType) {
+    case "network":
+      return "Error de conexión. Verifica tu conexión a internet.";
+    case "expired_sas":
+      return "El token de subida expiró. Se reintentará automáticamente.";
+    case "forbidden":
+      return "Acceso denegado al servidor de almacenamiento.";
+    case "not_found":
+      return "El destino de subida no existe.";
+    case "server_error":
+      return "Error en el servidor de almacenamiento. Intenta de nuevo.";
+    default:
+      return result.errorMessage || "Error desconocido al subir la foto.";
+  }
+}
+
+/**
  * Solicitar SAS token para subir una foto individual
  */
 export const requestSingleUpload = async (
@@ -100,31 +134,31 @@ export const requestBulkUpload = async (
 ): Promise<BulkUploadResponse> => {
   console.log("📤 [API] Requesting bulk upload with data:", photosData);
   console.log("📤 [API] Endpoint:", API_CONFIG.endpoints.photos.bulkUpload);
-  
+
   const response = await apiRequest<BulkUploadResponse>(
     "post",
     API_CONFIG.endpoints.photos.bulkUpload,
     "Error al solicitar tokens de subida múltiple",
     photosData
   );
-  
+
   console.log("📤 [API] Bulk upload response:", response);
   return response;
 };
 
 /**
  * Subir archivo directamente a Azure Blob Storage
+ * Returns detailed result with error information
  */
 export const uploadToAzureBlob = async (
   uploadUrl: string,
   fileData: Blob,
   contentType: string
-): Promise<boolean> => {
+): Promise<AzureUploadResult> => {
   try {
     console.log("🔵 Azure Blob Upload - Starting direct upload to:", uploadUrl);
     console.log("🔵 File info:", { size: fileData.size, type: contentType });
-    
-    // Hacer llamada directa a Azure (no usar apiRequest)
+
     const response = await fetch(uploadUrl, {
       method: "PUT",
       body: fileData,
@@ -135,15 +169,63 @@ export const uploadToAzureBlob = async (
     });
 
     console.log("🔵 Azure Blob Upload - Response status:", response.status);
-    console.log("🔵 Azure Blob Upload - Response headers:", Object.fromEntries(response.headers.entries()));
 
-    const success = response.status === 201;
-    console.log("🔵 Azure Blob Upload - Success:", success);
-    
-    return success;
+    // Success case
+    if (response.status === 201) {
+      console.log("🔵 Azure Blob Upload - Success");
+      return { success: true, statusCode: 201 };
+    }
+
+    // Determine error type based on status code
+    let errorType: AzureUploadResult["errorType"] = "unknown";
+    let errorMessage = `HTTP ${response.status}`;
+
+    switch (response.status) {
+      case 403:
+        // SAS token expired or invalid
+        errorType = "expired_sas";
+        errorMessage = "SAS token expired or invalid";
+        break;
+      case 404:
+        errorType = "not_found";
+        errorMessage = "Blob container or path not found";
+        break;
+      case 500:
+      case 502:
+      case 503:
+      case 504:
+        errorType = "server_error";
+        errorMessage = "Azure storage server error";
+        break;
+      default:
+        if (response.status >= 400 && response.status < 500) {
+          errorType = "forbidden";
+          errorMessage = `Client error: ${response.status}`;
+        } else {
+          errorType = "unknown";
+          errorMessage = `Unexpected status: ${response.status}`;
+        }
+    }
+
+    console.error("❌ Azure Blob Upload - Failed:", { statusCode: response.status, errorType, errorMessage });
+
+    return {
+      success: false,
+      statusCode: response.status,
+      errorType,
+      errorMessage,
+    };
   } catch (error) {
     console.error("❌ Error uploading to Azure Blob:", error);
-    return false;
+
+    // Network error (no response received)
+    const errorMessage = error instanceof Error ? error.message : "Unknown network error";
+
+    return {
+      success: false,
+      errorType: "network",
+      errorMessage,
+    };
   }
 };
 
@@ -154,9 +236,12 @@ export const confirmUpload = async (
   confirmData: ConfirmUploadRequest
 ): Promise<ConfirmUploadResponse> => {
   console.log("🟡 Confirm Upload - Sending data:", confirmData);
-  console.log("🟡 Confirm Upload - Endpoint:", API_CONFIG.endpoints.photos.confirmUpload);
+  console.log(
+    "🟡 Confirm Upload - Endpoint:",
+    API_CONFIG.endpoints.photos.confirmUpload
+  );
   console.log("🟡 Confirm Upload - Method: POST");
-  
+
   try {
     const result = await apiRequest<ConfirmUploadResponse>(
       "post",
@@ -164,7 +249,7 @@ export const confirmUpload = async (
       "Error al confirmar subida de foto",
       confirmData
     );
-    
+
     console.log("🟡 Confirm Upload - Success:", result);
     return result;
   } catch (error) {
@@ -199,48 +284,30 @@ export const getFileSize = async (uri: string): Promise<number> => {
 /**
  * Obtener las dimensiones de la imagen usando React Native Image.getSize
  */
-export const getImageDimensions = async (uri: string): Promise<{ width: number; height: number }> => {
-  try {
-    // En React Native, usamos Image.getSize para obtener dimensiones
-    const { Image } = await import('react-native');
-    
-    return new Promise((resolve) => {
-      Image.getSize(
-        uri,
-        (width, height) => {
-          resolve({ width, height });
-        },
-        (error) => {
-          console.warn("Could not get image dimensions:", error);
-          resolve({ width: 1200, height: 800 }); // Valores por defecto razonables
-        }
-      );
-    });
-  } catch (error) {
-    console.warn("Error getting image dimensions:", error);
-    return { width: 1200, height: 800 }; // Valores por defecto
-  }
+export const getImageDimensions = async (
+  uri: string
+): Promise<{ width: number; height: number }> => {
+  return new Promise((resolve) => {
+    Image.getSize(
+      uri,
+      (width, height) => {
+        resolve({ width, height });
+      },
+      (error) => {
+        console.warn("Could not get image dimensions:", error);
+        resolve({ width: 1200, height: 800 }); // Valores por defecto razonables
+      }
+    );
+  });
 };
 
 /**
  * Obtener información de la cámara/dispositivo
  */
-export const getCameraInfo = async (): Promise<CameraInfo> => {
-  try {
-    // Importar Device dinámicamente para evitar errores si no está disponible
-    const Device = await import("expo-device");
-    
-    return {
-      make: Device.default?.manufacturer || "Mobile Device",
-      model: Device.default?.modelName || "Unknown Device",
-      datetime: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.warn("Could not get device info, using fallback:", error);
-    return {
-      make: "Mobile Device",
-      model: "Unknown Device",
-      datetime: new Date().toISOString(),
-    };
-  }
+export const getCameraInfo = (): CameraInfo => {
+  return {
+    make: Device.manufacturer || "Mobile Device",
+    model: Device.modelName || "Unknown Device",
+    datetime: new Date().toISOString(),
+  };
 };

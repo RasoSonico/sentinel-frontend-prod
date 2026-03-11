@@ -2,10 +2,8 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  ScrollView,
   SafeAreaView,
   TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -17,21 +15,18 @@ import {
   selectNewIncident,
   fetchIncidentTypes,
   fetchIncidentClassifications,
-  createNewIncident,
-  clearNewIncident,
-  clearNewIncidentError,
 } from "../../../redux/slices/incidencia/incidenciaSlice";
 import {
   setTypesById,
   setClassificationsById,
 } from "../../../redux/slices/incidencia/incidenciaFormDataSlice";
 import { useCreateIncidentMutation } from "../../../hooks/data/query/useIncidenciaQueries";
-import { useAssignedConstruction } from "../../../hooks/data/query/useAvanceQueries";
 import { IncidentRegistrationScreenNavigationProp } from "../../../navigation/types";
 import IncidentForm from "../forms/IncidentForm";
 import { CreateIncident } from "../../../types/incidencia";
 import { incidentFormDefaultValues } from "../forms/util/incidentFormValidation";
 import styles from "../styles/IncidentRegistrationScreen.styles";
+import { useAssignedConstruction } from "src/hooks/data/query/useAvance";
 
 const IncidentRegistrationScreen: React.FC = () => {
   const navigation = useNavigation<IncidentRegistrationScreenNavigationProp>();
@@ -72,7 +67,7 @@ const IncidentRegistrationScreen: React.FC = () => {
 
       if (catalogs.classifications.items.length === 0) {
         const classificationsResult = await dispatch(
-          fetchIncidentClassifications()
+          fetchIncidentClassifications(),
         );
         if (
           fetchIncidentClassifications.fulfilled.match(classificationsResult)

@@ -46,7 +46,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
         return `${start} - ${end}`;
       }
     } catch (error) {
-      console.warn('🚨 Date display error in filter:', { value, error });
+      console.warn("🚨 Date display error in filter:", { value, error });
       return "Fecha inválida";
     }
 

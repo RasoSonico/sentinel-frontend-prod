@@ -22,7 +22,7 @@ import BottomSheetBackdrop from "../../../components/ui/BottomSheetBackdrop";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PhysicalAdvanceResponse } from "../../../types/entities";
-import { useUpdateAdvance } from "../../../hooks/data/query/useAvanceQueries";
+import { useUpdateAdvance } from "../../../hooks/data/query/useAvance";
 import {
   advanceEditSchema,
   advanceEditDefaultValues,
@@ -97,7 +97,7 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         onClose();
       }
     },
-    [onClose]
+    [onClose],
   );
 
   // Handle form submission
@@ -124,7 +124,7 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
       Alert.alert(
         "Error",
         "No se pudo actualizar el avance. Inténtalo de nuevo.",
-        [{ text: "Entendido", style: "default" }]
+        [{ text: "Entendido", style: "default" }],
       );
     }
   };
@@ -144,7 +144,7 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
   // Custom volume input handler
   const handleVolumeChange = (
     value: string,
-    onChange: (value: string) => void
+    onChange: (value: string) => void,
   ) => {
     const numericValue = value.replace(/[^0-9.]/g, "");
     const parts = numericValue.split(".");
@@ -205,8 +205,8 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
                 advance.status === "APPROVED"
                   ? styles.approvedBadge
                   : advance.status === "REJECTED"
-                  ? styles.rejectedBadge
-                  : styles.pendingBadge,
+                    ? styles.rejectedBadge
+                    : styles.pendingBadge,
               ]}
             >
               <Text
@@ -215,15 +215,15 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
                   advance.status === "APPROVED"
                     ? styles.approvedText
                     : advance.status === "REJECTED"
-                    ? styles.rejectedText
-                    : styles.pendingText,
+                      ? styles.rejectedText
+                      : styles.pendingText,
                 ]}
               >
                 {advance.status === "APPROVED"
                   ? "Aprobado"
                   : advance.status === "REJECTED"
-                  ? "Rechazado"
-                  : "Pendiente"}
+                    ? "Rechazado"
+                    : "Pendiente"}
               </Text>
             </View>
           </View>

@@ -1,12 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as SecureStore from "expo-secure-store";
 import axios, {
   AxiosError,
   AxiosInstance,
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
-import { deleteToken, getTokenResponse } from "../../utils/auth";
+import { getTokenResponse, forceLogout } from "../../utils/auth";
 import { API_CONFIG, isDevelopment } from "./config";
 
 // Interceptor to add token to requests - prioritizes SecureStore over AsyncStorage
@@ -73,14 +72,10 @@ const responseHandlerInterceptor = (client: AxiosInstance) =>
           url: error.config?.url,
         });
 
-        // Handle 401 Unauthorized - clear tokens and redirect to login
+        // Handle 401 Unauthorized - force logout
         if (error.response.status === 401) {
-          console.log("401 Unauthorized - clearing tokens");
-          try {
-            await deleteToken();
-          } catch (clearError: unknown) {
-            console.error("Error clearing tokens:", clearError);
-          }
+          console.log("401 Unauthorized - forcing logout");
+          await forceLogout();
         }
       } else if (error.request) {
         console.error("Network error - No response:", {

@@ -20,10 +20,10 @@ import {
   selectUser,
 } from "../../redux/selectors/authSelectors";
 import { useAuth } from "../../hooks/useAuth";
-import { useAssignedConstruction } from "../../hooks/data/query/useAvanceQueries";
-import { DesignTokens, ColorUtils } from "../../styles/designTokens";
+import { DesignTokens } from "../../styles/designTokens";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useAssignedConstruction } from "src/hooks/data/query/useAvance";
 
 const PerfilScreen = () => {
   const dispatch = useAppDispatch();
@@ -33,8 +33,7 @@ const PerfilScreen = () => {
   const userEmail = useAppSelector(selectUserEmail) || "usuario@ejemplo.com";
 
   // Obtener construcción asignada con caché extendido
-  const { data: assignedConstruction, isLoading: loadingConstruction } =
-    useAssignedConstruction();
+  const { data: assignedConstruction } = useAssignedConstruction();
 
   // Generar iniciales para el avatar
   const userInitials = useMemo(() => {
@@ -101,7 +100,7 @@ const PerfilScreen = () => {
           },
         },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
@@ -179,7 +178,7 @@ const PerfilScreen = () => {
                       ? format(
                           new Date(assignedConstruction.start_date),
                           "dd MMM yyyy",
-                          { locale: es }
+                          { locale: es },
                         )
                       : "No definido"}
                   </Text>
@@ -192,7 +191,7 @@ const PerfilScreen = () => {
                       ? format(
                           new Date(assignedConstruction.end_date),
                           "dd MMM yyyy",
-                          { locale: es }
+                          { locale: es },
                         )
                       : "No definido"}
                   </Text>

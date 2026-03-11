@@ -1,6 +1,6 @@
 import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
-import { Platform, Dimensions } from "react-native";
+import { Dimensions } from "react-native";
 import { AvanceStackParamList } from "../types";
 import AdvanceListScreen from "../../modules/avance/screens/AdvanceListScreen";
 import AdvanceRegistrationScreen from "../../modules/avance/screens/AdvanceRegistrationScreen";

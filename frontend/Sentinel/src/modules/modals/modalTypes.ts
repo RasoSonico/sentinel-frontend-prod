@@ -1,6 +1,7 @@
 export enum ModalEnum {
   AdvanceSuccess = "AdvanceSuccess",
-  AdvancePending = "AdvancePending", 
+  AdvanceSent = "AdvanceSent",
+  AdvancePending = "AdvancePending",
   AdvanceFailure = "AdvanceFailure",
   ConfirmSend = "ConfirmSend",
   // Generic reusable modals
@@ -8,11 +9,14 @@ export enum ModalEnum {
   Failure = "Failure",
   Confirm = "Confirm",
   Pending = "Pending",
+  InfoDetail = "InfoDetail",
+  SearchablePicker = "SearchablePicker",
 }
 
 export type ModalPropsMap = {
   // Backward compatibility for existing advance modals
   [ModalEnum.AdvanceSuccess]: import("./components/AdvanceSuccessModal").AdvanceSuccessModalProps;
+  [ModalEnum.AdvanceSent]: import("./components/AdvanceSentModal").AdvanceSentModalProps;
   [ModalEnum.AdvancePending]: import("./components/AdvancePendingModal").AdvancePendingModalProps;
   [ModalEnum.AdvanceFailure]: import("./components/AdvanceFailureModal").AdvanceFailureModalProps;
   [ModalEnum.ConfirmSend]: import("./components/ConfirmSendModal").ConfirmSendModalProps;
@@ -21,6 +25,8 @@ export type ModalPropsMap = {
   [ModalEnum.Failure]: import("./components/AdvanceFailureModal").FailureModalProps;
   [ModalEnum.Confirm]: import("./components/ConfirmSendModal").ConfirmModalProps;
   [ModalEnum.Pending]: import("./components/AdvancePendingModal").AdvancePendingModalProps;
+  [ModalEnum.InfoDetail]: import("./components/InfoDetailModal").InfoDetailModalProps;
+  [ModalEnum.SearchablePicker]: import("./components/SearchablePickerModal").SearchablePickerModalProps;
 };
 
 export interface BaseModalProps {

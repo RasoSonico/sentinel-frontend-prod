@@ -52,7 +52,10 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
           >
             <Text style={styles.registerButtonText}>{primaryButtonText}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.homeButton} onPress={onSecondaryAction}>
+          <TouchableOpacity
+            style={styles.homeButton}
+            onPress={onSecondaryAction}
+          >
             <Text style={styles.homeButtonText}>{secondaryButtonText}</Text>
           </TouchableOpacity>
         </View>

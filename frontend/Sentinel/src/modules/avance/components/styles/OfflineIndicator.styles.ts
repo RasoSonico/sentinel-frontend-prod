@@ -19,6 +19,11 @@ const offlineIndicatorStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#3498db",
   },
+  errorContainer: {
+    backgroundColor: "#fff3f3",
+    borderWidth: 1,
+    borderColor: "#e74c3c",
+  },
   infoContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -49,6 +54,10 @@ const offlineIndicatorStyles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 12,
     marginLeft: 4,
+  },
+  viewQueueButton: {
+    backgroundColor: "#e74c3c",
+    marginLeft: 8,
   },
 });
 

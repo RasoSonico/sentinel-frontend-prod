@@ -15,16 +15,18 @@ interface Catalog {
 /**
  * Obtiene las obras asignadas al usuario actual
  */
-export const getMyConstructions = async (): Promise<Construction[]> => {
+export const getMyConstructions = async (
+  role: string = "CONTRATISTA",
+): Promise<Construction[]> => {
   try {
     console.log(
-      "🔍 Requesting my constructions: /api/obra/constructions/my_constructions/?role=CONTRATISTA"
+      "🔍 Requesting my constructions: /api/obra/constructions/my_constructions/?role=${role}",
     );
 
     const response = await apiRequest<Construction[]>(
       "get",
-      `${API_CONFIG.endpoints.obra.constructions.myConstructions}?role=CONTRATISTA`,
-      "Error al obtener obras asignadas"
+      `${API_CONFIG.endpoints.obra.constructions.myConstructions}?role=${role}`,
+      "Error al obtener obras asignadas",
     );
 
     console.log("📦 My constructions response:", response);
@@ -40,7 +42,7 @@ export const getMyConstructions = async (): Promise<Construction[]> => {
  * @param role Rol del usuario (por defecto 'CONTRATISTA')
  */
 export const getAssignedConstruction = async (
-  role: string = "CONTRATISTA"
+  role: string = "CONTRATISTA",
 ): Promise<Construction | null> => {
   try {
     const endpoint = `${API_CONFIG.endpoints.obra.constructions.myConstructions}?role=${role}`;
@@ -49,7 +51,7 @@ export const getAssignedConstruction = async (
     const response = await apiRequest<Construction[]>(
       "get",
       endpoint,
-      "Error al obtener obra asignada"
+      "Error al obtener obra asignada",
     );
 
     console.log("📦 Response from getAssignedConstruction:", {
@@ -78,7 +80,7 @@ export const getUserConstructions = async (): Promise<Construction[]> => {
     const response = await apiRequest<Construction[]>(
       "get",
       `${API_CONFIG.endpoints.obra.constructions.myConstructions}?role=CONTRATISTA`,
-      "Error al obtener asignaciones de usuario"
+      "Error al obtener asignaciones de usuario",
     );
 
     console.log("📦 All user constructions response:", {
@@ -98,7 +100,7 @@ export const getUserConstructions = async (): Promise<Construction[]> => {
  * @param constructionId ID de la construcción
  */
 export const getCatalogsByConstruction = async (
-  constructionId: number
+  constructionId: number,
 ): Promise<Catalog[]> => {
   try {
     const endpoint = `${API_CONFIG.endpoints.construction.catalog}?construction=${constructionId}`;
@@ -106,7 +108,7 @@ export const getCatalogsByConstruction = async (
     const response = await apiRequest<ConstructionCatalogResponse>(
       "get",
       endpoint,
-      "Error al obtener catálogos de la construcción"
+      "Error al obtener catálogos de la construcción",
     );
 
     return response.results;
@@ -118,11 +120,11 @@ export const getCatalogsByConstruction = async (
 };
 
 export const getConstruction = async (
-  constructionId?: number
+  constructionId?: number,
 ): Promise<Construction> => {
   if (!constructionId) {
     throw new Error(
-      "Construction ID is required to fetch construction details"
+      "Construction ID is required to fetch construction details",
     );
   }
 
@@ -133,7 +135,7 @@ export const getConstruction = async (
     const response = await apiRequest<Construction>(
       "get",
       endpoint,
-      "Error al obtener detalles de la construcción"
+      "Error al obtener detalles de la construcción",
     );
 
     console.log("📦 Construction details response:", response);

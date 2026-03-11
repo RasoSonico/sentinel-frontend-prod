@@ -31,7 +31,7 @@ const SimpleLoginScreen = () => {
             name: "Usuario de Prueba",
             roles: ["CONTRATISTA"],
           },
-        })
+        }),
       );
 
       console.log("Login simulado exitoso");

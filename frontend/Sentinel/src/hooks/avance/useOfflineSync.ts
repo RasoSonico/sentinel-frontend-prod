@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { Platform } from "react-native";
 import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppDispatch } from "../../redux/hooks";
@@ -163,7 +162,7 @@ export function useOfflineSync<T>({
 
       // Filtrar elementos pendientes que no han excedido el número máximo de reintentos
       const itemsToSync = items.filter(
-        (item) => item.syncPending && item.retryCount < maxRetries
+        (item) => item.syncPending && item.retryCount < maxRetries,
       );
 
       if (itemsToSync.length === 0) {
@@ -183,7 +182,7 @@ export function useOfflineSync<T>({
           items = items.map((i) =>
             i.id === item.id
               ? { ...i, syncPending: false, syncedAt: Date.now() }
-              : i
+              : i,
           );
 
           syncResults.push({ id: item.id, success: true, result });
@@ -192,7 +191,7 @@ export function useOfflineSync<T>({
 
           // Incrementar contador de reintentos
           items = items.map((i) =>
-            i.id === item.id ? { ...i, retryCount: i.retryCount + 1 } : i
+            i.id === item.id ? { ...i, retryCount: i.retryCount + 1 } : i,
           );
 
           syncResults.push({
@@ -215,7 +214,7 @@ export function useOfflineSync<T>({
       setSyncError(
         error instanceof Error
           ? error.message
-          : "Error desconocido durante la sincronización"
+          : "Error desconocido durante la sincronización",
       );
     } finally {
       setIsSyncing(false);

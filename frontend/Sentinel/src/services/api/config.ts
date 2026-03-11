@@ -18,6 +18,7 @@ export const API_CONFIG = {
     submitAdvance: "/api/avance/physical/",
     advances: {
       list: "/api/avance/physical/",
+      base: "/api/avance/base/",
     },
     photos: {
       confirmUpload: "/api/avance/photos/confirm-upload/",

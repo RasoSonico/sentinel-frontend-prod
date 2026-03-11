@@ -4,41 +4,21 @@ import { CatalogoApiResponse } from "src/types/catalogo";
 import { PartidaApiResponse } from "src/types/partida";
 import { ConceptoApiResponse } from "src/types/concepto";
 import { SubmitAdvance, SubmitAvanceResponse } from "src/types/avance";
-import { PhysicalAdvanceResponse, Construction } from "src/types/entities";
+import {
+  PhysicalAdvanceResponse,
+  Construction,
+  AvanceBaseResponse,
+} from "src/types/entities";
 
-// DEPRECATED: Use getCatalogsByConstruction instead
-export const getCatalogs = async () =>
-  await apiRequest<CatalogoApiResponse>(
+export const getAvanceBase = async () => {
+  const endpoint = `${API_CONFIG.endpoints.advances.base}`;
+
+  return await apiRequest<AvanceBaseResponse>(
     "get",
-    API_CONFIG.endpoints.catalogs,
-    "Hubo un error al obtener los catálogos, inténtelo de nuevo más tarde."
-  ).then((response) => {
-    return response.results ?? [];
-  });
-
-// DEPRECATED: Use getPartidasByCatalog instead
-export const getPartidas = async () =>
-  await apiRequest<PartidaApiResponse>(
-    "get",
-    API_CONFIG.endpoints.partidas,
-    "Hubo un error al obtener las partidas, inténtelo de nuevo más tarde."
-  ).then((response) => {
-    return response.results ?? [];
-  });
-
-// DEPRECATED: Use getConceptsByWorkItem instead
-export const getConcepts = async () =>
-  await apiRequest<ConceptoApiResponse>(
-    "get",
-    API_CONFIG.endpoints.concepts,
-    "Hubo un error al obtener los conceptos, inténtelo de nuevo más tarde."
-  ).then((response) => {
-    return response.results ?? [];
-  });
-
-/**
- * NEW HIERARCHICAL APIs - Following correct user permissions flow for CONTRATISTA
- */
+    endpoint,
+    "Error al obtener bases del avance (partida, catalogo y concepto)",
+  );
+};
 
 /**
  * Obtener catálogos asignados al usuario por construcción
@@ -49,7 +29,7 @@ export const getCatalogsByConstruction = async (constructionId: number) => {
   return await apiRequest<CatalogoApiResponse>(
     "get",
     endpoint,
-    "Error al obtener catálogos de la construcción"
+    "Error al obtener catálogos de la construcción",
   ).then((response) => {
     return response.results ?? [];
   });
@@ -64,7 +44,7 @@ export const getPartidasByCatalog = async (catalogId: number) => {
   return await apiRequest<PartidaApiResponse>(
     "get",
     endpoint,
-    "Error al obtener partidas del catálogo"
+    "Error al obtener partidas del catálogo",
   ).then((response) => {
     return response.results ?? [];
   });
@@ -79,14 +59,11 @@ export const getConceptsByWorkItem = async (workItemId: number) => {
   return await apiRequest<ConceptoApiResponse>(
     "get",
     endpoint,
-    "Error al obtener conceptos de la partida"
+    "Error al obtener conceptos de la partida",
   ).then((response) => {
     return response.results ?? [];
   });
 };
-
-// getConceptsByIds ya no es necesario con detailed=true
-// La información viene directamente en los avances
 
 /**
  * Actualizar un avance existente (edición)
@@ -98,7 +75,7 @@ export const updateAdvance = async (
     volume?: string;
     comments?: string;
     status?: "PENDING" | "APPROVED" | "REJECTED";
-  }
+  },
 ): Promise<PhysicalAdvanceResponse> => {
   const endpoint = `${API_CONFIG.endpoints.advances.list}${advanceId}/`;
 
@@ -106,7 +83,7 @@ export const updateAdvance = async (
     "patch",
     endpoint,
     "Error al actualizar el avance",
-    updates
+    updates,
   );
 };
 
@@ -115,66 +92,26 @@ export const submitAdvance = async (advance: SubmitAdvance) =>
     "post",
     API_CONFIG.endpoints.submitAdvance,
     "Hubo un error al enviar el formulario de avance, inténtelo de nuevo más tarde.",
-    advance
+    advance,
   );
-
-// Nuevas funciones para AdvanceListScreen usando useQuery
 
 /**
  * Obtener avances por catalog_id con filtros opcionales
  */
 export const getAdvancesByCatalog = async ({
   catalogId,
-  status,
-  startDate,
-  endDate,
-  date,
-  page = 1,
-  pageSize = 20,
-  detailed = true, // Nuevo parámetro para obtener información expandida
-  ordering = "-date", // Nuevo parámetro para ordenamiento (por defecto: más recientes primero)
+  detailed = true,
 }: {
   catalogId: number;
-  status?: "PENDING" | "APPROVED" | "REJECTED";
-  startDate?: string; // YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ (datetime)
-  endDate?: string; // YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ (datetime)  
-  date?: string; // YYYY-MM-DD (single date - DEPRECATED)
-  page?: number;
-  pageSize?: number;
   detailed?: boolean;
-  ordering?: string;
 }): Promise<{ advances: PhysicalAdvanceResponse[]; count: number }> => {
   const params = new URLSearchParams({
     catalog: catalogId.toString(),
-    page: page.toString(),
-    page_size: pageSize.toString(),
   });
-
-  if (status) {
-    params.append("status", status);
-  }
-
-  // Filtros de fecha
-  if (startDate) {
-    params.append("start_date", startDate);
-  }
-
-  if (endDate) {
-    params.append("end_date", endDate);
-  }
-
-  if (date) {
-    params.append("date", date);
-  }
 
   // Agregar parámetro detailed si está habilitado
   if (detailed) {
     params.append("detailed", "true");
-  }
-
-  // Agregar parámetro ordering para definir el criterio de ordenamiento
-  if (ordering) {
-    params.append("ordering", ordering);
   }
 
   const endpoint = `${API_CONFIG.endpoints.advances.list}?${params.toString()}`;
@@ -196,7 +133,7 @@ export const getAdvancesByCatalog = async ({
  * Obtener construcción asignada al usuario
  */
 export const getAssignedConstruction = async (
-  role: string = "CONTRATISTA"
+  role: string = "CONTRATISTA",
 ): Promise<Construction | null> => {
   try {
     const endpoint = `${API_CONFIG.endpoints.obra.constructions.myConstructions}?role=${role}`;
@@ -204,7 +141,7 @@ export const getAssignedConstruction = async (
     const response = await apiRequest<Construction[]>(
       "get",
       endpoint,
-      "Error al obtener obra asignada"
+      "Error al obtener obra asignada",
     );
 
     const result = response.length > 0 ? response[0] : null;
@@ -214,9 +151,3 @@ export const getAssignedConstruction = async (
     throw error;
   }
 };
-
-// export const getCatalogs = async () => Promise.resolve(catalogsMockData.results ?? []);
-//
-// export const getPartidas = async () => Promise.resolve(partidaMockData.results ?? []);
-//
-// export const getConcepts = async () => Promise.resolve(conceptoMockData.results ?? []);
