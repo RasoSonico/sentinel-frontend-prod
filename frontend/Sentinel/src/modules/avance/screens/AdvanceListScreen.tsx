@@ -80,20 +80,6 @@ const AdvanceListScreen: React.FC = () => {
     );
   }
 
-  // // Single construction: render content directly
-  // if (constructions.length === 1) {
-  //   const construction = constructions[0];
-  //   return (
-  //     <SafeAreaView style={baseStyles.container}>
-  //       <AdvanceListContent
-  //         constructionId={Number(construction.id)}
-  //         constructionName={construction.name}
-  //       />
-  //     </SafeAreaView>
-  //   );
-  // }
-
-  // Multiple constructions: render selector header + content + picker sheet
   return (
     <SafeAreaView style={baseStyles.container}>
       <ConstructionSelectorHeader
