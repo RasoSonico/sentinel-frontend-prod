@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import {
-  useAssignedConstruction,
   useCatalogsByConstruction,
   useAdvancesByCatalog,
 } from "src/hooks/data/query/useAvance";
@@ -9,10 +8,12 @@ import { PhysicalAdvanceResponse } from "src/realm/avanceByCatalog/PhysicalAdvan
 export type StatusFilter = "all" | "pending" | "approved" | "rejected";
 
 interface UseAdvanceListDataProps {
+  constructionId: number;
+  constructionName: string;
   statusFilter: StatusFilter;
-  startDate?: Date;
-  endDate?: Date;
-  singleDate?: Date;
+  startDate?: string;
+  endDate?: string;
+  singleDate?: string;
 }
 
 const filterByStatus = (
@@ -45,9 +46,11 @@ const filterByStatus = (
 
 const filterByDateRange = (
   advances: PhysicalAdvanceResponse[],
-  startDate: Date,
-  endDate: Date,
+  startDateStr: string,
+  endDateStr: string,
 ): PhysicalAdvanceResponse[] => {
+  const startDate = new Date(startDateStr);
+  const endDate = new Date(endDateStr);
   return advances.filter((advance) => {
     const advanceDate = new Date(advance.date);
     return advanceDate >= startDate && advanceDate <= endDate;
@@ -56,8 +59,9 @@ const filterByDateRange = (
 
 const filterBySingleDate = (
   advances: PhysicalAdvanceResponse[],
-  singleDate: Date,
+  singleDateStr: string,
 ): PhysicalAdvanceResponse[] => {
+  const singleDate = new Date(singleDateStr);
   return advances.filter((advance) => {
     const advanceDate = new Date(advance.date);
     return (
@@ -69,7 +73,7 @@ const filterBySingleDate = (
 };
 
 const calculateSummary = (
-  advances: List<PhysicalAdvanceResponse> | PhysicalAdvanceResponse[] | null,
+  advances: Realm.List<PhysicalAdvanceResponse> | PhysicalAdvanceResponse[] | null,
 ) => {
   if (!advances || advances.length === 0) return null;
 
@@ -106,25 +110,26 @@ const calculateSummary = (
 };
 
 export const useAdvanceListData = ({
+  constructionId,
+  constructionName,
   statusFilter,
   endDate,
   singleDate,
   startDate,
 }: UseAdvanceListDataProps) => {
-  // Fetch assigned construction
-  const {
-    data: assignedConstruction,
-    isInitialLoading: loadingConstruction,
-    error: constructionError,
-    refetch: refetchConstruction,
-  } = useAssignedConstruction();
+  // Build a minimal assignedConstruction object for compatibility with existing components
+  const assignedConstruction = useMemo(
+    () => ({
+      id: constructionId,
+      name: constructionName,
+    }),
+    [constructionId, constructionName],
+  );
 
-  // Memoize construction ID to prevent unnecessary re-renders
-  const constructionId = useMemo(() => {
-    return assignedConstruction?.id
-      ? Number(assignedConstruction.id)
-      : undefined;
-  }, [assignedConstruction?.id]);
+  // No loading state for construction since it's passed in
+  const loadingConstruction = false;
+  const constructionError = null;
+  const refetchConstruction = async () => {};
 
   // Fetch catalogs for the assigned construction
   const {
