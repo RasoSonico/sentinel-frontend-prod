@@ -3,7 +3,8 @@ import { ConstructionRealm } from "./Construction";
 
 export class AssignedConstructionResponse extends Realm.Object<AssignedConstructionResponse> {
   _id!: string; // Format: "assigned-construction-{role}"
-  construction!: ConstructionRealm | null;
+  constructions!: Realm.List<ConstructionRealm>;
+  selectedConstructionId?: string;
   updatedAt!: Date;
 
   static schema: Realm.ObjectSchema = {
@@ -11,7 +12,8 @@ export class AssignedConstructionResponse extends Realm.Object<AssignedConstruct
     primaryKey: "_id",
     properties: {
       _id: "string",
-      construction: "ConstructionRealm?",
+      constructions: { type: "list", objectType: "ConstructionRealm" },
+      selectedConstructionId: "string?",
       updatedAt: "date",
     },
   };
