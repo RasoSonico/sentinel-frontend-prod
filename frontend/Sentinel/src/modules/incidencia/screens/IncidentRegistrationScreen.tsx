@@ -38,8 +38,8 @@ const IncidentRegistrationScreen: React.FC = () => {
 
   // Query para obtener la construcción asignada
   const {
-    data: assignedConstruction,
-    isLoading: loadingConstruction,
+    selectedConstruction: assignedConstruction,
+    isInitialLoading: loadingConstruction,
     error: constructionError,
   } = useAssignedConstruction();
 

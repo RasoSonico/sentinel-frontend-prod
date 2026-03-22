@@ -51,7 +51,7 @@ export function AdvanceFormProvider({
     defaultValues: advanceFormDefaultValues,
   });
 
-  const { data: assignedConstruction, isLoading: isLoadingConstruction } =
+  const { selectedConstruction, isInitialLoading: isLoadingConstruction } =
     useAssignedConstruction("CONTRATISTA");
 
   const {
@@ -68,7 +68,7 @@ export function AdvanceFormProvider({
       catalogs: avanceBase?.catalogs,
       isLoadingAvanceBase,
       isLoadingConstruction,
-      hasAssignedConstruction: !!assignedConstruction,
+      hasAssignedConstruction: !!selectedConstruction,
       catalogsError: catalogsError as Error | null,
       isCatalogsError,
     }),
@@ -77,7 +77,7 @@ export function AdvanceFormProvider({
       avanceBase,
       isLoadingAvanceBase,
       isLoadingConstruction,
-      assignedConstruction,
+      selectedConstruction,
       catalogsError,
       isCatalogsError,
     ]

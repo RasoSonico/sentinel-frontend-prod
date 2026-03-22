@@ -32,8 +32,8 @@ const PerfilScreen = () => {
   const userName = useAppSelector(selectUserName) || "Usuario";
   const userEmail = useAppSelector(selectUserEmail) || "usuario@ejemplo.com";
 
-  // Obtener construcción asignada con caché extendido
-  const { data: assignedConstruction } = useAssignedConstruction();
+  // Obtener construcción asignada (usa la seleccionada actualmente)
+  const { selectedConstruction: assignedConstruction } = useAssignedConstruction();
 
   // Generar iniciales para el avatar
   const userInitials = useMemo(() => {
