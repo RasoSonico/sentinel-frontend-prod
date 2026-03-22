@@ -38,34 +38,30 @@ export const getMyConstructions = async (
 };
 
 /**
- * Obtiene la primera obra asignada al usuario con rol específico
+ * Obtiene todas las obras asignadas al usuario con rol específico
  * @param role Rol del usuario (por defecto 'CONTRATISTA')
  */
-export const getAssignedConstruction = async (
+export const getAssignedConstructions = async (
   role: string = "CONTRATISTA",
-): Promise<Construction | null> => {
+): Promise<Construction[]> => {
   try {
     const endpoint = `${API_CONFIG.endpoints.obra.constructions.myConstructions}?role=${role}`;
-    console.log("🔍 Requesting assigned construction:", endpoint);
+    console.log("🔍 Requesting assigned constructions:", endpoint);
 
     const response = await apiRequest<Construction[]>(
       "get",
       endpoint,
-      "Error al obtener obra asignada",
+      "Error al obtener obras asignadas",
     );
 
-    console.log("📦 Response from getAssignedConstruction:", {
+    console.log("📦 Response from getAssignedConstructions:", {
       responseLength: response.length,
       constructions: response,
     });
 
-    // Devuelve la primera construcción encontrada o null si no hay
-    const result = response.length > 0 ? response[0] : null;
-    console.log("✅ Returning assigned construction:", result);
-
-    return result;
+    return response;
   } catch (error) {
-    console.error("❌ Error al obtener obra asignada:", error);
+    console.error("❌ Error al obtener obras asignadas:", error);
     throw error;
   }
 };
