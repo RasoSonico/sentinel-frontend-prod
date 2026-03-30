@@ -185,7 +185,11 @@ export const AppNavigator = () => {
     >
       {hasRole("CONTRATISTA") && (
         <>
-          <Tab.Screen name="Avances" component={AvanceNavigator} />
+          <Tab.Screen
+            name="Avances"
+            component={AvanceNavigator}
+            options={{ tabBarLabel: "Inicio" }}
+          />
           <Tab.Screen name="Incidencias" component={IncidenciaNavigator} />
         </>
       )}

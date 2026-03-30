@@ -4,7 +4,7 @@ type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
 export function getTabBarIconName(
   routeName: string,
-  focused: boolean
+  focused: boolean,
 ): IoniconName {
   switch (routeName) {
     case "Home":
@@ -16,7 +16,7 @@ export function getTabBarIconName(
     case "Cronogramas":
       return focused ? "calendar" : "calendar-outline";
     case "Avances":
-      return focused ? "trending-up" : "trending-up-outline";
+      return focused ? "home" : "home-outline";
     case "Incidencias":
       return focused ? "warning" : "warning-outline";
     case "Perfil":

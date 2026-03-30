@@ -333,7 +333,7 @@ const AdvanceListScreen: React.FC = () => {
               }}
               activeOpacity={0.8}
             >
-              <Ionicons name="add" size={20} color="#fff" />
+              <Ionicons name="trending-up" size={20} color="#fff" />
             </TouchableOpacity>
           </Animated.View>
 
