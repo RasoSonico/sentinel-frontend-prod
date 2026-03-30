@@ -43,6 +43,7 @@ export async function maybeRefreshToken(
     console.groupEnd();
     return token;
   }
+  console.log(token?.accessToken); //Exp del token
 
   console.log("Token is expired, refreshing...");
   const refreshed = await refreshAsync(

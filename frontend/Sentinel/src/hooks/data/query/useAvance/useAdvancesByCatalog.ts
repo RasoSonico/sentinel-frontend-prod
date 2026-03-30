@@ -1,5 +1,6 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
-import { useObject, useRealm } from "@realm/react";
+import { useMemo } from "react";
+import { queryOptions, useQueries } from "@tanstack/react-query";
+import { useObject, useQuery as useRealmQuery, useRealm } from "@realm/react";
 import { UpdateMode } from "realm";
 import { getAdvancesByCatalog } from "../../api/avanceApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
@@ -96,58 +97,79 @@ export const advancesByCatalogOptions = (
   });
 
 export const useAdvancesByCatalog = ({
-  catalogId,
+  catalogIds,
   detailed = true,
 }: {
-  catalogId: number | undefined;
+  catalogIds: number[];
   detailed?: boolean;
 }) => {
   const realm = useRealm();
   const isOnline = useNetworkStatus();
 
-  const cached = useObject(
-    AvancesByCatalogResponse,
-    `${AVANCE_QUERY_KEYS.ADVANCES_BY_CATALOG}-${catalogId}`,
+  // Build the Realm primary keys for each catalog
+  const realmIds = useMemo(
+    () =>
+      catalogIds.map((id) => `${AVANCE_QUERY_KEYS.ADVANCES_BY_CATALOG}-${id}`),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [catalogIds.join(",")],
   );
 
-  const q = useQuery(
-    advancesByCatalogOptions(
-      {
-        catalogId,
-        detailed,
-      },
-      realm,
-      isOnline,
-    ),
+  // Read all cached records for the given catalog IDs from Realm in one reactive query
+  const cachedItems = useRealmQuery(
+    AvancesByCatalogResponse,
+    (objects) =>
+      realmIds.length === 0
+        ? objects.filtered("FALSEPREDICATE")
+        : objects.filtered("_id IN $0", realmIds),
+    [realmIds.join(",")],
   );
+
+  // Merge advances from all cached Realm records into a single flat array
+  const advances = useMemo(
+    () =>
+      Array.from(cachedItems).flatMap((item) =>
+        Array.from(item.advances ?? []),
+      ),
+    [cachedItems],
+  );
+
+  // Run one TanStack query per catalog ID in parallel
+  const queries = useQueries({
+    queries: catalogIds.map((catalogId) =>
+      advancesByCatalogOptions({ catalogId, detailed }, realm, isOnline),
+    ),
+  });
+
+  const hasOfflineData = cachedItems.length > 0;
+  const isLoading = queries.some((q) => q.isLoading);
+  const isPending = queries.some((q) => q.isPending);
+  const isError = queries.some((q) => q.isError);
+  const error = queries.find((q) => q.error)?.error ?? null;
 
   logHookState("useAdvancesByCatalog", {
     isOnline,
     hasRealm: !!realm,
-    hasCached: !!cached,
-    cachedData: cached
-      ? {
-          advancesCount: cached.advances?.length,
-          count: cached.count,
-        }
-      : null,
-    queryState: {
-      isLoading: q.isLoading,
-      isPending: q.isPending,
-      isSuccess: q.isSuccess,
-      isError: q.isError,
+    hasCached: hasOfflineData,
+    cachedData: {
+      catalogCount: cachedItems.length,
+      advancesCount: advances.length,
     },
+    queryState: { isLoading, isPending, isError },
   });
 
-  if (!isOnline && cached) {
-    logOfflineMode("Advances By Catalog", cached);
+  if (!isOnline && hasOfflineData) {
+    logOfflineMode("Advances By Catalog (multi)", cachedItems);
   }
 
   return {
-    ...q,
-    data: cached ?? null,
-    hasOfflineData: !!cached,
-    isInitialLoading: !cached && q.isPending,
+    advances,
+    hasOfflineData,
+    isLoading,
+    isPending,
+    isError,
+    error,
+    isInitialLoading: !hasOfflineData && isPending,
+    refetch: () => Promise.all(queries.map((q) => q.refetch())),
   };
 };
 

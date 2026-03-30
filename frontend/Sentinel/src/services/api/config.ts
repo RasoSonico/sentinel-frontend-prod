@@ -39,6 +39,9 @@ export const API_CONFIG = {
       incidentTypes: "/api/incidencias/incident-types/",
       incidentClassifications: "/api/incidencias/incident-classifications/",
     },
+    reportes: {
+      physicalAdvance: "/api/reportes/physical-advance/",
+    },
   },
   azureBlobUrl: "https://sentinel.blob.core.windows.net",
 };

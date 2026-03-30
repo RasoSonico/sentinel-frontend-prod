@@ -36,14 +36,14 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.urbaingenieria.sentinel",
       "scheme": "sentinel",
-      "associatedDomains": ["applinks:sentinel-backend-app-bcbjhve6fcd6f4fz.mexicocentral-01.azurewebsites.net"]
+      "associatedDomains": [
+        "applinks:sentinel-backend-app-bcbjhve6fcd6f4fz.mexicocentral-01.azurewebsites.net"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -59,10 +59,7 @@
               "scheme": "sentinel"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
       "edgeToEdgeEnabled": true

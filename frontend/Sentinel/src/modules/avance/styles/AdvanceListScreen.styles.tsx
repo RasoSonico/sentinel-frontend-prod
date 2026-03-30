@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     right: DesignTokens.spacing.sm,
     backgroundColor: ColorUtils.withOpacity(
       DesignTokens.colors.neutral[900],
-      0.8
+      0.8,
     ),
     paddingHorizontal: DesignTokens.spacing.sm,
     paddingVertical: DesignTokens.spacing.xs,
@@ -432,28 +432,61 @@ const styles = StyleSheet.create({
     color: DesignTokens.colors.neutral[500],
   },
 
-  // FLOATING ACTION BUTTON (FAB) - CONGRUENTE CON HEADER EJECUTIVO
-  fab: {
+  // SPEED DIAL FAB
+  fabContainer: {
     position: "absolute",
     right: getResponsiveSpacing(20),
     bottom: getResponsiveSpacing(20),
+    alignItems: "center",
+    zIndex: DesignTokens.zIndex.fab,
+  },
+  fab: {
     width: getResponsiveSpacing(56),
     height: getResponsiveSpacing(56),
     borderRadius: getResponsiveSpacing(28),
-    backgroundColor: DesignTokens.colors.executive.primary, // MISMO COLOR DEL HEADER
+    backgroundColor: DesignTokens.colors.executive.primary,
     justifyContent: "center",
     alignItems: "center",
     ...DesignTokens.shadows.lg,
-    // SOMBRA CONGRUENTE CON HEADER
     shadowColor: DesignTokens.colors.executive.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: DesignTokens.elevation.md,
-    zIndex: DesignTokens.zIndex.fab,
   },
   fabIcon: {
     color: DesignTokens.colors.background.primary,
+  },
+  miniFabRow: {
+    position: "absolute",
+    bottom: 0,
+    right: getResponsiveSpacing(6),
+    width: getResponsiveSpacing(200),
+    height: getResponsiveSpacing(44),
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: getResponsiveSpacing(DesignTokens.spacing.sm),
+  },
+  miniFab: {
+    width: getResponsiveSpacing(44),
+    height: getResponsiveSpacing(44),
+    borderRadius: getResponsiveSpacing(22),
+    backgroundColor: DesignTokens.colors.primary[600],
+    justifyContent: "center",
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  miniFabLabel: {
+    backgroundColor: DesignTokens.colors.neutral[800],
+    paddingHorizontal: getResponsiveSpacing(DesignTokens.spacing.md),
+    paddingVertical: getResponsiveSpacing(DesignTokens.spacing.xs),
+    borderRadius: getResponsiveSpacing(DesignTokens.borderRadius.base),
+  },
+  miniFabLabelText: {
+    color: DesignTokens.colors.background.primary,
+    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.xs),
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
   },
 });
 

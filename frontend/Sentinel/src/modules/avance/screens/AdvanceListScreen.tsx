@@ -8,6 +8,7 @@ import {
   View,
   ActivityIndicator,
   Text,
+  Animated,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -37,12 +38,25 @@ const AdvanceListScreen: React.FC = () => {
   // State
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
+  const fabAnimation = React.useRef(new Animated.Value(0)).current;
 
   // Hooks
   const navigation = useNavigation<AdvanceListScreenNavigationProp>();
 
-  const { dateFilter, setDateFilter, startDate, endDate, singleDate } =
-    useDateRangeFilter();
+  const {
+    dateFilter,
+    setDateFilter,
+    startDate: startDateStr,
+    endDate: endDateStr,
+    singleDate: singleDateStr,
+  } = useDateRangeFilter();
+
+  // useAdvanceListData expects Date objects — convert from the string values
+  // returned by useDateRangeFilter
+  const startDate = startDateStr ? new Date(startDateStr) : undefined;
+  const endDate = endDateStr ? new Date(endDateStr) : undefined;
+  const singleDate = singleDateStr ? new Date(singleDateStr) : undefined;
 
   const {
     assignedConstruction,
@@ -120,6 +134,22 @@ const AdvanceListScreen: React.FC = () => {
   const handleLoadMore = useCallback(() => {
     // TODO: Implement pagination with useInfiniteQuery
   }, []);
+
+  const toggleFab = useCallback(() => {
+    const toValue = fabOpen ? 0 : 1;
+    Animated.spring(fabAnimation, {
+      toValue,
+      useNativeDriver: true,
+      friction: 6,
+      overshootClamping: true,
+    }).start();
+    setFabOpen((prev) => !prev);
+  }, [fabOpen, fabAnimation]);
+
+  const handleNavigateReport = useCallback(() => {
+    toggleFab();
+    navigation.navigate("ReportSelection");
+  }, [toggleFab, navigation]);
 
   // Render functions
   const renderItem = useCallback(
@@ -237,15 +267,98 @@ const AdvanceListScreen: React.FC = () => {
         onAdvanceUpdated={handleAdvanceUpdated}
       />
 
-      {/* Floating Action Button */}
+      {/* Speed Dial FAB */}
       {!isBottomSheetVisible && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={handleAddAdvance}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={24} style={styles.fabIcon} />
-        </TouchableOpacity>
+        <View style={styles.fabContainer} pointerEvents="box-none">
+          {/* Mini FAB — Reporte */}
+          <Animated.View
+            style={[
+              styles.miniFabRow,
+              {
+                opacity: fabAnimation,
+                transform: [
+                  {
+                    translateY: fabAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -64],
+                    }),
+                  },
+                ],
+              },
+            ]}
+            pointerEvents={fabOpen ? "auto" : "none"}
+            renderToHardwareTextureAndroid
+            shouldRasterizeIOS
+          >
+            <View style={styles.miniFabLabel}>
+              <Text style={styles.miniFabLabelText}>Reportes</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.miniFab}
+              onPress={handleNavigateReport}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="document-text-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Mini FAB — Avance */}
+          <Animated.View
+            style={[
+              styles.miniFabRow,
+              {
+                opacity: fabAnimation,
+                transform: [
+                  {
+                    translateY: fabAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -128],
+                    }),
+                  },
+                ],
+              },
+            ]}
+            pointerEvents={fabOpen ? "auto" : "none"}
+            renderToHardwareTextureAndroid
+            shouldRasterizeIOS
+          >
+            <View style={styles.miniFabLabel}>
+              <Text style={styles.miniFabLabelText}>Avance</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.miniFab}
+              onPress={() => {
+                toggleFab();
+                handleAddAdvance();
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={20} color="#fff" />
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Main FAB */}
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={toggleFab}
+            activeOpacity={0.8}
+          >
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    rotate: fabAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ["0deg", "45deg"],
+                    }),
+                  },
+                ],
+              }}
+            >
+              <Ionicons name="add" size={24} style={styles.fabIcon} />
+            </Animated.View>
+          </TouchableOpacity>
+        </View>
       )}
     </SafeAreaView>
   );

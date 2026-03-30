@@ -4,6 +4,8 @@ import { Dimensions } from "react-native";
 import { AvanceStackParamList } from "../types";
 import AdvanceListScreen from "../../modules/avance/screens/AdvanceListScreen";
 import AdvanceRegistrationScreen from "../../modules/avance/screens/AdvanceRegistrationScreen";
+import ReportSelectionScreen from "../../modules/avance/screens/ReportSelectionScreen";
+import AdvanceReportScreen from "../../modules/avance/screens/AdvanceReportScreen";
 import { DesignTokens } from "../../styles/designTokens";
 
 // HEADER UTILITIES
@@ -54,7 +56,23 @@ export const AvanceNavigator: React.FC = () => {
         }}
       />
 
-      {/* 
+      <Stack.Screen
+        name="ReportSelection"
+        component={ReportSelectionScreen}
+        options={{
+          title: "Reportes",
+        }}
+      />
+
+      <Stack.Screen
+        name="AdvanceReport"
+        component={AdvanceReportScreen}
+        options={{
+          title: "Reporte de Avance",
+        }}
+      />
+
+      {/*
       <Stack.Screen
         name="AvanceDetail"
         component={AdvanceDetailScreen}

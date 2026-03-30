@@ -73,6 +73,8 @@ export type AvanceStackParamList = {
   EstimacionCreate: undefined;
   EstimacionEdit: { estimacionId: string };
   Dashboard: undefined;
+  ReportSelection: undefined;
+  AdvanceReport: { constructionId: string; constructionName: string };
 };
 
 // Parámetros para el navegador de Incidencias
@@ -129,7 +131,8 @@ export type CatalogoNavigationProp =
 export type CronogramaNavigationProp =
   StackNavigationProp<CronogramaStackParamList>;
 export type AvanceNavigationProp = StackNavigationProp<AvanceStackParamList>;
-export type IncidenciaNavigationProp = StackNavigationProp<IncidenciaStackParamList>;
+export type IncidenciaNavigationProp =
+  StackNavigationProp<IncidenciaStackParamList>;
 export type RootNavigationProp = StackNavigationProp<RootStackParamList>;
 
 // Tipos para las propiedades de ruta

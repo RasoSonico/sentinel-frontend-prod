@@ -68,9 +68,7 @@ const filterBySingleDate = (
   });
 };
 
-const calculateSummary = (
-  advances: List<PhysicalAdvanceResponse> | PhysicalAdvanceResponse[] | null,
-) => {
+const calculateSummary = (advances: PhysicalAdvanceResponse[] | null) => {
   if (!advances || advances.length === 0) return null;
 
   // Work directly with Realm.List without converting to array
@@ -133,35 +131,26 @@ export const useAdvanceListData = ({
     error: catalogsError,
   } = useCatalogsByConstruction(constructionId);
 
-  // Get the main catalog (first one)
-  // catalogs is already an array from the hook
+  // Get the main catalog (first one) — kept for hasCatalogs check in the screen
   const mainCatalog = useMemo(() => {
     return catalogs?.[0];
   }, [catalogs]);
 
-  // Memoize catalog ID to prevent unnecessary re-renders
-  const catalogId = useMemo(() => {
-    return mainCatalog?.id;
-  }, [mainCatalog?.id]);
+  // Collect all catalog IDs to fetch advances for every catalog
+  const catalogIds = useMemo(() => {
+    return catalogs?.map((c) => c.id) ?? [];
+  }, [catalogs]);
 
-  // Fetch advances for the main catalog
-  // Returns Realm object with advances as Realm.List
+  // Fetch advances for all catalogs in parallel
   const {
-    data: advancesByCatalog,
+    advances: allAdvancesRealmList,
     isLoading: loadingAdvances,
     error: advancesError,
     refetch: refetchAdvances,
   } = useAdvancesByCatalog({
-    catalogId,
+    catalogIds,
     detailed: true,
   });
-
-  // Get the Realm.List of advances directly
-  // Don't convert to array yet - keep as Realm.List
-  const allAdvancesRealmList: Realm.List<PhysicalAdvanceResponse> | null =
-    useMemo(() => {
-      return advancesByCatalog?.advances ?? null;
-    }, [advancesByCatalog?.advances]);
 
   // Calculate summary directly from Realm.List for better performance
   const summary = useMemo(() => {
@@ -182,7 +171,10 @@ export const useAdvanceListData = ({
       filtered = filterBySingleDate(filtered, singleDate);
     }
 
-    return filtered;
+    // Sort by date descending (most recent first) across all catalogs
+    return filtered.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
   }, [allAdvancesRealmList, statusFilter, startDate, endDate, singleDate]);
 
   return {
