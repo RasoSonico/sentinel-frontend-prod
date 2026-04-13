@@ -4,7 +4,7 @@
     "azure": {
       "tenantId": "ad5ea611-9c68-4e8e-adbe-e4490d9c364c",
       "clientId": "be07defd-f345-47da-8b27-5cfcf8346202",
-      "scopes": ["api://sentinel-auth/access_as_user"],
+      "scopes": ["api://sentinel-auth/access_as_user", "offline_access"],
       "scheme": "sentinel",
       "path": "auth"
     },

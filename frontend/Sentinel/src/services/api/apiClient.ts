@@ -5,7 +5,15 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
-import { getTokenResponse, forceLogout } from "../../utils/auth";
+import {
+  getTokenResponse,
+  forceLogout,
+  forceRefreshToken,
+} from "../../utils/auth";
+
+interface RetryableAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
 import { API_CONFIG, isDevelopment } from "./config";
 
 // Interceptor to add token to requests - prioritizes SecureStore over AsyncStorage
@@ -52,7 +60,7 @@ const addTokenToRequestsInterceptor = (client: AxiosInstance) =>
     (error: unknown) => {
       console.error("Request interceptor error:", error);
       return Promise.reject(error);
-    }
+    },
   );
 
 // Interceptor to handle responses
@@ -72,10 +80,29 @@ const responseHandlerInterceptor = (client: AxiosInstance) =>
           url: error.config?.url,
         });
 
-        // Handle 401 Unauthorized - force logout
+        // Handle 401 Unauthorized - attempt silent refresh then retry
         if (error.response.status === 401) {
-          console.log("401 Unauthorized - forcing logout");
-          await forceLogout();
+          const originalRequest = error.config as RetryableAxiosRequestConfig;
+          if (originalRequest && !originalRequest._retry) {
+            originalRequest._retry = true;
+            console.log(
+              "[Auth] 401 received - attempting silent token refresh",
+            );
+            const newToken = await forceRefreshToken();
+            if (newToken?.accessToken) {
+              console.log(
+                "[Auth] Refresh succeeded - retrying original request",
+              );
+              originalRequest.headers.Authorization = `Bearer ${newToken.accessToken}`;
+              return client.request(originalRequest);
+            } else {
+              console.log("[Auth] Refresh failed - forcing logout");
+              await forceLogout();
+            }
+          } else {
+            console.log("[Auth] Retried request also got 401 - forcing logout");
+            await forceLogout();
+          }
         }
       } else if (error.request) {
         console.error("Network error - No response:", {
@@ -86,7 +113,7 @@ const responseHandlerInterceptor = (client: AxiosInstance) =>
       }
 
       return Promise.reject(error);
-    }
+    },
   );
 
 const createClientWithInterceptors = (baseUrl: string) => {
@@ -117,7 +144,7 @@ export class ApiError extends Error {
 
 export const handleGlobalApiError = (
   error: unknown,
-  defaultMessage: string
+  defaultMessage: string,
 ): never => {
   console.error(defaultMessage, error);
 
@@ -145,7 +172,7 @@ const makeApiRequest = async <T>(
   options?: {
     headers?: Record<string, any>;
     excludeAuth?: boolean;
-  }
+  },
 ): Promise<T> => {
   if (isDevelopment) {
     console.log(`🔧 [API] Making ${method.toUpperCase()} request to: ${url}`);
@@ -196,7 +223,7 @@ export const apiRequest = async <T>(
   options?: {
     headers?: Record<string, any>;
     raw?: boolean; // If true, returns the raw Axios response
-  }
+  },
 ): Promise<T> => {
   try {
     return await makeApiRequest(apiClient, method, url, data, options);
@@ -218,7 +245,7 @@ export const apiRequestWithBaseUrl = async <T>(
   data?: unknown,
   options?: {
     headers?: Record<string, any>;
-  }
+  },
 ): Promise<T> => {
   const customClient = createClientWithInterceptors(baseUrl);
   return makeApiRequest(customClient, method, "", data, options);

@@ -3,6 +3,8 @@ import { refreshAsync, TokenResponse } from "expo-auth-session";
 import { store } from "src/redux/store";
 import { clearCredentials } from "src/redux/slices/authSlice";
 import { queryClient } from "src/providers/QueryProvider";
+import authConfig from "src/config/authConfig.json";
+import { AuthConfig } from "src/types/auth";
 
 const STORAGE_KEY = "auth-token";
 
@@ -23,18 +25,50 @@ export async function deleteToken() {
   await SecureStore.deleteItemAsync(STORAGE_KEY);
 }
 
-export async function maybeRefreshToken(
-  discovery: any,
-  clientId: string,
+function _buildAzureDiscovery(): { tokenEndpoint: string } {
+  const tenantId = (authConfig as AuthConfig).providers.azure.tenantId!;
+  return {
+    tokenEndpoint: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+  };
+}
+
+async function _performRefresh(
+  token: TokenResponse,
 ): Promise<TokenResponse | null> {
+  if (!token.refreshToken) {
+    console.log("[Auth] No refresh token available, cannot refresh.");
+    return null;
+  }
+  const { clientId } = (authConfig as AuthConfig).providers.azure;
+  const discovery = _buildAzureDiscovery();
+  try {
+    const refreshed = await refreshAsync(
+      { clientId, refreshToken: token.refreshToken },
+      discovery,
+    );
+    if (refreshed) {
+      console.log("[Auth] Token refreshed successfully.");
+      await saveTokenResponse(refreshed);
+      return refreshed;
+    }
+  } catch (error) {
+    console.error("[Auth] Token refresh failed:", error);
+  }
+  return null;
+}
+
+export async function maybeRefreshToken(): Promise<TokenResponse | null> {
   console.group("Auth Token Management");
   const token = await getTokenResponse();
 
-  if (!token) return null;
+  if (!token) {
+    console.groupEnd();
+    return null;
+  }
 
   console.log(
-    "Current token expires in: ",
-    Math.floor(token?.expiresIn! / 60),
+    "Current token expires in:",
+    Math.floor((token.expiresIn ?? 0) / 60),
     "minutes",
   );
 
@@ -43,28 +77,34 @@ export async function maybeRefreshToken(
     console.groupEnd();
     return token;
   }
-  console.log(token?.accessToken); //Exp del token
 
   console.log("Token is expired, refreshing...");
-  const refreshed = await refreshAsync(
-    {
-      clientId,
-      refreshToken: token.refreshToken!,
-    },
-    discovery,
-  );
-
-  if (refreshed) {
-    console.log("Token refreshed successfully.");
-    await saveTokenResponse(refreshed);
-
-    console.groupEnd();
-    return refreshed;
-  }
-
-  console.log("Token refresh failed.");
+  const refreshed = await _performRefresh(token);
   console.groupEnd();
-  return null;
+  return refreshed;
+}
+
+let _refreshPromise: Promise<TokenResponse | null> | null = null;
+
+export async function forceRefreshToken(): Promise<TokenResponse | null> {
+  if (_refreshPromise) {
+    console.log("[Auth] Refresh already in progress, waiting...");
+    return _refreshPromise;
+  }
+  _refreshPromise = (async () => {
+    try {
+      console.log("[Auth] Force refresh token requested");
+      const token = await getTokenResponse();
+      if (!token) {
+        console.log("[Auth] No token in store, cannot force refresh.");
+        return null;
+      }
+      return await _performRefresh(token);
+    } finally {
+      _refreshPromise = null;
+    }
+  })();
+  return _refreshPromise;
 }
 
 /**

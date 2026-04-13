@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { useAuth } from "src/hooks/useAuth";
 import {
   clearCredentials,
   setIsAuthenticated,
@@ -15,12 +14,11 @@ interface AuthLoadingProps {
 
 const AuthLoading = ({ onAuthChecked }: AuthLoadingProps) => {
   const dispatch = useDispatch();
-  const { discovery, clientId } = useAuth();
   const theme = useTheme();
 
   useEffect(() => {
     (async () => {
-      const refreshed = await maybeRefreshToken(discovery, clientId);
+      const refreshed = await maybeRefreshToken();
 
       console.group("<AuthLoading />");
       if (refreshed) {
@@ -33,7 +31,7 @@ const AuthLoading = ({ onAuthChecked }: AuthLoadingProps) => {
       onAuthChecked();
       console.groupEnd();
     })();
-  }, [dispatch, discovery, clientId]);
+  }, [dispatch]);
 
   return (
     <Surface style={styles.surface}>

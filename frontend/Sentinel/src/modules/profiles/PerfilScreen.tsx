@@ -14,6 +14,7 @@ import { Avatar, Card, Chip } from "react-native-paper";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { logout } from "../../redux/slices/authSlice";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import {
   selectUserName,
   selectUserEmail,

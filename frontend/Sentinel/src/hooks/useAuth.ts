@@ -89,7 +89,5 @@ export const useAuth = () => {
     isAuthUserError,
     authUserError,
     activeProvider,
-    discovery: getActiveProvider().discovery,
-    clientId: getActiveProvider().clientId,
   };
 };
