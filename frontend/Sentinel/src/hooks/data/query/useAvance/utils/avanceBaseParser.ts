@@ -28,6 +28,8 @@ export const parseAvanceBaseForRealm = (
             quantity: String(concept.quantity || "0"),
             price: String(concept.price || "0"),
             clasification: concept.clasification || "",
+            cumulative_volume: String(concept.cumulative_volume || "0"),
+            quantity_left: String(concept.quantity_left || "0"),
           })),
         })),
       })),

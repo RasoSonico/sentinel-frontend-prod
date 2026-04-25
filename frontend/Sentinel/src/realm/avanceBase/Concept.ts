@@ -5,6 +5,8 @@ export class AvanceBaseConcept extends Realm.Object<AvanceBaseConcept> {
   quantity!: string;
   price!: string;
   clasification!: string;
+  cumulative_volume!: string;
+  quantity_left!: string;
 
   static schema: Realm.ObjectSchema = {
     name: "AvanceBaseConcept",
@@ -16,6 +18,8 @@ export class AvanceBaseConcept extends Realm.Object<AvanceBaseConcept> {
       quantity: "string",
       price: "string",
       clasification: "string",
+      cumulative_volume: "string",
+      quantity_left: "string",
     },
   };
 }

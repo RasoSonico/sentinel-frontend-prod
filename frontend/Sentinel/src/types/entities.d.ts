@@ -239,6 +239,8 @@ export interface AvanceBaseConcept {
   quantity: string;
   price: string;
   clasification: string;
+  cumulative_volume: string;
+  quantity_left: string;
 }
 
 // Avance Base Work Item

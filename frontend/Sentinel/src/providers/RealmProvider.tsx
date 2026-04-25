@@ -98,7 +98,13 @@ export default function RealmProviderWrapper({
         // Pending Photo Submission schema
         PendingPhotoSubmission,
       ]}
-      schemaVersion={6}
+      schemaVersion={7}
+      migration={(oldRealm, newRealm) => {
+        if (oldRealm.schemaVersion < 7) {
+          // cumulative_volume and quantity_left added to AvanceBaseConcept
+          // Embedded objects are rewritten on next sync — no data to migrate
+        }
+      }}
     >
       {children}
       {/* Hanlder to Wipe Realm Data for Dev Purposes */}
