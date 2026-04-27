@@ -98,7 +98,7 @@ export default function RealmProviderWrapper({
         // Pending Photo Submission schema
         PendingPhotoSubmission,
       ]}
-      schemaVersion={6}
+      schemaVersion={8}
     >
       {children}
       {/* Hanlder to Wipe Realm Data for Dev Purposes */}

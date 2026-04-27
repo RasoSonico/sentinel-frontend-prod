@@ -1,6 +1,7 @@
 import Realm from "realm";
 
 export class ConstructionRealm extends Realm.Object<ConstructionRealm> {
+  _id!: string; // Primary key, same as id
   id!: string;
   name!: string;
   description!: string;
@@ -18,8 +19,9 @@ export class ConstructionRealm extends Realm.Object<ConstructionRealm> {
 
   static schema: Realm.ObjectSchema = {
     name: "ConstructionRealm",
-    embedded: true,
+    primaryKey: "_id",
     properties: {
+      _id: "string",
       id: "string",
       name: "string",
       description: "string",
