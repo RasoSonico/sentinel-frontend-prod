@@ -25,14 +25,16 @@ export const DEFAULT_CONSTRUCTION = {
  */
 export const parseConstructionForRealm = (
   data: Construction | null,
-): Partial<Construction> | null => {
+): (Partial<Construction> & { _id: string }) | null => {
   if (!data) {
     return null;
   }
 
   try {
+    const id = String(data.id);
     return {
-      id: String(data.id),
+      _id: id, // Primary key for Realm
+      id,
       name: data.name || DEFAULT_CONSTRUCTION.name,
       description: data.description || DEFAULT_CONSTRUCTION.description,
       location: data.location || DEFAULT_CONSTRUCTION.location,
@@ -52,6 +54,19 @@ export const parseConstructionForRealm = (
     console.error("Original data:", data);
     throw error;
   }
+};
+
+/**
+ * Parse multiple Constructions for Realm
+ */
+export const parseConstructionsForRealm = (
+  data: Construction[],
+): (Partial<Construction> & { _id: string })[] => {
+  return data
+    .map((construction) => parseConstructionForRealm(construction))
+    .filter(
+      (c): c is Partial<Construction> & { _id: string } => c !== null,
+    );
 };
 
 /**

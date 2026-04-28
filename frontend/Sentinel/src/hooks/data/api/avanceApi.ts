@@ -130,24 +130,23 @@ export const getAdvancesByCatalog = async ({
 };
 
 /**
- * Obtener construcción asignada al usuario
+ * Obtener construcciones asignadas al usuario
  */
-export const getAssignedConstruction = async (
+export const getAssignedConstructions = async (
   role: string = "CONTRATISTA",
-): Promise<Construction | null> => {
+): Promise<Construction[]> => {
   try {
     const endpoint = `${API_CONFIG.endpoints.obra.constructions.myConstructions}?role=${role}`;
 
     const response = await apiRequest<Construction[]>(
       "get",
       endpoint,
-      "Error al obtener obra asignada",
+      "Error al obtener obras asignadas",
     );
 
-    const result = response.length > 0 ? response[0] : null;
-    return result;
+    return response;
   } catch (error) {
-    console.error("❌ Error al obtener obra asignada:", error);
+    console.error("❌ Error al obtener obras asignadas:", error);
     throw error;
   }
 };
