@@ -27,7 +27,6 @@ const styles = StyleSheet.create({
   },
   indicatorContainer: {
     paddingHorizontal: DesignTokens.spacing.lg,
-    paddingTop: DesignTokens.spacing.sm,
   },
   listContent: {
     padding: getResponsiveSpacing(DesignTokens.spacing.lg),
@@ -287,7 +286,7 @@ const styles = StyleSheet.create({
     right: DesignTokens.spacing.sm,
     backgroundColor: ColorUtils.withOpacity(
       DesignTokens.colors.neutral[900],
-      0.8
+      0.8,
     ),
     paddingHorizontal: DesignTokens.spacing.sm,
     paddingVertical: DesignTokens.spacing.xs,

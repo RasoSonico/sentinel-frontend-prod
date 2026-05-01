@@ -2,12 +2,11 @@ import React, { memo } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import styles from "../styles/AdvanceListScreen.styles";
-import { ConstructionRealm } from "src/realm/assignedConstruction/Construction";
 
 interface AdvanceListEmptyStateProps {
   loadingConstruction: boolean;
   constructionError: unknown;
-  construction: ConstructionRealm | null;
+  construction: { id: number; name: string } | null;
   loadingCatalogs: boolean;
   catalogsError: unknown;
   hasCatalogs: boolean;

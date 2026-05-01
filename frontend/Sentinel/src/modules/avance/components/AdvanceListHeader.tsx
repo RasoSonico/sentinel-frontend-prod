@@ -6,10 +6,9 @@ import {
 } from "src/components/ui/filters/DateRangeFilter";
 import { StatusFilter } from "../hooks/useAdvanceListData";
 import styles from "../styles/AdvanceListScreen.styles";
-import { ConstructionRealm } from "src/realm/assignedConstruction/Construction";
 
 interface AdvanceListHeaderProps {
-  construction: ConstructionRealm | null;
+  construction: { id: number; name: string } | null;
   summary: {
     total: number;
     pending: number;
@@ -58,11 +57,6 @@ const AdvanceListHeader: React.FC<AdvanceListHeaderProps> = ({
 }) => {
   return (
     <View style={styles.headerContainer}>
-      {/* Construction Name */}
-      <Text style={styles.constructionName}>
-        {construction?.name || "Mis Avances"}
-      </Text>
-
       {/* Summary */}
       {loading ? (
         <View style={styles.summaryLoading}>
