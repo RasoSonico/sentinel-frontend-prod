@@ -1,12 +1,14 @@
+import { useCallback, useMemo } from "react";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useObject, useRealm } from "@realm/react";
 import { UpdateMode } from "realm";
-import { getAssignedConstruction } from "../../api/avanceApi";
+import { getAssignedConstructions } from "../../api/avanceApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
 import { AssignedConstructionResponse } from "src/realm/assignedConstruction/Response";
+import { ConstructionRealm } from "src/realm/assignedConstruction/Construction";
 import { AVANCE_QUERY_KEYS } from "../avanceQueries.const";
 import {
-  parseConstructionForRealm,
+  parseConstructionsForRealm,
   logApiFetchStart,
   logApiResponse,
   logNoApiData,
@@ -27,67 +29,100 @@ export const assignedConstructionOptions = (
   queryOptions({
     queryKey: [AVANCE_QUERY_KEYS.ASSIGNED_CONSTRUCTION, role],
     queryFn: async () => {
-      logApiFetchStart("Assigned Construction");
-      const data = await getAssignedConstruction(role);
+      logApiFetchStart("Assigned Constructions");
+      // Note: If this throws (network error, server error), Realm is not modified
+      // and TanStack Query will set isError=true. Cached data persists automatically.
+      const data = await getAssignedConstructions(role);
 
-      logApiResponse("Assigned Construction", data);
+      logApiResponse("Assigned Constructions", data);
 
-      if (!data) {
-        logNoApiData("Assigned Construction");
-        // Store null to clear any old data
+      // Empty response is valid - user genuinely has no constructions assigned
+      // We need to clear the cached data to reflect this
+      if (!data || data.length === 0) {
+        logNoApiData("Assigned Constructions");
         try {
           realm.write(() => {
-            realm.create(
+            const existing = realm.objectForPrimaryKey<AssignedConstructionResponse>(
               "AssignedConstructionResponse",
-              {
-                _id: `${AVANCE_QUERY_KEYS.ASSIGNED_CONSTRUCTION}-${role}`,
-                construction: null,
-                updatedAt: new Date(),
-              },
-              UpdateMode.Modified,
+              `${AVANCE_QUERY_KEYS.ASSIGNED_CONSTRUCTION}-${role}`,
             );
+
+            if (existing) {
+              // Properly clear the list - splice removes all items
+              existing.constructions.splice(0, existing.constructions.length);
+              existing.selectedConstructionId = null;
+              existing.updatedAt = new Date();
+            }
           });
-          logRealmStoreSuccess("null Assigned Construction");
+          logRealmStoreSuccess("cleared Assigned Constructions");
         } catch (error) {
-          logRealmStoreError("null Assigned Construction", error);
+          logRealmStoreError("clearing Assigned Constructions", error);
         }
-        return null;
+        return [];
       }
 
-      logRealmStoreStart("Assigned Construction");
+      logRealmStoreStart("Assigned Constructions");
 
       try {
         // Parse data for Realm
-        const constructionData = parseConstructionForRealm(data);
-        logPreparedData("Assigned Construction", constructionData);
+        const constructionsData = parseConstructionsForRealm(data);
+        logPreparedData("Assigned Constructions", constructionsData);
 
         // Store in Realm
         realm.write(() => {
+          // First, create or update all Construction objects
+          constructionsData.forEach((constructionData) => {
+            realm.create("ConstructionRealm", constructionData, UpdateMode.Modified);
+          });
+
+          // Get existing record to preserve selectedConstructionId
+          const existing = realm.objectForPrimaryKey<AssignedConstructionResponse>(
+            "AssignedConstructionResponse",
+            `${AVANCE_QUERY_KEYS.ASSIGNED_CONSTRUCTION}-${role}`,
+          );
+
+          // Get the construction references
+          const constructionRefs = constructionsData
+            .map((c) => realm.objectForPrimaryKey(ConstructionRealm, c._id))
+            .filter((c): c is ConstructionRealm => c !== null);
+
+          // Determine selectedConstructionId
+          let selectedId = existing?.selectedConstructionId ?? null;
+          // If the previously selected construction is no longer in the list, reset to first
+          if (selectedId && !constructionsData.some((c) => c._id === selectedId)) {
+            selectedId = constructionsData[0]?._id ?? null;
+          }
+          // If no selection yet, default to first
+          if (!selectedId && constructionsData.length > 0) {
+            selectedId = constructionsData[0]._id;
+          }
+
           realm.create(
             "AssignedConstructionResponse",
             {
               _id: `${AVANCE_QUERY_KEYS.ASSIGNED_CONSTRUCTION}-${role}`,
-              construction: constructionData,
+              constructions: constructionRefs,
+              selectedConstructionId: selectedId,
               updatedAt: new Date(),
             },
             UpdateMode.Modified,
           );
         });
 
-        logRealmStoreSuccess("Assigned Construction");
+        logRealmStoreSuccess("Assigned Constructions");
 
         // Verify the write
-        const verification = realm.objectForPrimaryKey(
+        const verification = realm.objectForPrimaryKey<AssignedConstructionResponse>(
           "AssignedConstructionResponse",
           `${AVANCE_QUERY_KEYS.ASSIGNED_CONSTRUCTION}-${role}`,
         );
         logRealmVerification(
-          "Assigned Construction",
+          "Assigned Constructions",
           !!verification,
-          verification?.construction,
+          verification?.constructions?.length ?? 0,
         );
       } catch (error) {
-        logRealmStoreError("Assigned Construction", error, data);
+        logRealmStoreError("Assigned Constructions", error, data);
         throw error;
       }
 
@@ -107,27 +142,71 @@ export const useAssignedConstruction = (role: string = "CONTRATISTA") => {
 
   const q = useQuery(assignedConstructionOptions(role, realm, isOnline));
 
+  // Get constructions array from cached data
+  const constructions = useMemo(() => {
+    if (!cached?.constructions) return [];
+    return Array.from(cached.constructions);
+  }, [cached?.constructions]);
+
+  // Find selected construction
+  const selectedConstruction = useMemo(() => {
+    if (constructions.length === 0) return null;
+    const selectedId = cached?.selectedConstructionId;
+    if (selectedId) {
+      const found = constructions.find((c) => c.id === selectedId);
+      if (found) return found;
+    }
+    // Default to first construction
+    return constructions[0] ?? null;
+  }, [constructions, cached?.selectedConstructionId]);
+
+  // Function to update selected construction
+  const setSelectedConstruction = useCallback(
+    (constructionId: string) => {
+      if (!cached) return;
+
+      realm.write(() => {
+        const record = realm.objectForPrimaryKey<AssignedConstructionResponse>(
+          "AssignedConstructionResponse",
+          `${AVANCE_QUERY_KEYS.ASSIGNED_CONSTRUCTION}-${role}`,
+        );
+        if (record) {
+          record.selectedConstructionId = constructionId;
+        }
+      });
+    },
+    [realm, role, cached],
+  );
+
   logHookState("useAssignedConstruction", {
     isOnline,
     hasRealm: !!realm,
     hasCached: !!cached,
-    cachedData: cached?.construction,
+    cachedData: {
+      constructionsCount: cached?.constructions?.length ?? 0,
+      selectedId: cached?.selectedConstructionId,
+    },
     queryState: {
       isLoading: q.isLoading,
       isPending: q.isPending,
       isSuccess: q.isSuccess,
       isError: q.isError,
-      data: q.data,
+      dataCount: q.data?.length ?? 0,
     },
   });
 
   if (!isOnline && cached) {
-    logOfflineMode("Assigned Construction", cached);
+    logOfflineMode("Assigned Constructions", cached);
   }
 
   return {
     ...q,
-    data: cached?.construction ?? null,
+    // Legacy compatibility: single construction
+    data: selectedConstruction,
+    // New multi-construction support
+    constructions,
+    selectedConstruction,
+    setSelectedConstruction,
     hasOfflineData: !!cached,
     isInitialLoading: !cached && q.isPending,
   };
