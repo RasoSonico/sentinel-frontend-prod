@@ -242,13 +242,14 @@ Esto captura **automáticamente** cada cambio de pantalla sin tocar ningún scre
 ### Eventos y dónde van
 
 | Evento                      | Dónde                                 | Propiedades                                                                                                                          |
-| --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------- |
+| --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `advance_form_opened`       | `AdvanceRegistrationScreen` mount     | `obra_id`, `role`, `form_session_id` (UUID generado en mount)                                                                        |
 | `advance_submitted`         | `useSubmitAdvance` onSuccess          | `obra_id`, `catalog_id`, `has_photos: bool`, `photo_count: int`, `was_offline: bool`, `form_session_id` (mismo UUID del form_opened) |
 | `advance_submission_queued` | `useSubmitAdvance` onOfflineQueue     | `obra_id`, `queue_size: int`                                                                                                         |
 | `incident_submitted`        | `useCreateIncidentMutation` onSuccess | `obra_id`, `incident_type_id`, `classification_id`                                                                                   |
-| `sync_triggered`            | `PendingSyncScreen` manual tap        | `pending_advances: int`, `pending_photos: int`, `trigger: 'manual'                                                                   | 'auto'` |
+| `sync_triggered`            | `PendingSyncScreen` manual tap        | `pending_advances: int`, `pending_photos: int`, `trigger: 'manual' \| 'auto'`                                                        |
 | `sync_completed`            | `useAdvanceSyncWorker` onSuccess      | `advances_synced: int`, `photos_synced: int`, `failures: int`                                                                        |
+| `auth_session_expired`      | API interceptor on HTTP 401           | `endpoint: string`, `had_queued_advances: bool`                                                                                      |
 
 ### Ejemplo de implementación
 
@@ -309,6 +310,8 @@ onError: (error) => {
 | % app usada (por pantalla) | `pageViews \| summarize count() by name` — pantallas con 0 = no usadas                                         |
 | Uso offline                | `customEvents \| where name == "advance_submission_queued" \| summarize count() by bin(timestamp, 1d)`         |
 | Tasa de sync exitoso       | `customEvents \| where name in ("sync_triggered","sync_completed") \| ...`                                     |
+| Frecuencia de expiración   | `customEvents \| where name == "auth_session_expired" \| summarize count() by bin(timestamp, 1d)`              |
+| 401 con avances pendientes | `customEvents \| where name == "auth_session_expired" and tobool(customDimensions.had_queued_advances) == true` |
 
 ### Query extendida: Formularios abandonados
 
@@ -340,7 +343,7 @@ opened
 2. **Crear `TelemetryService`** — singleton en `src/services/telemetry.ts`
 3. **Crear `TelemetryProvider`** — wrapper que inicializa con user data
 4. **Integrar en AppNavigator** — `onStateChange` → `trackScreen()`
-5. **6 `trackEvent()` calls** — en hooks/mutations listados arriba
+5. **7 `trackEvent()` calls** — en hooks/mutations listados arriba + interceptor HTTP para 401
 6. **Variables de entorno** — agregar `EXPO_PUBLIC_APPINSIGHTS_KEY` a `.env` y a Azure App Service config
 7. **Verificación** — correr app en simulador, confirmar eventos en App Insights Live Metrics
 
@@ -395,7 +398,7 @@ opened
 - [ ] **Gio** — Crear `src/services/telemetry.ts` (TelemetryService singleton)
 - [ ] **Gio** — Crear `src/providers/TelemetryProvider.tsx`
 - [ ] **Gio** — Modificar `AppNavigator.tsx` — screen tracking via `onStateChange`
-- [ ] **Gio** — Agregar 6 `trackEvent()` calls en hooks/screens listados
+- [ ] **Gio** — Agregar 7 `trackEvent()` calls en hooks/screens listados + interceptor HTTP para 401
 - [ ] **Gio** — Agregar `EXPO_PUBLIC_APPINSIGHTS_KEY` a `.env.example` y documentar
 - [ ] **Sergio** — Agregar key a EAS secrets / Azure App Service env vars
 - [ ] **Sergio** — Extender dashboard Power BI con queries frontend (tabla de mapeo en este ADR)
