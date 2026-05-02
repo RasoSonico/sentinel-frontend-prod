@@ -98,11 +98,14 @@ export default function RealmProviderWrapper({
         // Pending Photo Submission schema
         PendingPhotoSubmission,
       ]}
-      schemaVersion={7}
+      schemaVersion={8}
       migration={(oldRealm, newRealm) => {
-        if (oldRealm.schemaVersion < 7) {
-          // cumulative_volume and quantity_left added to AvanceBaseConcept
-          // Embedded objects are rewritten on next sync — no data to migrate
+        if (oldRealm.schemaVersion < 8) {
+          // ConstructionRealm changed TopLevel→Embedded; AssignedConstructionResponse restructured.
+          // AvanceBaseConcept gained two new required string fields.
+          // All affected data is API-cached — delete and re-fetch on next sync.
+          newRealm.delete(newRealm.objects("AssignedConstructionResponse"));
+          newRealm.delete(newRealm.objects("AvanceBaseResponse"));
         }
       }}
     >
