@@ -35,8 +35,6 @@ Sergio y su Director necesitan respuestas a:
 
 **Usar Azure Application Insights como backend de telemetría, instrumentado desde Django via middleware + 4 custom events.**
 
-Gio implementa la capa de instrumentación (20%). Sergio construye dashboards en Power BI (80%) siguiendo la ley de pareto.
-
 ---
 
 ## Opciones Consideradas
@@ -47,7 +45,7 @@ Agregar `opencensus-ext-django` al backend Django. Auto-instrumenta cada request
 
 | Dimensión                | Evaluación                                                      |
 | ------------------------ | --------------------------------------------------------------- |
-| Costo                    | **~$0/mes** — 5 GB/mes gratis (Sentinel no alcanza ese volumen) |
+| Costo                    | **$0/mes** — 5 GB/mes gratis (Sentinel no alcanza ese volumen); excedente ~$4.60 MXN/GB |
 | Complejidad de impl.     | **Baja** — 3 archivos a tocar, 1 recurso Azure nuevo            |
 | Mantenimiento por Sergio | **Bajo** — solo agregar `track_event(...)` donde quiera         |
 | Power BI integration     | **Nativa** — conector directo a App Insights o Log Analytics    |
@@ -96,7 +94,7 @@ Servicio de product analytics de terceros, SDK para React Native y Python.
 
 | Dimensión                | Evaluación                                        |
 | ------------------------ | ------------------------------------------------- |
-| Costo                    | **$0–$28 USD/mes** (free tier limitado)           |
+| Costo                    | **$0–$518 MXN/mes** (free tier limitado)          |
 | Complejidad de impl.     | **Baja en frontend, media en backend**            |
 | Mantenimiento por Sergio | **Medio** — dashboard propio, pero vendor lock-in |
 | Power BI integration     | **No nativa** — requiere export o API             |
@@ -141,109 +139,19 @@ Cada evento lleva: `user_id`, `obra_id`, `role`, `timestamp`.
 
 ---
 
-## Plan de Implementación
+## Costos
 
-### Lo que hace Gio
+> Tipo de cambio estimado: $18.50 MXN/USD (2026).
 
-**Paso 1 — Recurso Azure**
+| Concepto | Costo mensual (MXN) | Condición |
+|---|---|---|
+| App Insights ingesta | **$0** | Sentinel < 5 GB/mes (~300 usuarios activos) |
+| App Insights excedente | ~$4.60/GB adicional | Solo si supera 5 GB/mes |
+| Retención 365 días | ~$37 | **Comprometido** — activar al crear el recurso |
+| Power BI Desktop | **$0** | Sergio construye localmente |
+| Power BI Pro (compartir dashboards) | ~$185/usuario | Solo si Director necesita acceso interactivo en vivo |
 
-1. Azure Portal → "Application Insights" → Crear recurso
-2. Región: Mexico Central (misma que App Service)
-3. Copiar `INSTRUMENTATION_KEY`
-
-**Paso 2 — Dependencias backend**
-
-```bash
-pip install opencensus-ext-django opencensus-ext-azure
-```
-
-Agregar a `requirements.txt`.
-
-**Paso 3 — Django settings **
-
-```python
-# settings.py
-
-OPENCENSUS = {
-    'TRACE': {
-        'SAMPLER': 'opencensus.trace.samplers.AlwaysOnSampler()',
-        'EXPORTER': '''opencensus.ext.azure.trace_exporter.AzureExporter(
-            connection_string="InstrumentationKey=TU_KEY_AQUI"
-        )''',
-    }
-}
-
-MIDDLEWARE = [
-    'opencensus.ext.django.middleware.OpencensusMiddleware',
-    # ...resto de middleware existente
-]
-```
-
-**Paso 4 — Custom events en 4 vistas **
-
-```python
-# Ejemplo: avance/views.py
-from opencensus.ext.azure.log_exporter import AzureLogHandler
-import logging
-
-logger = logging.getLogger(__name__)
-logger.addHandler(AzureLogHandler(
-    connection_string='InstrumentationKey=TU_KEY_AQUI'
-))
-
-class AvanceCreateView(CreateAPIView):
-    def perform_create(self, serializer):
-        instance = serializer.save()
-        logger.info(
-            'avance_created',
-            extra={
-                'custom_dimensions': {
-                    'user_id': str(self.request.user.id),
-                    'obra_id': str(instance.obra_id),
-                    'role': self.request.user.role,
-                }
-            }
-        )
-```
-
-Repetir patrón en: `incidencias/views.py`, bulk-upload view, `usuarios/views.py`.
-
-**Paso 5 — Verificación **
-
-- Registrar 1 avance en staging
-- Confirmar evento aparece en App Insights → "Search" → Custom Events
-- Documentar instrucciones Power BI para Sergio
-
----
-
-### Lo que hace Sergio
-
-**Power BI Desktop (gratis) conectado a App Insights:**
-
-1. Power BI Desktop → Get Data → Azure → Azure Application Insights
-2. Autenticar con cuenta Azure
-3. Queries disponibles inmediatamente:
-
-**Dashboard sugerido (Sergio construye):**
-
-| Visual                                      | Query base                                                                                                      |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Usuarios activos por semana                 | `requests \| summarize dcount(user_Id) by bin(timestamp, 7d)`                                                   |
-| Avances registrados por obra                | `customEvents \| where name == "avance_created" \| summarize count() by tostring(customDimensions.obra_id)`     |
-| Endpoints sin tráfico (funciones no usadas) | `requests \| summarize count() by name \| order by count_ asc`                                                  |
-| Tasa de éxito de sync offline               | `requests \| where url contains "avance" \| summarize success_rate = avg(toint(success)) by bin(timestamp, 1d)` |
-
----
-
-## Preguntas respondidas → Fuente de datos
-
-| Pregunta                        | Fuente en App Insights                                                                         |
-| ------------------------------- | ---------------------------------------------------------------------------------------------- |
-| ¿Se usa la app?                 | `requests` table → `user_Id` únicos por semana                                                 |
-| ¿Se registran avances?          | `customEvents where name == "avance_created"`                                                  |
-| ¿Cuántos avances por obra?      | Custom event `avance_created` con dimensión `obra_id`                                          |
-| ¿Qué % de funcionalidad se usa? | `requests` agrupados por `name` (endpoint)                                                     |
-| ¿Qué NO se usa?                 | Endpoints con 0 o muy pocas llamadas: `/api/cronograma/`, pantallas de Inspector/Inversionista |
+**Escenario Sentinel hoy:** ~$37/mes (solo retención 365 días). Si se agrega Power BI Pro para Director: ~$222/mes (~$2,664/año).
 
 ---
 
@@ -262,7 +170,7 @@ Repetir patrón en: `incidencias/views.py`, bulk-upload view, `usuarios/views.py
 
 **Para revisar en el futuro:**
 
-- Si el volumen supera 5 GB/mes → revisar pricing (improbable en esta etapa)
+- Retención configurada a 365 días desde inicio (~$37 MXN/mes). Si volumen supera 5 GB/mes → revisar pricing (improbable antes de ~300 usuarios activos)
 - Agregar tracking desde el frontend React Native para eventos offline (avances en cola pendiente)
 - Considerar alertas automáticas si cae el número de avances registrados por N días
 
@@ -274,11 +182,8 @@ Repetir patrón en: `incidencias/views.py`, bulk-upload view, `usuarios/views.py
 
 ---
 
-## Action Items
+## Ver también
 
-- [ ] **Gio** — Crear recurso App Insights en Azure Portal
-- [ ] **Gio** — Instalar `opencensus-ext-django`, configurar middleware en `settings.py`
-- [ ] **Gio** — Implementar 4 custom events en vistas Django (`avance`, `incidencia`, `photos`, `session`)
-- [ ] **Gio** — Validar eventos en App Insights, documentar pasos Power BI
-- [ ] **Sergio** — Crear dashboard en Power BI Desktop con las 4 queries base
-- [ ] **Sergio** — Compartir dashboard con Director vía Power BI Service (free tier)
+- [Implementación backend](../implementation/telemetry-backend.md) — setup Django, configuración App Insights, código y Power BI
+- [ADR-002](./ADR-002-frontend-telemetry.md) — telemetría en el frontend React Native
+- [Azure Logs Field Guide](../azure-logs-guide.md) — KQL queries, Power BI setup, arquitectura Azure Monitor
