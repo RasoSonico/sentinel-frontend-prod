@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import { telemetry } from "src/services/telemetry";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePendingAdvanceQueue } from "./usePendingAdvanceQueue";
 import { usePendingPhotoQueue } from "./usePendingPhotoQueue";
@@ -121,6 +122,14 @@ export function useAdvanceSyncWorker() {
             continue;
           }
 
+          telemetry.trackEvent("advance_submitted", {
+            obra_id: item.constructionId,
+            catalog_id: item.catalogId,
+            has_photos: hasPhotos,
+            photo_count: advancePhotos.length,
+            was_offline: true,
+          });
+
           successCount++;
 
           // Show individual success notification
@@ -185,6 +194,13 @@ export function useAdvanceSyncWorker() {
             "info"
           );
         }
+      }
+      if (successCount + failCount > 0) {
+        telemetry.trackEvent("sync_completed", {
+          advances_synced: successCount,
+          photos_synced: 0,
+          failures: failCount,
+        });
       }
     } finally {
       syncInProgressRef.current = false;

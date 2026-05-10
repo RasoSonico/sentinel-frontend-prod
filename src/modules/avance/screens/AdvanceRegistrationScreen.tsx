@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import * as Crypto from "expo-crypto";
 import { DesignTokens } from "../../../styles/designTokens";
 import { RouteProp, useRoute, useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -14,11 +15,13 @@ import NetInfo from "@react-native-community/netinfo";
 import { Ionicons } from "@expo/vector-icons";
 import AdvanceForm from "../forms/AdvanceForm";
 import { AvanceStackParamList } from "../../../navigation/types";
-import { useAppDispatch } from "../../../redux/hooks";
+import { useAppDispatch, useAppSelector } from "../../../redux/hooks";
 import {
   setOnlineStatus,
   clearCurrentAdvance,
 } from "../../../redux/slices/avance/advanceSlice";
+import { selectUser } from "../../../redux/selectors/authSelectors";
+import { telemetry } from "../../../services/telemetry";
 
 type AdvanceRegistrationScreenRouteProp = RouteProp<
   AvanceStackParamList,
@@ -43,6 +46,17 @@ const AdvanceRegistrationScreen: React.FC = () => {
     route.params?.constructionId || "default-construction-id";
   const constructionName = route.params?.constructionName || "Obra sin nombre";
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const formSessionId = useRef(Crypto.randomUUID()).current;
+  const user = useAppSelector(selectUser);
+
+  useEffect(() => {
+    telemetry.trackEvent("advance_form_opened", {
+      obra_id: constructionId,
+      role: user?.roles?.[0] ?? "unknown",
+      form_session_id: formSessionId,
+    });
+  }, []);
 
   // Configurar el título de la pantalla
   useEffect(() => {
@@ -131,6 +145,7 @@ const AdvanceRegistrationScreen: React.FC = () => {
 
         <AdvanceForm
           constructionId={parseInt(constructionId)}
+          formSessionId={formSessionId}
           onSuccess={handleAdvanceSuccess}
         />
       </View>

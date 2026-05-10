@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { telemetry } from "src/services/telemetry";
 import {
   getIncidents,
   getIncidentById,
@@ -79,9 +80,12 @@ export const useCreateIncidentMutation = () => {
   
   return useMutation({
     mutationFn: (incident: CreateIncident) => createIncident(incident),
-    onSuccess: () => {
-      // Invalidar y refrescar las queries de incidencias
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      telemetry.trackEvent("incident_submitted", {
+        incident_type_id: variables.type,
+        classification_id: variables.clasification,
+      });
     },
   });
 };

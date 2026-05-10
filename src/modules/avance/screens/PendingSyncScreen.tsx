@@ -19,6 +19,7 @@ import { PendingAdvanceSubmission } from "src/realm/pendingAdvance/PendingAdvanc
 import { PendingPhotoSubmission } from "src/realm/pendingAdvance/PendingPhotoSubmission";
 import { DesignTokens } from "src/styles/designTokens";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { telemetry } from "src/services/telemetry";
 
 // Types for section list
 interface PendingAdvanceItem {
@@ -613,6 +614,11 @@ const PendingSyncScreen: React.FC = () => {
           <TouchableOpacity
             style={[styles.bottomButton, styles.syncAllButton]}
             onPress={() => {
+              telemetry.trackEvent("sync_triggered", {
+                pending_advances: pendingCount,
+                pending_photos: waitingPhotos.length + syncingPhotos.length,
+                trigger: "manual",
+              });
               syncNow();
               syncPhotosNow();
             }}
