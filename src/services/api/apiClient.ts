@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { telemetry } from "../telemetry";
 import axios, {
   AxiosError,
   AxiosInstance,
@@ -97,10 +98,18 @@ const responseHandlerInterceptor = (client: AxiosInstance) =>
               return client.request(originalRequest);
             } else {
               console.log("[Auth] Refresh failed - forcing logout");
+              telemetry.trackEvent("auth_session_expired", {
+                endpoint: error.config?.url ?? "unknown",
+                had_queued_advances: false,
+              });
               await forceLogout();
             }
           } else {
             console.log("[Auth] Retried request also got 401 - forcing logout");
+            telemetry.trackEvent("auth_session_expired", {
+              endpoint: error.config?.url ?? "unknown",
+              had_queued_advances: false,
+            });
             await forceLogout();
           }
         }

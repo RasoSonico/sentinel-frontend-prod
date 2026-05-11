@@ -15,6 +15,7 @@ import { AvanceBaseCatalog } from "src/realm/avanceBase/Catalog";
 
 interface AdvanceFormContextValue {
   constructionId: number;
+  formSessionId: string;
   avanceBase: AvanceBaseResponse | null;
   catalogs: Realm.List<AvanceBaseCatalog> | undefined;
   isLoadingAvanceBase: boolean;
@@ -38,11 +39,13 @@ export function useAdvanceFormContext() {
 
 interface AdvanceFormProviderProps {
   constructionId: number;
+  formSessionId?: string;
   children: ReactNode;
 }
 
 export function AdvanceFormProvider({
   constructionId,
+  formSessionId = "",
   children,
 }: AdvanceFormProviderProps) {
   const methods = useForm<AdvanceFormFieldsZod>({
@@ -64,6 +67,7 @@ export function AdvanceFormProvider({
   const contextValue = useMemo<AdvanceFormContextValue>(
     () => ({
       constructionId,
+      formSessionId,
       avanceBase,
       catalogs: avanceBase?.catalogs,
       isLoadingAvanceBase,
@@ -74,6 +78,7 @@ export function AdvanceFormProvider({
     }),
     [
       constructionId,
+      formSessionId,
       avanceBase,
       isLoadingAvanceBase,
       isLoadingConstruction,

@@ -6,6 +6,8 @@
       "dependencies": {
         "@gorhom/bottom-sheet": "^5.2.8",
         "@hookform/resolvers": "^5.2.2",
+        "@microsoft/applicationinsights-react-native": "^4.4.0",
+        "@microsoft/applicationinsights-web": "^3.4.1",
         "@react-native-async-storage/async-storage": "2.1.2",
         "@react-native-community/datetimepicker": "^8.6.0",
         "@react-native-community/netinfo": "^11.4.1",
@@ -387,6 +389,30 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.0", "", {}, "sha512-gv3ZRaISU3fjPAgNsriBRqGWQL6quFx04YMPW/zD8XMLsU32mhCCbfbO6KZFLjvYpCZ8zyDEgqsgf+PwPaM7GQ=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
+
+    "@microsoft/applicationinsights-analytics-js": ["@microsoft/applicationinsights-analytics-js@3.4.1", "", { "dependencies": { "@microsoft/applicationinsights-core-js": "3.4.1", "@microsoft/applicationinsights-shims": "3.0.1", "@microsoft/dynamicproto-js": "^2.0.3", "@nevware21/ts-utils": ">= 0.12.6 < 2.x" }, "peerDependencies": { "tslib": ">= 1.0.0" } }, "sha512-zdxZzu50/gsE2JWrzeviHloFZu9r5/x2+OLD0TIYHhvrod321AKkStmKlDoep1JAsSephjxBfwTjciKiFXXyGA=="],
+
+    "@microsoft/applicationinsights-cfgsync-js": ["@microsoft/applicationinsights-cfgsync-js@3.4.1", "", { "dependencies": { "@microsoft/applicationinsights-core-js": "3.4.1", "@microsoft/applicationinsights-shims": "3.0.1", "@microsoft/dynamicproto-js": "^2.0.3", "@nevware21/ts-async": ">= 0.5.5 < 2.x", "@nevware21/ts-utils": ">= 0.12.6 < 2.x" }, "peerDependencies": { "tslib": ">= 1.0.0" } }, "sha512-ifNgSIisKM/rZoLdpzS6sIQqBBRNXXAhiazZizwoP2MLdK93Z8JcPNi6eXkKPhW0Fi3SuoUivCaM7GgAMgVEFw=="],
+
+    "@microsoft/applicationinsights-channel-js": ["@microsoft/applicationinsights-channel-js@3.4.1", "", { "dependencies": { "@microsoft/applicationinsights-core-js": "3.4.1", "@microsoft/applicationinsights-shims": "3.0.1", "@microsoft/dynamicproto-js": "^2.0.3", "@nevware21/ts-async": ">= 0.5.5 < 2.x", "@nevware21/ts-utils": ">= 0.12.6 < 2.x" }, "peerDependencies": { "tslib": ">= 1.0.0" } }, "sha512-QS1k6iwVwR1MznGAB1H0F9raqpevbFNbadLS5O1419pz9OEWBfF9wRQLnENCyo8QS9Q0IdiqnGAON/D8IywpWg=="],
+
+    "@microsoft/applicationinsights-core-js": ["@microsoft/applicationinsights-core-js@3.4.1", "", { "dependencies": { "@microsoft/applicationinsights-shims": "3.0.1", "@microsoft/dynamicproto-js": "^2.0.3", "@nevware21/ts-async": ">= 0.5.5 < 2.x", "@nevware21/ts-utils": ">= 0.12.6 < 2.x" }, "peerDependencies": { "tslib": ">= 1.0.0" } }, "sha512-eXIHZ1+nvBiJgVpufBiTP801Vtr5FEwjWZioUsb44NC/z/UcsZh2MDJ1mBpjaDO73LVYUw/ZZmDCCo6Pg/61kA=="],
+
+    "@microsoft/applicationinsights-dependencies-js": ["@microsoft/applicationinsights-dependencies-js@3.4.1", "", { "dependencies": { "@microsoft/applicationinsights-core-js": "3.4.1", "@microsoft/applicationinsights-shims": "3.0.1", "@microsoft/dynamicproto-js": "^2.0.3", "@nevware21/ts-async": ">= 0.5.5 < 2.x", "@nevware21/ts-utils": ">= 0.12.6 < 2.x" }, "peerDependencies": { "tslib": ">= 1.0.0" } }, "sha512-cnjVVTxSeavmwCoOwXi/ZQuCcjo7SnYYRWyS+GsMCrTRTItVHZlVj6NHgmFEQZWNybrM+U1RgwZE2wXn1/Liyw=="],
+
+    "@microsoft/applicationinsights-properties-js": ["@microsoft/applicationinsights-properties-js@3.4.1", "", { "dependencies": { "@microsoft/applicationinsights-core-js": "3.4.1", "@microsoft/applicationinsights-shims": "3.0.1", "@microsoft/dynamicproto-js": "^2.0.3", "@nevware21/ts-utils": ">= 0.12.6 < 2.x" }, "peerDependencies": { "tslib": ">= 1.0.0" } }, "sha512-s2cUuknjazaoCbh9i6ljymeZqeQqpyAE8v2ZUxCkAwRuxbonAvZWQtEr4QQmEHWJIdbWgn0Ge+OOlMtMkh+Ixg=="],
+
+    "@microsoft/applicationinsights-react-native": ["@microsoft/applicationinsights-react-native@4.4.0", "", { "dependencies": { "@microsoft/applicationinsights-core-js": "^3.4.1", "@microsoft/applicationinsights-shims": "^3.0.1", "@microsoft/dynamicproto-js": "^2.0.3", "@nevware21/ts-utils": ">= 0.11.3 < 2.x" }, "peerDependencies": { "react-native": "*", "react-native-device-info": ">=5.2.1", "tslib": "*" }, "optionalPeers": ["react-native-device-info"] }, "sha512-EGep2rsFO7sStUvwQlgkkqdhzUw4ExagMhKaGXVTcnOwy7lq0YFIZ9TdFfthqZsn9RBXYgGboGTXf6OsXRr7lg=="],
+
+    "@microsoft/applicationinsights-shims": ["@microsoft/applicationinsights-shims@3.0.1", "", { "dependencies": { "@nevware21/ts-utils": ">= 0.9.4 < 2.x" } }, "sha512-DKwboF47H1nb33rSUfjqI6ryX29v+2QWcTrRvcQDA32AZr5Ilkr7whOOSsD1aBzwqX0RJEIP1Z81jfE3NBm/Lg=="],
+
+    "@microsoft/applicationinsights-web": ["@microsoft/applicationinsights-web@3.4.1", "", { "dependencies": { "@microsoft/applicationinsights-analytics-js": "3.4.1", "@microsoft/applicationinsights-cfgsync-js": "3.4.1", "@microsoft/applicationinsights-channel-js": "3.4.1", "@microsoft/applicationinsights-core-js": "3.4.1", "@microsoft/applicationinsights-dependencies-js": "3.4.1", "@microsoft/applicationinsights-properties-js": "3.4.1", "@microsoft/applicationinsights-shims": "3.0.1", "@microsoft/dynamicproto-js": "^2.0.3", "@nevware21/ts-async": ">= 0.5.5 < 2.x", "@nevware21/ts-utils": ">= 0.12.6 < 2.x" }, "peerDependencies": { "tslib": ">= 1.0.0" } }, "sha512-gdYLIYkP11D+V71nNCupYsmWE8LAL9EpIR2Q7+B3n6dpck7tgaYMXFN3S5ZrOh3yxLAwt7GVXZoDcN2mGkagxQ=="],
+
+    "@microsoft/dynamicproto-js": ["@microsoft/dynamicproto-js@2.0.3", "", { "dependencies": { "@nevware21/ts-utils": ">= 0.10.4 < 2.x" } }, "sha512-JTWTU80rMy3mdxOjjpaiDQsTLZ6YSGGqsjURsY6AUQtIj0udlF/jYmhdLZu8693ZIC0T1IwYnFa0+QeiMnziBA=="],
+
+    "@nevware21/ts-async": ["@nevware21/ts-async@0.5.5", "", { "dependencies": { "@nevware21/ts-utils": ">= 0.12.2 < 2.x" } }, "sha512-vwqaL05iJPjLeh5igPi8MeeAu10i+Aq7xko1fbo9F5Si6MnVN5505qaV7AhSdk5MCBJVT/UYMk3kgInNjDb4Ig=="],
+
+    "@nevware21/ts-utils": ["@nevware21/ts-utils@0.13.0", "", {}, "sha512-F3mD+DsUn9OiZmZc5tg0oKqrJCtiCstwx+wE+DNzFYh2cCRUuzTYdK9zGGP/au2BWvbOQ6Tqlbjr2+dT1P3AlQ=="],
 
     "@nodelib/fs.scandir": ["@nodelib/fs.scandir@2.1.5", "", { "dependencies": { "@nodelib/fs.stat": "2.0.5", "run-parallel": "^1.1.9" } }, "sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g=="],
 

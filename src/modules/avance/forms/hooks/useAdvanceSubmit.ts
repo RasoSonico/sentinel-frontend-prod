@@ -8,7 +8,7 @@ import { Photo } from "src/hooks/avance/usePhotoCapture";
 
 export function useAdvanceSubmit() {
   const { getValues, reset } = useFormContext<AdvanceFormFieldsZod>();
-  const { constructionId, catalogs } = useAdvanceFormContext();
+  const { constructionId, catalogs, formSessionId } = useAdvanceFormContext();
   const {
     submitToQueue,
     isAdding,
@@ -43,7 +43,8 @@ export function useAdvanceSubmit() {
           conceptDescription: concept?.description ?? "",
           constructionId,
         },
-        photos
+        photos,
+        formSessionId
       );
 
       closeModal();

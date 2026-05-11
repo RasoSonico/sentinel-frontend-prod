@@ -22,6 +22,7 @@ import { useAdvanceFormContext } from "./context/AdvanceFormContext";
 
 interface AdvanceFormProps {
   constructionId: number;
+  formSessionId?: string;
   onSuccess?: () => void;
 }
 
@@ -108,9 +109,12 @@ function AdvanceFormContent() {
   );
 }
 
-const AdvanceForm: React.FC<AdvanceFormProps> = ({ constructionId }) => {
+const AdvanceForm: React.FC<AdvanceFormProps> = ({
+  constructionId,
+  formSessionId,
+}) => {
   return (
-    <AdvanceFormProvider constructionId={constructionId}>
+    <AdvanceFormProvider constructionId={constructionId} formSessionId={formSessionId}>
       <AdvanceFormContent />
     </AdvanceFormProvider>
   );

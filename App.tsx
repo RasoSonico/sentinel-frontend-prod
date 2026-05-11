@@ -14,6 +14,7 @@ import QueryProvider from "src/providers/QueryProvider";
 import { PersistGateLoader } from "src/components/ui/PersistGateLoader";
 import { SnackbarProvider } from "src/providers/SnackbarProvider";
 import { SyncWorkerProvider } from "src/providers/SyncWorkerProvider";
+import { TelemetryProvider } from "src/providers/TelemetryProvider";
 
 export default function App() {
   return (
@@ -23,18 +24,20 @@ export default function App() {
           <Provider store={store}>
             <PersistGate loading={<PersistGateLoader />} persistor={persistor}>
               <PaperProvider>
-                <SnackbarProvider>
-                  <SyncWorkerProvider>
-                    <SafeAreaProvider>
-                      <BottomSheetModalProvider>
-                        <ModalProvider>
-                          <StatusBar style="auto" />
-                          <RootNavigator />
-                        </ModalProvider>
-                      </BottomSheetModalProvider>
-                    </SafeAreaProvider>
-                  </SyncWorkerProvider>
-                </SnackbarProvider>
+                <TelemetryProvider>
+                  <SnackbarProvider>
+                    <SyncWorkerProvider>
+                      <SafeAreaProvider>
+                        <BottomSheetModalProvider>
+                          <ModalProvider>
+                            <StatusBar style="auto" />
+                            <RootNavigator />
+                          </ModalProvider>
+                        </BottomSheetModalProvider>
+                      </SafeAreaProvider>
+                    </SyncWorkerProvider>
+                  </SnackbarProvider>
+                </TelemetryProvider>
               </PaperProvider>
             </PersistGate>
           </Provider>

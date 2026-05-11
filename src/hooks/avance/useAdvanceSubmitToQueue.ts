@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { telemetry } from "src/services/telemetry";
 import {
   usePendingAdvanceQueue,
   PendingAdvanceInput,
@@ -38,7 +39,8 @@ export function useAdvanceSubmitToQueue() {
     async (
       formData: AdvanceFormData,
       context: AdvanceFormContext,
-      photos: Photo[] = []
+      photos: Photo[] = [],
+      formSessionId?: string
     ): Promise<string> => {
       setIsAdding(true);
 
@@ -66,6 +68,12 @@ export function useAdvanceSubmitToQueue() {
           );
         }
 
+        telemetry.trackEvent("advance_submission_queued", {
+          obra_id: context.constructionId,
+          queue_size: pendingCount + 1,
+          form_session_id: formSessionId ?? "",
+        });
+
         // Show appropriate message based on network status and photos
         const photoText = photos.length > 0 ? ` con ${photos.length} foto${photos.length > 1 ? "s" : ""}` : "";
         if (isOnline) {
@@ -82,7 +90,7 @@ export function useAdvanceSubmitToQueue() {
         setIsAdding(false);
       }
     },
-    [addToQueue, addPhotosToQueue, isOnline, showSnackbar]
+    [addToQueue, addPhotosToQueue, isOnline, pendingCount, showSnackbar]
   );
 
   // Get photo counts
