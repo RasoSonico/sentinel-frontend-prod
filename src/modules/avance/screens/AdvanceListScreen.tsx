@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Text,
   Animated,
+  StyleSheet,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -18,6 +19,7 @@ import { AvanceStackParamList } from "src/navigation/types";
 import { PhysicalAdvanceResponse } from "src/types/entities";
 
 import { useAdvanceListData, StatusFilter } from "../hooks/useAdvanceListData";
+import { usePendingAdvanceQueue } from "src/hooks/avance/usePendingAdvanceQueue";
 import { useBottomSheet } from "../hooks/useBottomSheet";
 import { useDateRangeFilter } from "src/hooks/ui/useDateRangeFilter";
 
@@ -33,6 +35,74 @@ type AdvanceListScreenNavigationProp = StackNavigationProp<
   AvanceStackParamList,
   "AvancesList"
 >;
+
+interface QueueHeaderButtonProps {
+  pendingCount: number;
+  failedCount: number;
+  syncingCount: number;
+  onPress: () => void;
+}
+
+const QueueHeaderButton: React.FC<QueueHeaderButtonProps> = ({
+  pendingCount,
+  failedCount,
+  syncingCount,
+  onPress,
+}) => {
+  const totalCount = pendingCount + failedCount + syncingCount;
+  const hasErrors = failedCount > 0;
+  const isSyncing = syncingCount > 0;
+
+  const iconName = isSyncing
+    ? "sync"
+    : hasErrors
+      ? "alert-circle"
+      : "cloud-upload-outline";
+
+  const badgeColor = hasErrors
+    ? "#e74c3c"
+    : isSyncing || pendingCount > 0
+      ? "#f39c12"
+      : undefined;
+
+  return (
+    <TouchableOpacity onPress={onPress} style={queueButtonStyles.container}>
+      <Ionicons name={iconName} size={22} color="#fff" />
+      {totalCount > 0 && (
+        <View
+          style={[queueButtonStyles.badge, { backgroundColor: badgeColor }]}
+        >
+          <Text style={queueButtonStyles.badgeText}>
+            {totalCount > 99 ? "99+" : String(totalCount)}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+const queueButtonStyles = StyleSheet.create({
+  container: {
+    marginRight: 12,
+    padding: 4,
+  },
+  badge: {
+    position: "absolute",
+    top: -2,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+});
 
 const AdvanceListScreen: React.FC = () => {
   // State
@@ -78,6 +148,9 @@ const AdvanceListScreen: React.FC = () => {
     singleDate,
   });
 
+  // Queue hook for the header button
+  const { pendingCount, failedCount, syncingCount } = usePendingAdvanceQueue();
+
   // Bottom sheet hook
   const {
     selectedAdvance,
@@ -87,14 +160,20 @@ const AdvanceListScreen: React.FC = () => {
     setSelectedAdvance,
   } = useBottomSheet();
 
-  // Set screen title when construction loads
+  // Set header title and queue button
   useEffect(() => {
-    if (assignedConstruction) {
-      navigation.setOptions({
-        title: `Avances: ${assignedConstruction.name}`,
-      });
-    }
-  }, [assignedConstruction, navigation]);
+    navigation.setOptions({
+      title: "Avances",
+      headerRight: () => (
+        <QueueHeaderButton
+          pendingCount={pendingCount}
+          failedCount={failedCount}
+          syncingCount={syncingCount}
+          onPress={() => navigation.navigate("PendingSync")}
+        />
+      ),
+    });
+  }, [navigation, pendingCount, failedCount, syncingCount]);
 
   // Handlers
   const handleAddAdvance = useCallback(() => {
@@ -125,8 +204,20 @@ const AdvanceListScreen: React.FC = () => {
 
   const handleAdvanceUpdated = useCallback(
     (updatedAdvance: PhysicalAdvanceResponse) => {
+      setSelectedAdvance((prev) => {
+        if (!prev) return updatedAdvance;
+        const newVolume = parseFloat(updatedAdvance.volume) || 0;
+        const unitPrice = parseFloat(prev.concept_unit_price || "0");
+        return {
+          ...prev,
+          ...updatedAdvance,
+          total_amount:
+            unitPrice > 0
+              ? (newVolume * unitPrice).toFixed(2)
+              : prev.total_amount,
+        };
+      });
       refetchAdvances();
-      setSelectedAdvance(updatedAdvance);
     },
     [refetchAdvances, setSelectedAdvance],
   );

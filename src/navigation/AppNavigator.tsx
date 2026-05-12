@@ -6,7 +6,6 @@ import { IncidenciaNavigator } from "./moduleNavigators/IncidenciaNavigator";
 import { Ionicons } from "@expo/vector-icons";
 import { View, Text, StyleSheet } from "react-native";
 import PerfilScreen from "../modules/profiles/PerfilScreen";
-import PendingSyncScreen from "../modules/avance/screens/PendingSyncScreen";
 import { ActivityIndicator } from "react-native-paper";
 import { useAuthMeQuery } from "src/hooks/data/query/useAuthQueries";
 import styles from "./styles/AppNavigator.styles";
@@ -180,6 +179,7 @@ export const AppNavigator = () => {
         },
         tabBarActiveTintColor: DesignTokens.colors.executive.primary,
         tabBarInactiveTintColor: DesignTokens.colors.neutral[400],
+        tabBarHideOnKeyboard: true,
         headerShown: false,
       })}
     >
@@ -218,16 +218,6 @@ export const AppNavigator = () => {
           <Tab.Screen name="Dashboard" component={DashboardAvanceObraScreen} />
           <Tab.Screen name="Financiero" component={EstatusFinancieroScreen} />
         </>
-      )}
-
-      {hasRole("CONTRATISTA") && (
-        <Tab.Screen
-          name="Cola"
-          component={PendingSyncScreen}
-          options={{
-            tabBarLabel: "Cola",
-          }}
-        />
       )}
 
       <Tab.Screen name="Perfil" component={PerfilScreen} />

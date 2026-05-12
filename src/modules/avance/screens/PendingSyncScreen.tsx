@@ -70,7 +70,7 @@ const PendingSyncScreen: React.FC = () => {
   // These are "orphaned" photos that need to be shown separately
   const syncedAdvancePhotos = useMemo(() => {
     const photosWithSyncedAdvance = [...allPhotos].filter(
-      (p) => p.physicalAdvanceId !== null
+      (p) => p.physicalAdvanceId !== null,
     );
 
     // Group by physicalAdvanceId
@@ -90,7 +90,7 @@ const PendingSyncScreen: React.FC = () => {
         photos,
         createdAt: photos.reduce(
           (latest, p) => (p.createdAt > latest ? p.createdAt : latest),
-          photos[0]?.createdAt || new Date()
+          photos[0]?.createdAt || new Date(),
         ),
       }))
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -98,11 +98,25 @@ const PendingSyncScreen: React.FC = () => {
 
   // Photo counts for synced advances
   const syncedPhotosCounts = useMemo(() => {
-    const waiting = [...waitingPhotos].filter((p) => p.physicalAdvanceId !== null).length;
-    const syncing = [...syncingPhotos].filter((p) => p.physicalAdvanceId !== null).length;
-    const uploaded = [...uploadedPhotos].filter((p) => p.physicalAdvanceId !== null).length;
-    const failed = [...failedPhotos].filter((p) => p.physicalAdvanceId !== null).length;
-    return { waiting, syncing, uploaded, failed, total: waiting + syncing + uploaded + failed };
+    const waiting = [...waitingPhotos].filter(
+      (p) => p.physicalAdvanceId !== null,
+    ).length;
+    const syncing = [...syncingPhotos].filter(
+      (p) => p.physicalAdvanceId !== null,
+    ).length;
+    const uploaded = [...uploadedPhotos].filter(
+      (p) => p.physicalAdvanceId !== null,
+    ).length;
+    const failed = [...failedPhotos].filter(
+      (p) => p.physicalAdvanceId !== null,
+    ).length;
+    return {
+      waiting,
+      syncing,
+      uploaded,
+      failed,
+      total: waiting + syncing + uploaded + failed,
+    };
   }, [waitingPhotos, syncingPhotos, uploadedPhotos, failedPhotos]);
 
   // Build sections for SectionList
@@ -112,11 +126,14 @@ const PendingSyncScreen: React.FC = () => {
     // Section 1: Pending advances
     if (allItems.length > 0) {
       const sortedItems = [...allItems].sort(
-        (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
       );
       result.push({
         title: "Avances pendientes de envío",
-        data: sortedItems.map((item) => ({ type: "advance" as const, data: item })),
+        data: sortedItems.map((item) => ({
+          type: "advance" as const,
+          data: item,
+        })),
       });
     }
 
@@ -141,28 +158,28 @@ const PendingSyncScreen: React.FC = () => {
       markAsPending(id);
       syncNow();
     },
-    [markAsPending, syncNow]
+    [markAsPending, syncNow],
   );
 
   const handleDelete = useCallback(
     (id: string) => {
       removeFromQueue(id);
     },
-    [removeFromQueue]
+    [removeFromQueue],
   );
 
   const handleRetryPhoto = useCallback(
     (photoId: string) => {
       retryPhoto(photoId);
     },
-    [retryPhoto]
+    [retryPhoto],
   );
 
   const handleDeletePhoto = useCallback(
     async (photoId: string) => {
       await removePhoto(photoId, true);
     },
-    [removePhoto]
+    [removePhoto],
   );
 
   const handleRetryAllPhotos = useCallback(() => {
@@ -186,13 +203,25 @@ const PendingSyncScreen: React.FC = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "pending":
-        return { name: "time-outline" as const, color: DesignTokens.colors.warning[500] };
+        return {
+          name: "time-outline" as const,
+          color: DesignTokens.colors.warning[500],
+        };
       case "syncing":
-        return { name: "sync" as const, color: DesignTokens.colors.primary[500] };
+        return {
+          name: "sync" as const,
+          color: DesignTokens.colors.primary[500],
+        };
       case "failed":
-        return { name: "alert-circle" as const, color: DesignTokens.colors.error[500] };
+        return {
+          name: "alert-circle" as const,
+          color: DesignTokens.colors.error[500],
+        };
       default:
-        return { name: "help-circle-outline" as const, color: DesignTokens.colors.neutral[400] };
+        return {
+          name: "help-circle-outline" as const,
+          color: DesignTokens.colors.neutral[400],
+        };
     }
   };
 
@@ -248,7 +277,11 @@ const PendingSyncScreen: React.FC = () => {
       <View style={styles.itemContainer}>
         <View style={styles.itemHeader}>
           <View style={styles.statusBadge}>
-            <Ionicons name={statusIcon.name} size={14} color={statusIcon.color} />
+            <Ionicons
+              name={statusIcon.name}
+              size={14}
+              color={statusIcon.color}
+            />
             <Text style={[styles.statusText, { color: statusIcon.color }]}>
               {getStatusLabel(item.status)}
             </Text>
@@ -272,9 +305,14 @@ const PendingSyncScreen: React.FC = () => {
         {photoCount > 0 && (
           <View style={styles.photosSection}>
             <View style={styles.photosSectionHeader}>
-              <Ionicons name="camera-outline" size={14} color={DesignTokens.colors.neutral[600]} />
+              <Ionicons
+                name="camera-outline"
+                size={14}
+                color={DesignTokens.colors.neutral[600]}
+              />
               <Text style={styles.photosLabel}>
-                {photoCount} foto{photoCount !== 1 ? "s" : ""} (esperando envío del avance)
+                {photoCount} foto{photoCount !== 1 ? "s" : ""} (esperando envío
+                del avance)
               </Text>
             </View>
             <ScrollView
@@ -290,10 +328,7 @@ const PendingSyncScreen: React.FC = () => {
                     resizeMode="cover"
                   />
                   <View
-                    style={[
-                      styles.photoStatusDot,
-                      styles.photoStatusPending,
-                    ]}
+                    style={[styles.photoStatusDot, styles.photoStatusPending]}
                   />
                 </View>
               ))}
@@ -303,7 +338,11 @@ const PendingSyncScreen: React.FC = () => {
 
         {isFailed && item.errorMessage && (
           <View style={styles.errorContainer}>
-            <Ionicons name="warning-outline" size={14} color={DesignTokens.colors.error[500]} />
+            <Ionicons
+              name="warning-outline"
+              size={14}
+              color={DesignTokens.colors.error[500]}
+            />
             <Text style={styles.errorText} numberOfLines={2}>
               {item.errorMessage}
             </Text>
@@ -332,7 +371,10 @@ const PendingSyncScreen: React.FC = () => {
 
         {isItemSyncing && (
           <View style={styles.syncingIndicator}>
-            <ActivityIndicator size="small" color={DesignTokens.colors.primary[500]} />
+            <ActivityIndicator
+              size="small"
+              color={DesignTokens.colors.primary[500]}
+            />
             <Text style={styles.syncingText}>Enviando avance...</Text>
           </View>
         )}
@@ -343,7 +385,7 @@ const PendingSyncScreen: React.FC = () => {
   const renderSyncedPhotosItem = (
     physicalAdvanceId: number,
     photos: PendingPhotoSubmission[],
-    createdAt: Date
+    createdAt: Date,
   ) => {
     const waitingCount = photos.filter((p) => p.status === "waiting").length;
     const syncingCount = photos.filter((p) => p.status === "syncing").length;
@@ -364,7 +406,12 @@ const PendingSyncScreen: React.FC = () => {
               size={14}
               color={DesignTokens.colors.success[500]}
             />
-            <Text style={[styles.statusText, { color: DesignTokens.colors.success[600] }]}>
+            <Text
+              style={[
+                styles.statusText,
+                { color: DesignTokens.colors.success[600] },
+              ]}
+            >
               Avance enviado
             </Text>
           </View>
@@ -373,36 +420,70 @@ const PendingSyncScreen: React.FC = () => {
 
         {/* Advance ID reference */}
         <View style={styles.syncedAdvanceInfo}>
-          <Text style={styles.syncedAdvanceId}>Avance #{physicalAdvanceId}</Text>
+          <Text style={styles.syncedAdvanceId}>
+            Avance #{physicalAdvanceId}
+          </Text>
           <Text style={styles.syncedAdvanceSubtitle}>
-            {photos.length} foto{photos.length !== 1 ? "s" : ""} pendiente{photos.length !== 1 ? "s" : ""} de subir
+            {photos.length} foto{photos.length !== 1 ? "s" : ""} pendiente
+            {photos.length !== 1 ? "s" : ""} de subir
           </Text>
         </View>
 
         {/* Photo status summary */}
         <View style={styles.photoStatusSummary}>
           {waitingCount > 0 && (
-            <View style={[styles.photoStatusBadge, styles.photoStatusWaitingBadge]}>
-              <Ionicons name="time-outline" size={12} color={DesignTokens.colors.warning[600]} />
-              <Text style={styles.photoStatusBadgeText}>{waitingCount} en cola</Text>
+            <View
+              style={[styles.photoStatusBadge, styles.photoStatusWaitingBadge]}
+            >
+              <Ionicons
+                name="time-outline"
+                size={12}
+                color={DesignTokens.colors.warning[600]}
+              />
+              <Text style={styles.photoStatusBadgeText}>
+                {waitingCount} en cola
+              </Text>
             </View>
           )}
           {syncingCount > 0 && (
-            <View style={[styles.photoStatusBadge, styles.photoStatusSyncingBadge]}>
-              <ActivityIndicator size={10} color={DesignTokens.colors.primary[600]} />
-              <Text style={styles.photoStatusBadgeText}>{syncingCount} subiendo</Text>
+            <View
+              style={[styles.photoStatusBadge, styles.photoStatusSyncingBadge]}
+            >
+              <ActivityIndicator
+                size={10}
+                color={DesignTokens.colors.primary[600]}
+              />
+              <Text style={styles.photoStatusBadgeText}>
+                {syncingCount} subiendo
+              </Text>
             </View>
           )}
           {uploadedCount > 0 && (
-            <View style={[styles.photoStatusBadge, styles.photoStatusUploadedBadge]}>
-              <Ionicons name="cloud-done-outline" size={12} color={DesignTokens.colors.success[600]} />
-              <Text style={styles.photoStatusBadgeText}>{uploadedCount} confirmando</Text>
+            <View
+              style={[styles.photoStatusBadge, styles.photoStatusUploadedBadge]}
+            >
+              <Ionicons
+                name="cloud-done-outline"
+                size={12}
+                color={DesignTokens.colors.success[600]}
+              />
+              <Text style={styles.photoStatusBadgeText}>
+                {uploadedCount} confirmando
+              </Text>
             </View>
           )}
           {failedCount > 0 && (
-            <View style={[styles.photoStatusBadge, styles.photoStatusFailedBadge]}>
-              <Ionicons name="alert-circle" size={12} color={DesignTokens.colors.error[600]} />
-              <Text style={styles.photoStatusBadgeText}>{failedCount} fallido{failedCount !== 1 ? "s" : ""}</Text>
+            <View
+              style={[styles.photoStatusBadge, styles.photoStatusFailedBadge]}
+            >
+              <Ionicons
+                name="alert-circle"
+                size={12}
+                color={DesignTokens.colors.error[600]}
+              />
+              <Text style={styles.photoStatusBadgeText}>
+                {failedCount} fallido{failedCount !== 1 ? "s" : ""}
+              </Text>
             </View>
           )}
         </View>
@@ -449,9 +530,14 @@ const PendingSyncScreen: React.FC = () => {
         {/* Failed photo errors */}
         {hasFailedPhotos && (
           <View style={styles.errorContainer}>
-            <Ionicons name="warning-outline" size={14} color={DesignTokens.colors.error[500]} />
+            <Ionicons
+              name="warning-outline"
+              size={14}
+              color={DesignTokens.colors.error[500]}
+            />
             <Text style={styles.errorText} numberOfLines={2}>
-              {photos.find((p) => p.status === "failed")?.errorMessage || "Error al subir fotos"}
+              {photos.find((p) => p.status === "failed")?.errorMessage ||
+                "Error al subir fotos"}
             </Text>
           </View>
         )}
@@ -476,7 +562,10 @@ const PendingSyncScreen: React.FC = () => {
         {/* Syncing indicator */}
         {isSyncingPhotos && (
           <View style={styles.syncingIndicator}>
-            <ActivityIndicator size="small" color={DesignTokens.colors.primary[500]} />
+            <ActivityIndicator
+              size="small"
+              color={DesignTokens.colors.primary[500]}
+            />
             <Text style={styles.syncingText}>Subiendo fotos...</Text>
           </View>
         )}
@@ -488,7 +577,11 @@ const PendingSyncScreen: React.FC = () => {
     if (item.type === "advance") {
       return renderAdvanceItem(item.data);
     } else {
-      return renderSyncedPhotosItem(item.physicalAdvanceId, item.photos, item.createdAt);
+      return renderSyncedPhotosItem(
+        item.physicalAdvanceId,
+        item.photos,
+        item.createdAt,
+      );
     }
   };
 
@@ -504,12 +597,20 @@ const PendingSyncScreen: React.FC = () => {
         <Ionicons
           name={isOnline ? "cloud-done-outline" : "cloud-offline-outline"}
           size={18}
-          color={isOnline ? DesignTokens.colors.success[500] : DesignTokens.colors.error[500]}
+          color={
+            isOnline
+              ? DesignTokens.colors.success[500]
+              : DesignTokens.colors.error[500]
+          }
         />
         <Text
           style={[
             styles.networkStatusText,
-            { color: isOnline ? DesignTokens.colors.success[600] : DesignTokens.colors.error[600] },
+            {
+              color: isOnline
+                ? DesignTokens.colors.success[600]
+                : DesignTokens.colors.error[600],
+            },
           ]}
         >
           {isOnline ? "Conectado" : "Sin conexión"}
@@ -520,24 +621,50 @@ const PendingSyncScreen: React.FC = () => {
         {/* Advance counts */}
         {pendingCount > 0 && (
           <View style={[styles.countBadge, styles.pendingBadge]}>
-            <Ionicons name="document-text-outline" size={12} color={DesignTokens.colors.warning[600]} />
-            <Text style={[styles.countBadgeText, { color: DesignTokens.colors.warning[700] }]}>
+            <Ionicons
+              name="document-text-outline"
+              size={12}
+              color={DesignTokens.colors.warning[600]}
+            />
+            <Text
+              style={[
+                styles.countBadgeText,
+                { color: DesignTokens.colors.warning[700] },
+              ]}
+            >
               {pendingCount} avance{pendingCount !== 1 ? "s" : ""}
             </Text>
           </View>
         )}
         {failedCount > 0 && (
           <View style={[styles.countBadge, styles.failedBadge]}>
-            <Ionicons name="alert-circle" size={12} color={DesignTokens.colors.error[600]} />
-            <Text style={[styles.countBadgeText, { color: DesignTokens.colors.error[700] }]}>
+            <Ionicons
+              name="alert-circle"
+              size={12}
+              color={DesignTokens.colors.error[600]}
+            />
+            <Text
+              style={[
+                styles.countBadgeText,
+                { color: DesignTokens.colors.error[700] },
+              ]}
+            >
               {failedCount} fallido{failedCount !== 1 ? "s" : ""}
             </Text>
           </View>
         )}
         {syncingCount > 0 && (
           <View style={[styles.countBadge, styles.syncingBadge]}>
-            <ActivityIndicator size={10} color={DesignTokens.colors.primary[600]} />
-            <Text style={[styles.countBadgeText, { color: DesignTokens.colors.primary[700] }]}>
+            <ActivityIndicator
+              size={10}
+              color={DesignTokens.colors.primary[600]}
+            />
+            <Text
+              style={[
+                styles.countBadgeText,
+                { color: DesignTokens.colors.primary[700] },
+              ]}
+            >
               {syncingCount} sincronizando
             </Text>
           </View>
@@ -546,9 +673,19 @@ const PendingSyncScreen: React.FC = () => {
         {/* Photo counts */}
         {syncedPhotosCounts.total > 0 && (
           <View style={[styles.countBadge, styles.photoBadge]}>
-            <Ionicons name="camera-outline" size={12} color={DesignTokens.colors.primary[600]} />
-            <Text style={[styles.countBadgeText, { color: DesignTokens.colors.primary[700] }]}>
-              {syncedPhotosCounts.total} foto{syncedPhotosCounts.total !== 1 ? "s" : ""}
+            <Ionicons
+              name="camera-outline"
+              size={12}
+              color={DesignTokens.colors.primary[600]}
+            />
+            <Text
+              style={[
+                styles.countBadgeText,
+                { color: DesignTokens.colors.primary[700] },
+              ]}
+            >
+              {syncedPhotosCounts.total} foto
+              {syncedPhotosCounts.total !== 1 ? "s" : ""}
             </Text>
           </View>
         )}
@@ -576,7 +713,7 @@ const PendingSyncScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.titleContainer}>
-        <Text style={styles.title}>Cola de sincronización</Text>
+        <Text style={styles.title}>Estatus</Text>
       </View>
 
       {renderHeader()}
@@ -587,7 +724,9 @@ const PendingSyncScreen: React.FC = () => {
         <SectionList
           sections={sections}
           keyExtractor={(item) =>
-            item.type === "advance" ? item.data._id : `photos-${item.physicalAdvanceId}`
+            item.type === "advance"
+              ? item.data._id
+              : `photos-${item.physicalAdvanceId}`
           }
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
@@ -631,7 +770,10 @@ const PendingSyncScreen: React.FC = () => {
 
       {isSyncing && (
         <View style={styles.syncingOverlay}>
-          <ActivityIndicator size="small" color={DesignTokens.colors.primary[500]} />
+          <ActivityIndicator
+            size="small"
+            color={DesignTokens.colors.primary[500]}
+          />
           <Text style={styles.syncingOverlayText}>Sincronizando...</Text>
         </View>
       )}

@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   },
   constructionName: {
     fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize["2xl"]),
-    fontWeight: DesignTokens.typography.fontWeight.bold,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
     color: DesignTokens.colors.neutral[800],
     marginBottom: getResponsiveSpacing(DesignTokens.spacing.lg),
     includeFontPadding: false,
@@ -143,24 +143,21 @@ const styles = StyleSheet.create({
   advanceItem: {
     backgroundColor: DesignTokens.colors.background.primary,
     borderRadius: getResponsiveSpacing(DesignTokens.borderRadius.md),
-    padding: getResponsiveSpacing(DesignTokens.spacing.lg),
-    marginBottom: getResponsiveSpacing(DesignTokens.spacing.md),
+    paddingHorizontal: getResponsiveSpacing(DesignTokens.spacing.lg),
+    paddingVertical: getResponsiveSpacing(DesignTokens.spacing.sm),
+    marginBottom: getResponsiveSpacing(DesignTokens.spacing.sm),
     ...DesignTokens.shadows.base,
     borderLeftWidth: 4,
-    // ✅ borderLeftColor ahora es dinámico - se asigna en el componente según el estado
-    minHeight: isTablet ? 140 : 120, // ALTURA MÍNIMA RESPONSIVA
   },
   advanceHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: getResponsiveSpacing(DesignTokens.spacing.md),
-    minHeight: isTablet ? 60 : 50, // ALTURA MÍNIMA PARA HEADER
+    marginBottom: getResponsiveSpacing(DesignTokens.spacing.xs),
   },
   conceptInfo: {
     flex: 1,
     marginRight: getResponsiveSpacing(DesignTokens.spacing.sm),
-    minHeight: isTablet ? 50 : 40, // ESPACIO MÍNIMO PARA TEXTO
   },
   conceptCode: {
     fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.xs),
@@ -183,7 +180,7 @@ const styles = StyleSheet.create({
     fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.lg),
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.neutral[900],
-    marginBottom: getResponsiveSpacing(6),
+    marginBottom: getResponsiveSpacing(2),
     includeFontPadding: false, // ✅ QUITAR PADDING EXTRA
     lineHeight:
       getResponsiveFontSize(DesignTokens.typography.fontSize.lg) * 1.3, // LINE HEIGHT AJUSTADO
@@ -239,9 +236,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: DesignTokens.spacing.md,
-    marginTop: DesignTokens.spacing.sm,
-    paddingTop: DesignTokens.spacing.sm,
+    marginBottom: DesignTokens.spacing.xs,
+    marginTop: DesignTokens.spacing.xs,
+    paddingTop: DesignTokens.spacing.xs,
     borderTopWidth: 1,
     borderTopColor: DesignTokens.colors.neutral[100],
   },
@@ -299,13 +296,12 @@ const styles = StyleSheet.create({
     fontWeight: DesignTokens.typography.fontWeight.semibold,
   },
   notesContainer: {
-    marginBottom: getResponsiveSpacing(DesignTokens.spacing.md),
-    padding: getResponsiveSpacing(DesignTokens.spacing.md),
+    marginBottom: getResponsiveSpacing(DesignTokens.spacing.xs),
+    padding: getResponsiveSpacing(DesignTokens.spacing.sm),
     backgroundColor: DesignTokens.colors.neutral[50],
     borderRadius: getResponsiveSpacing(DesignTokens.borderRadius.sm),
     borderLeftWidth: 3,
     borderLeftColor: DesignTokens.colors.primary[200],
-    minHeight: getResponsiveSpacing(50), // ALTURA MÍNIMA PARA CONTENEDOR
   },
   notesLabel: {
     fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.xs),
@@ -332,8 +328,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: DesignTokens.spacing.md,
-    paddingTop: DesignTokens.spacing.sm,
+    marginTop: DesignTokens.spacing.xs,
+    paddingTop: DesignTokens.spacing.xs,
   },
   programStatusContainer: {
     alignItems: "flex-start",

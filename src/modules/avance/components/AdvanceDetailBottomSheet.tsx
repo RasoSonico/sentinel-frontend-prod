@@ -9,9 +9,9 @@ import {
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomSheet, {
@@ -47,15 +47,18 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
   // States
   const [isEditingVolume, setIsEditingVolume] = useState(false);
   const [isEditingComment, setIsEditingComment] = useState(false);
+  const [volumeItemY, setVolumeItemY] = useState(0);
+  const [commentItemY, setCommentItemY] = useState(0);
 
   // Mutations
   const updateAdvanceMutation = useUpdateAdvance();
 
-  // BottomSheet ref
+  // Refs
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  // BottomSheet snap points
-  const snapPoints = useMemo(() => ["75%"], []);
+  // BottomSheet snap points — two points so the sheet can extend above the keyboard
+  const snapPoints = useMemo(() => ["75%", "95%"], []);
 
   // React Hook Form setup
   const {
@@ -89,6 +92,23 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
       setIsEditingComment(false);
     }
   }, [isVisible]);
+
+  // Scroll to the active edit field so it's visible without manual scrolling
+  useEffect(() => {
+    if (!isEditingVolume) return;
+    const timer = setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: volumeItemY, animated: true });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [isEditingVolume, volumeItemY]);
+
+  useEffect(() => {
+    if (!isEditingComment) return;
+    const timer = setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: commentItemY, animated: true });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [isEditingComment, commentItemY]);
 
   // Handle bottom sheet changes
   const handleSheetChanges = useCallback(
@@ -169,6 +189,9 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
       enablePanDownToClose
+      keyboardBehavior="extend"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.handleIndicator}
       style={styles.bottomSheetContainer}
@@ -229,7 +252,10 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
           </View>
         </View>
       </View>
-      <BottomSheetScrollView contentContainerStyle={styles.contentContainer}>
+      <BottomSheetScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.contentContainer}
+      >
         {/* Catálogo */}
         <View style={styles.itemContainer}>
           <View style={styles.itemLabel}>
@@ -261,7 +287,10 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         </View>
 
         {/* Volumen con Unidad */}
-        <View style={styles.itemContainer}>
+        <View
+          style={styles.itemContainer}
+          onLayout={(e) => setVolumeItemY(e.nativeEvent.layout.y)}
+        >
           <View style={styles.itemLabel}>
             <Text style={styles.labelText}>Volumen</Text>
             <TouchableOpacity
@@ -337,7 +366,10 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         </View>
 
         {/* Comentario */}
-        <View style={styles.itemContainer}>
+        <View
+          style={styles.itemContainer}
+          onLayout={(e) => setCommentItemY(e.nativeEvent.layout.y)}
+        >
           <View style={styles.itemLabel}>
             <Text style={styles.labelText}>Comentario</Text>
 
@@ -405,40 +437,41 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
             </Text>
           )}
         </View>
-        {/* Action Buttons - Solo cuando está editando */}
-        {isEditing && (
-          <SafeAreaView style={styles.actionButtonsContainer}>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={handleCancelEdit}
-                disabled={updateAdvanceMutation.isPending}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.saveButton,
-                  (!isDirty || updateAdvanceMutation.isPending) &&
-                    styles.saveButtonDisabled,
-                ]}
-                onPress={handleSubmit(onSubmit)}
-                disabled={updateAdvanceMutation.isPending || !isDirty}
-              >
-                {updateAdvanceMutation.isPending ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={DesignTokens.colors.background.primary}
-                  />
-                ) : (
-                  <Text style={styles.saveButtonText}>Guardar</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </SafeAreaView>
-        )}
       </BottomSheetScrollView>
+
+      {/* Action Buttons — outside ScrollView so they don't collapse the layout on keyboard open */}
+      {isEditing && (
+        <View style={styles.actionButtonsContainer}>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={handleCancelEdit}
+              disabled={updateAdvanceMutation.isPending}
+            >
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.saveButton,
+                (!isDirty || updateAdvanceMutation.isPending) &&
+                  styles.saveButtonDisabled,
+              ]}
+              onPress={handleSubmit(onSubmit)}
+              disabled={updateAdvanceMutation.isPending || !isDirty}
+            >
+              {updateAdvanceMutation.isPending ? (
+                <ActivityIndicator
+                  size="small"
+                  color={DesignTokens.colors.background.primary}
+                />
+              ) : (
+                <Text style={styles.saveButtonText}>Guardar</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </BottomSheet>
   );
 };

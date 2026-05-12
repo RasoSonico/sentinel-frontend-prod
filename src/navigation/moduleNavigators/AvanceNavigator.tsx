@@ -1,11 +1,13 @@
 import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
-import { Dimensions } from "react-native";
+import { Dimensions, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { AvanceStackParamList } from "../types";
 import AdvanceListScreen from "../../modules/avance/screens/AdvanceListScreen";
 import AdvanceRegistrationScreen from "../../modules/avance/screens/AdvanceRegistrationScreen";
 import ReportSelectionScreen from "../../modules/avance/screens/ReportSelectionScreen";
 import AdvanceReportScreen from "../../modules/avance/screens/AdvanceReportScreen";
+import PendingSyncScreen from "../../modules/avance/screens/PendingSyncScreen";
 import { DesignTokens } from "../../styles/designTokens";
 
 // HEADER UTILITIES
@@ -70,6 +72,26 @@ export const AvanceNavigator: React.FC = () => {
         options={{
           title: "Reporte de Avance",
         }}
+      />
+
+      <Stack.Screen
+        name="PendingSync"
+        component={PendingSyncScreen}
+        options={({ navigation }) => ({
+          title: "Cola de sincronización",
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16, padding: 4 }}
+            >
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color={DesignTokens.colors.background.primary}
+              />
+            </TouchableOpacity>
+          ),
+        })}
       />
 
       {/*

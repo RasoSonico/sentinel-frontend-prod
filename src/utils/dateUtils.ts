@@ -77,7 +77,7 @@ export class DateUtils {
   static formatUTCForDisplay(
     utcDateString: string,
     formatString: string = "dd MMM yyyy",
-    locale = es
+    locale = es,
   ): string {
     const cacheKey = `${utcDateString}_${formatString}_${locale.code}`;
 
@@ -106,8 +106,8 @@ export class DateUtils {
       Date.UTC(
         localDate.getFullYear(),
         localDate.getMonth(),
-        localDate.getDate()
-      )
+        localDate.getDate(),
+      ),
     );
 
     return this.toUTCDateString(utcDate);
@@ -127,7 +127,7 @@ export class DateUtils {
       0,
       0,
       0,
-      0
+      0,
     );
 
     // End of day in local timezone (23:59:59.999)
@@ -138,7 +138,7 @@ export class DateUtils {
       23,
       59,
       59,
-      999
+      999,
     );
 
     return {
@@ -214,6 +214,17 @@ export class DateUtils {
         };
       })(),
 
+      yesterday: (() => {
+        const yesterday = subDays(today, 1);
+        const yesterdayRange = this.localDateToUTCRange(yesterday);
+        return {
+          type: "range" as const,
+          startDate: yesterdayRange.start,
+          endDate: yesterdayRange.end,
+          label: "Ayer",
+        };
+      })(),
+
       last7Days: {
         type: "range" as const,
         ...this.getUTCDateRangeForDays(6),
@@ -231,7 +242,7 @@ export class DateUtils {
         const firstDayOfMonth = new Date(
           today.getFullYear(),
           today.getMonth(),
-          1
+          1,
         );
         const firstDayRange = this.localDateToUTCRange(firstDayOfMonth);
         const todayRange = this.localDateToUTCRange(today);
@@ -250,12 +261,12 @@ export class DateUtils {
         const startOfMonth = new Date(
           lastMonth.getFullYear(),
           lastMonth.getMonth(),
-          1
+          1,
         );
         const endOfMonth = new Date(
           lastMonth.getFullYear(),
           lastMonth.getMonth() + 1,
-          0
+          0,
         );
 
         const startRange = this.localDateToUTCRange(startOfMonth);
@@ -302,7 +313,7 @@ export class DateUtils {
   static isDateInUTCRange(
     dateString: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
   ): boolean {
     if (!startDate && !endDate) return true;
 
@@ -334,13 +345,13 @@ export class DateUtils {
       const testLocalDate = new Date(
         utcDate.getUTCFullYear(),
         utcDate.getUTCMonth(),
-        utcDate.getUTCDate()
+        utcDate.getUTCDate(),
       );
       const roundTripUTC = this.localDateToUTC(testLocalDate);
       console.log("3. Round Trip UTC:", roundTripUTC);
       console.log(
         "4. Round Trip Match:",
-        roundTripUTC === utcDateString ? "✅" : "❌"
+        roundTripUTC === utcDateString ? "✅" : "❌",
       );
     } catch (error) {
       console.error("Debug Error:", error);
@@ -372,18 +383,18 @@ export class DateUtils {
       const localRepresentation = new Date(
         parsedUTC.getUTCFullYear(),
         parsedUTC.getUTCMonth(),
-        parsedUTC.getUTCDate()
+        parsedUTC.getUTCDate(),
       );
       console.log(
         "4️⃣ Local representation:",
-        localRepresentation.toISOString()
+        localRepresentation.toISOString(),
       );
       console.log("5️⃣ Local display date:", localRepresentation.toDateString());
 
       // Format with our function
       const formatted = this.formatUTCForDisplay(
         backendDateString,
-        "dd MMM yyyy"
+        "dd MMM yyyy",
       );
       console.log("6️⃣ Our formatted:", formatted);
 
@@ -391,14 +402,14 @@ export class DateUtils {
       const directFormatted = format(
         new Date(backendDateString),
         "dd MMM yyyy",
-        { locale: es }
+        { locale: es },
       );
       console.log("7️⃣ Direct date-fns:", directFormatted);
 
       // Show the difference
       console.log(
         "8️⃣ Results match:",
-        formatted === directFormatted ? "✅" : "❌"
+        formatted === directFormatted ? "✅" : "❌",
       );
 
       // Show local timezone info
@@ -452,7 +463,7 @@ export class DateUtils {
     // Test with your CDMX example
     console.group("🇲🇽 CDMX Example Test");
     console.log(
-      "Scenario: User registered advance on 10-sep-2025 at 18:46 CDMX time"
+      "Scenario: User registered advance on 10-sep-2025 at 18:46 CDMX time",
     );
     console.log("Backend stored it as: 2025-09-11T00:46:00Z");
     console.log("");
@@ -468,7 +479,7 @@ export class DateUtils {
       "2025-09-11T00:46:00Z" >= mockTodayRange.start &&
         "2025-09-11T00:46:00Z" <= mockTodayRange.end
         ? "✅ YES"
-        : "❌ NO"
+        : "❌ NO",
     );
     console.groupEnd();
 
@@ -490,7 +501,7 @@ export class DateUtils {
     const offsetMinutes = now.getTimezoneOffset();
     const offsetHours = offsetMinutes / 60;
     const offsetString = `UTC${offsetHours <= 0 ? "+" : "-"}${Math.abs(
-      offsetHours
+      offsetHours,
     )}`;
 
     return {
@@ -516,7 +527,7 @@ export class DateUtils {
     console.log("Selected date (local):", selectedLocalDate.toString());
     console.log(
       "Selected date (local date only):",
-      selectedLocalDate.toDateString()
+      selectedLocalDate.toDateString(),
     );
     console.log("Year/Month/Date:", {
       year: selectedLocalDate.getFullYear(),
@@ -536,26 +547,26 @@ export class DateUtils {
     console.group("🖥️ Display Conversion");
     const displayStart = this.formatUTCForDisplay(
       utcRange.start,
-      "dd MMM yyyy"
+      "dd MMM yyyy",
     );
     const displayEnd = this.formatUTCForDisplay(utcRange.end, "dd MMM yyyy");
     console.log("Display start date:", displayStart);
     console.log("Display end date:", displayEnd);
     console.log(
       "Should show same date?",
-      displayStart === displayEnd ? "✅" : "❌"
+      displayStart === displayEnd ? "✅" : "❌",
     );
 
     // Test what display will show for the selected date
     const selectedDateAsUTC = `${selectedLocalDate.getFullYear()}-${String(
-      selectedLocalDate.getMonth() + 1
+      selectedLocalDate.getMonth() + 1,
     ).padStart(2, "0")}-${String(selectedLocalDate.getDate()).padStart(
       2,
-      "0"
+      "0",
     )}T12:00:00Z`;
     const midDayDisplay = this.formatUTCForDisplay(
       selectedDateAsUTC,
-      "dd MMM yyyy"
+      "dd MMM yyyy",
     );
     console.log("Midday UTC display:", midDayDisplay);
     console.groupEnd();
@@ -568,7 +579,7 @@ export class DateUtils {
    */
   static testDisplayConversion(): void {
     console.group(
-      "🧪 Testing Display Timezone Conversion (Frontend as Interpreter)"
+      "🧪 Testing Display Timezone Conversion (Frontend as Interpreter)",
     );
 
     const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -611,7 +622,7 @@ export class DateUtils {
       // Our function
       const ourFormatted = this.formatUTCForDisplay(
         testCase.utc,
-        "dd MMM yyyy"
+        "dd MMM yyyy",
       );
 
       console.log("UTC Input:", testCase.utc);
@@ -621,11 +632,11 @@ export class DateUtils {
       console.log("Expected in CDMX:", testCase.expectedCDMX);
       console.log(
         "Match expected:",
-        ourFormatted === testCase.expectedCDMX ? "✅" : "❌"
+        ourFormatted === testCase.expectedCDMX ? "✅" : "❌",
       );
       console.log(
         "Functions match:",
-        directFormatted === ourFormatted ? "✅" : "❌"
+        directFormatted === ourFormatted ? "✅" : "❌",
       );
 
       console.groupEnd();
@@ -657,7 +668,7 @@ export const CommonDateFormats = {
     try {
       return DateUtils.formatUTCForDisplay(
         utcDateString,
-        "dd 'de' MMMM 'de' yyyy"
+        "dd 'de' MMMM 'de' yyyy",
       );
     } catch (error) {
       console.warn("🚨 Long date format error:", { utcDateString, error });

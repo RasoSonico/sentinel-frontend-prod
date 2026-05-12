@@ -51,7 +51,11 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
     getPhotoCounts,
   } = usePendingPhotoQueue();
 
-  const { syncNow, isSyncing, retryPhoto: retryPhotoFromWorker } = useSyncWorker();
+  const {
+    syncNow,
+    isSyncing,
+    retryPhoto: retryPhotoFromWorker,
+  } = useSyncWorker();
 
   const photoCounts = getPhotoCounts();
 
@@ -59,7 +63,7 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
   const orphanedFailedPhotos = useMemo(() => {
     const advanceIds = new Set([...allItems].map((item) => item._id));
     return [...failedPhotos].filter(
-      (photo) => !advanceIds.has(photo.advanceLocalId)
+      (photo) => !advanceIds.has(photo.advanceLocalId),
     );
   }, [failedPhotos, allItems]);
 
@@ -69,7 +73,7 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
         onClose();
       }
     },
-    [onClose]
+    [onClose],
   );
 
   const renderBackdrop = useCallback(
@@ -81,7 +85,7 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
         opacity={0.5}
       />
     ),
-    []
+    [],
   );
 
   const handleRetryAdvance = useCallback(
@@ -89,28 +93,28 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
       markAsPending(id);
       syncNow();
     },
-    [markAsPending, syncNow]
+    [markAsPending, syncNow],
   );
 
   const handleDeleteAdvance = useCallback(
     async (id: string) => {
       await removeFromQueueWithPhotos(id, true);
     },
-    [removeFromQueueWithPhotos]
+    [removeFromQueueWithPhotos],
   );
 
   const handleRetryPhoto = useCallback(
     async (photoId: string) => {
       await retryPhotoFromWorker(photoId);
     },
-    [retryPhotoFromWorker]
+    [retryPhotoFromWorker],
   );
 
   const handleDeletePhoto = useCallback(
     async (photoId: string) => {
       await removePhoto(photoId, true);
     },
-    [removePhoto]
+    [removePhoto],
   );
 
   const getAdvanceStatusIcon = (status: string) => {
@@ -169,7 +173,10 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
     });
   };
 
-  const renderPhotoItem = (photo: PendingPhotoSubmission, isOrphaned: boolean = false) => {
+  const renderPhotoItem = (
+    photo: PendingPhotoSubmission,
+    isOrphaned: boolean = false,
+  ) => {
     const statusIcon = getPhotoStatusIcon(photo.status);
     const isFailed = photo.status === "failed";
     const isUploaded = photo.status === "uploaded";
@@ -193,7 +200,11 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
               {getStatusLabel(photo.status)}
             </Text>
             {isPhotoSyncing && (
-              <ActivityIndicator size="small" color="#3498db" style={{ marginLeft: 4 }} />
+              <ActivityIndicator
+                size="small"
+                color="#3498db"
+                style={{ marginLeft: 4 }}
+              />
             )}
           </View>
           {isFailed && photo.errorMessage && (
@@ -233,16 +244,16 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
     const advancePhotos = [...getPhotosByAdvanceId(item._id)];
     const hasPhotos = advancePhotos.length > 0;
     const pendingPhotosForAdvance = advancePhotos.filter(
-      (p) => p.status === "pending" || p.status === "waiting"
+      (p) => p.status === "pending" || p.status === "waiting",
     );
     const failedPhotosForAdvance = advancePhotos.filter(
-      (p) => p.status === "failed"
+      (p) => p.status === "failed",
     );
     const syncingPhotosForAdvance = advancePhotos.filter(
-      (p) => p.status === "syncing"
+      (p) => p.status === "syncing",
     );
     const uploadedPhotosForAdvance = advancePhotos.filter(
-      (p) => p.status === "uploaded"
+      (p) => p.status === "uploaded",
     );
 
     return (
@@ -292,7 +303,8 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
         )}
 
         {/* Show failed and uploaded (pending confirmation) photos for this advance */}
-        {(failedPhotosForAdvance.length > 0 || uploadedPhotosForAdvance.length > 0) && (
+        {(failedPhotosForAdvance.length > 0 ||
+          uploadedPhotosForAdvance.length > 0) && (
           <View style={styles.photosContainer}>
             {uploadedPhotosForAdvance.map((photo) => renderPhotoItem(photo))}
             {failedPhotosForAdvance.map((photo) => renderPhotoItem(photo))}
@@ -361,19 +373,21 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
     >
       <BottomSheetScrollView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Cola de sincronización</Text>
+          <Text style={styles.title}>Estatus</Text>
           <View style={styles.countsContainer}>
             {pendingCount > 0 && (
               <View style={[styles.countBadge, styles.pendingBadge]}>
                 <Text style={styles.countBadgeText}>
-                  {pendingCount} avance{pendingCount > 1 ? "s" : ""} pendiente{pendingCount > 1 ? "s" : ""}
+                  {pendingCount} avance{pendingCount > 1 ? "s" : ""} pendiente
+                  {pendingCount > 1 ? "s" : ""}
                 </Text>
               </View>
             )}
             {failedCount > 0 && (
               <View style={[styles.countBadge, styles.failedBadge]}>
                 <Text style={styles.countBadgeText}>
-                  {failedCount} avance{failedCount > 1 ? "s" : ""} fallido{failedCount > 1 ? "s" : ""}
+                  {failedCount} avance{failedCount > 1 ? "s" : ""} fallido
+                  {failedCount > 1 ? "s" : ""}
                 </Text>
               </View>
             )}
@@ -384,11 +398,23 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
                 </Text>
               </View>
             )}
-            {(photoCounts.waiting > 0 || photoCounts.syncing > 0 || photoCounts.uploaded > 0) && (
+            {(photoCounts.waiting > 0 ||
+              photoCounts.syncing > 0 ||
+              photoCounts.uploaded > 0) && (
               <View style={[styles.countBadge, styles.photoBadge]}>
                 <Ionicons name="camera-outline" size={12} color="#8e44ad" />
                 <Text style={[styles.countBadgeText, { color: "#8e44ad" }]}>
-                  {photoCounts.waiting + photoCounts.syncing + photoCounts.uploaded} foto{photoCounts.waiting + photoCounts.syncing + photoCounts.uploaded > 1 ? "s" : ""} en cola
+                  {photoCounts.waiting +
+                    photoCounts.syncing +
+                    photoCounts.uploaded}{" "}
+                  foto
+                  {photoCounts.waiting +
+                    photoCounts.syncing +
+                    photoCounts.uploaded >
+                  1
+                    ? "s"
+                    : ""}{" "}
+                  en cola
                 </Text>
               </View>
             )}
@@ -396,7 +422,8 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
               <View style={[styles.countBadge, styles.failedBadge]}>
                 <Ionicons name="camera-outline" size={12} color="#e74c3c" />
                 <Text style={[styles.countBadgeText, { color: "#e74c3c" }]}>
-                  {photoCounts.failed} foto{photoCounts.failed > 1 ? "s" : ""} fallida{photoCounts.failed > 1 ? "s" : ""}
+                  {photoCounts.failed} foto{photoCounts.failed > 1 ? "s" : ""}{" "}
+                  fallida{photoCounts.failed > 1 ? "s" : ""}
                 </Text>
               </View>
             )}
@@ -432,7 +459,7 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
                 <Text style={styles.sectionTitle}>Fotos Fallidas</Text>
                 <View style={styles.orphanedPhotosContainer}>
                   {orphanedFailedPhotos.map((photo) =>
-                    renderPhotoItem(photo, true)
+                    renderPhotoItem(photo, true),
                   )}
                 </View>
               </View>

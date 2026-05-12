@@ -58,11 +58,36 @@ export const DateRangePickerModal: React.FC<DateRangePickerModalProps> = ({
 
   // ✅ Convert datePresets to DatePreset[] format
   const DATE_PRESETS: DatePreset[] = [
-    { id: "today", label: datePresets.today.label, getValue: () => datePresets.today },
-    { id: "last7days", label: datePresets.last7Days.label, getValue: () => datePresets.last7Days },
-    { id: "last30days", label: datePresets.last30Days.label, getValue: () => datePresets.last30Days },
-    { id: "thisMonth", label: datePresets.thisMonth.label, getValue: () => datePresets.thisMonth },
-    { id: "lastMonth", label: datePresets.lastMonth.label, getValue: () => datePresets.lastMonth },
+    {
+      id: "today",
+      label: datePresets.today.label,
+      getValue: () => datePresets.today,
+    },
+    {
+      id: "yesterday",
+      label: datePresets.yesterday.label,
+      getValue: () => datePresets.yesterday,
+    },
+    {
+      id: "last7days",
+      label: datePresets.last7Days.label,
+      getValue: () => datePresets.last7Days,
+    },
+    {
+      id: "last30days",
+      label: datePresets.last30Days.label,
+      getValue: () => datePresets.last30Days,
+    },
+    {
+      id: "thisMonth",
+      label: datePresets.thisMonth.label,
+      getValue: () => datePresets.thisMonth,
+    },
+    {
+      id: "lastMonth",
+      label: datePresets.lastMonth.label,
+      getValue: () => datePresets.lastMonth,
+    },
   ];
 
   React.useEffect(() => {
@@ -77,7 +102,7 @@ export const DateRangePickerModal: React.FC<DateRangePickerModalProps> = ({
           const localDate = new Date(
             utcDate.getUTCFullYear(),
             utcDate.getUTCMonth(),
-            utcDate.getUTCDate()
+            utcDate.getUTCDate(),
           );
           setSingleDate(localDate);
           setCustomMode("single");
@@ -89,18 +114,18 @@ export const DateRangePickerModal: React.FC<DateRangePickerModalProps> = ({
           // Convert UTC dates to local dates for pickers
           const startUTC = DateUtils.parseUTCDate(initialValue.startDate);
           const endUTC = DateUtils.parseUTCDate(initialValue.endDate);
-          
+
           const localStartDate = new Date(
             startUTC.getUTCFullYear(),
             startUTC.getUTCMonth(),
-            startUTC.getUTCDate()
+            startUTC.getUTCDate(),
           );
           const localEndDate = new Date(
             endUTC.getUTCFullYear(),
             endUTC.getUTCMonth(),
-            endUTC.getUTCDate()
+            endUTC.getUTCDate(),
           );
-          
+
           setStartDate(localStartDate);
           setEndDate(localEndDate);
           setCustomMode("range");
@@ -128,7 +153,7 @@ export const DateRangePickerModal: React.FC<DateRangePickerModalProps> = ({
       const localDate = new Date(
         utcDate.getUTCFullYear(),
         utcDate.getUTCMonth(),
-        utcDate.getUTCDate()
+        utcDate.getUTCDate(),
       );
       setSingleDate(localDate);
       setCustomMode("single");
@@ -136,18 +161,18 @@ export const DateRangePickerModal: React.FC<DateRangePickerModalProps> = ({
       // ✅ Convert UTC dates to local dates for pickers
       const startUTC = DateUtils.parseUTCDate(value.startDate);
       const endUTC = DateUtils.parseUTCDate(value.endDate);
-      
+
       const localStartDate = new Date(
         startUTC.getUTCFullYear(),
         startUTC.getUTCMonth(),
-        startUTC.getUTCDate()
+        startUTC.getUTCDate(),
       );
       const localEndDate = new Date(
         endUTC.getUTCFullYear(),
         endUTC.getUTCMonth(),
-        endUTC.getUTCDate()
+        endUTC.getUTCDate(),
       );
-      
+
       setStartDate(localStartDate);
       setEndDate(localEndDate);
       setCustomMode("range");
@@ -170,7 +195,7 @@ export const DateRangePickerModal: React.FC<DateRangePickerModalProps> = ({
         type: "range", // Always use range for proper timezone handling
         startDate: utcRange.start,
         endDate: utcRange.end,
-        label: format(singleDate, "dd 'de' MMMM 'de' yyyy", { locale: es })
+        label: format(singleDate, "dd 'de' MMMM 'de' yyyy", { locale: es }),
       });
     } else {
       // Ensure start date is before end date
@@ -203,7 +228,7 @@ export const DateRangePickerModal: React.FC<DateRangePickerModalProps> = ({
         pressBehavior="close"
       />
     ),
-    []
+    [],
   );
 
   return (

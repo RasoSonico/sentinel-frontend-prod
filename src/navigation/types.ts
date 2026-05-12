@@ -25,7 +25,6 @@ export type AppTabParamList = {
   Estatus: undefined;
   Problematicas: undefined;
   Financiero: undefined;
-  Cola: undefined;
 };
 
 // Parámetros para el navegador de Obras
@@ -75,6 +74,7 @@ export type AvanceStackParamList = {
   Dashboard: undefined;
   ReportSelection: undefined;
   AdvanceReport: { constructionId: string; constructionName: string };
+  PendingSync: undefined;
 };
 
 // Parámetros para el navegador de Incidencias
