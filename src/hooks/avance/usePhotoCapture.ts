@@ -201,7 +201,7 @@ export const usePhotoCapture = ({
   };
 
   /**
-   * Selecciona una imagen de la galería
+   * Selecciona imágenes de la galería (selección múltiple hasta el límite restante)
    */
   const pickImage = async () => {
     if (photos.length >= maxPhotos) {
@@ -221,47 +221,57 @@ export const usePhotoCapture = ({
         allowsEditing: false,
         quality: 1,
         aspect: [4, 3],
+        allowsMultipleSelection: true,
+        selectionLimit: maxPhotos - photos.length,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const photoUri = result.assets[0].uri;
-        const optimizedUri = await optimizeImage(photoUri);
+        const currentCount = photos.length;
+        const newPhotos: Photo[] = [];
 
-        // Save to persistent storage - will throw if save fails
-        let localUri: string;
-        try {
-          localUri = await saveImageLocally(optimizedUri);
-        } catch (saveError) {
-          console.error(
-            "[PhotoCapture] Failed to save photo locally:",
-            saveError,
-          );
+        for (let i = 0; i < result.assets.length; i++) {
+          const asset = result.assets[i];
+          const optimizedUri = await optimizeImage(asset.uri);
+
+          let localUri: string;
+          try {
+            localUri = await saveImageLocally(optimizedUri);
+          } catch (saveError) {
+            console.error(
+              "[PhotoCapture] Failed to save photo locally:",
+              saveError,
+            );
+            continue;
+          }
+
+          const newPhoto: Photo = {
+            id: `photo-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            uri: optimizedUri,
+            localUri,
+            timestamp: Date.now(),
+            filename: generateAutoFilename(currentCount + i),
+            synced: false,
+          };
+
+          if (includeLocation && locationData) {
+            newPhoto.location = {
+              latitude: locationData.latitude,
+              longitude: locationData.longitude,
+            };
+          }
+
+          newPhotos.push(newPhoto);
+        }
+
+        if (newPhotos.length === 0) {
           Alert.alert(
             "Error al guardar",
-            "No se pudo guardar la foto localmente. Intenta de nuevo.",
+            "No se pudieron guardar las fotos localmente. Intenta de nuevo.",
             [{ text: "Entendido", style: "default" }],
           );
-          return;
+        } else {
+          setPhotos((prev) => [...prev, ...newPhotos]);
         }
-
-        const newPhoto: Photo = {
-          id: `photo-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          uri: optimizedUri,
-          localUri,
-          timestamp: Date.now(),
-          filename: generateAutoFilename(photos.length),
-          synced: false,
-        };
-
-        // Añadir ubicación si está disponible y solicitada
-        if (includeLocation && locationData) {
-          newPhoto.location = {
-            latitude: locationData.latitude,
-            longitude: locationData.longitude,
-          };
-        }
-
-        setPhotos((prevPhotos) => [...prevPhotos, newPhoto]);
       }
     } catch (error) {
       console.error("Error al seleccionar imagen:", error);

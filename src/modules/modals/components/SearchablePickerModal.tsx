@@ -8,6 +8,8 @@ import {
   FlatList,
   Dimensions,
   Keyboard,
+  Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import styles from "./styles/SearchablePickerModal.styles";
@@ -44,9 +46,9 @@ const SearchablePickerModal: React.FC<SearchablePickerModalProps> = ({
   const filtered = useMemo(
     () =>
       items.filter((item) =>
-        item.label.toLowerCase().includes(query.toLowerCase())
+        item.label.toLowerCase().includes(query.toLowerCase()),
       ),
-    [query, items]
+    [query, items],
   );
 
   const handleSelect = useCallback(
@@ -55,7 +57,7 @@ const SearchablePickerModal: React.FC<SearchablePickerModalProps> = ({
       onSelect(value);
       onClose();
     },
-    [onSelect, onClose]
+    [onSelect, onClose],
   );
 
   const toggleExpand = useCallback((id: number) => {
@@ -151,69 +153,74 @@ const SearchablePickerModal: React.FC<SearchablePickerModalProps> = ({
         </View>
       );
     },
-    [expandedId, toggleExpand, handleSelect, quickSelect]
+    [expandedId, toggleExpand, handleSelect, quickSelect],
   );
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <TouchableOpacity
+          style={styles.overlay}
           activeOpacity={1}
-          onPress={(e) => e.stopPropagation()}
-          style={[styles.modalContainer, { width }]}
+          onPress={onClose}
         >
-          <View style={styles.handleBar} />
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={[styles.modalContainer, { width }]}
+          >
+            <View style={styles.handleBar} />
 
-          <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Ionicons
-                name="close"
-                size={18}
-                color={DesignTokens.colors.neutral[600]}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.searchContainer}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={searchPlaceholder}
-              placeholderTextColor={DesignTokens.colors.neutral[400]}
-              value={query}
-              onChangeText={setQuery}
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={styles.listContainer}>
-            {filtered.length === 0 ? (
-              <View style={styles.noResults}>
+            <View style={styles.header}>
+              <Text style={styles.title}>{title}</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                 <Ionicons
-                  name="search-outline"
-                  size={48}
-                  color={DesignTokens.colors.neutral[300]}
+                  name="close"
+                  size={18}
+                  color={DesignTokens.colors.neutral[600]}
                 />
-                <Text style={styles.noResultsText}>
-                  No se encontraron resultados
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={filtered}
-                keyExtractor={(item) => item.value.toString()}
-                renderItem={renderItem}
-                showsVerticalScrollIndicator={true}
-                keyboardShouldPersistTaps="handled"
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder={searchPlaceholder}
+                placeholderTextColor={DesignTokens.colors.neutral[400]}
+                value={query}
+                onChangeText={setQuery}
+                autoCorrect={false}
               />
-            )}
-          </View>
+            </View>
+
+            <View style={styles.listContainer}>
+              {filtered.length === 0 ? (
+                <View style={styles.noResults}>
+                  <Ionicons
+                    name="search-outline"
+                    size={48}
+                    color={DesignTokens.colors.neutral[300]}
+                  />
+                  <Text style={styles.noResultsText}>
+                    No se encontraron resultados
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={filtered}
+                  keyExtractor={(item) => item.value.toString()}
+                  renderItem={renderItem}
+                  showsVerticalScrollIndicator={true}
+                  keyboardShouldPersistTaps="handled"
+                />
+              )}
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
-      </TouchableOpacity>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

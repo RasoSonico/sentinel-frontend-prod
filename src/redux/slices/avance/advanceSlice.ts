@@ -377,6 +377,19 @@ const advanceSlice = createSlice({
       );
     },
 
+    // Actualizar nombre de foto en avance actual
+    updatePhotoFilenameInCurrentAdvance: (
+      state,
+      action: PayloadAction<{ photoId: string; newFilename: string }>,
+    ) => {
+      const photo = state.currentAdvance.photos.find(
+        (p) => p.id === action.payload.photoId,
+      );
+      if (photo) {
+        photo.filename = action.payload.newFilename;
+      }
+    },
+
     // Limpiar estado de avance actual
     clearCurrentAdvance: (state) => {
       state.currentAdvance.data = null;
@@ -538,6 +551,7 @@ export const {
   setCurrentAdvancePhotos,
   addPhotoToCurrentAdvance,
   removePhotoFromCurrentAdvance,
+  updatePhotoFilenameInCurrentAdvance,
   clearCurrentAdvance,
   clearCurrentAdvanceError,
   resetCurrentAdvanceSuccess,

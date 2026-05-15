@@ -13,7 +13,8 @@ export default StyleSheet.create({
     backgroundColor: DesignTokens.colors.background.primary,
     borderTopLeftRadius: DesignTokens.borderRadius.xl,
     borderTopRightRadius: DesignTokens.borderRadius.xl,
-    height: screenHeight * 0.85,
+    maxHeight: screenHeight * 0.85,
+    flex: 1,
     ...DesignTokens.shadows.lg,
   },
   handleBar: {
@@ -106,7 +107,9 @@ export default StyleSheet.create({
   itemPreview: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.neutral[700],
-    lineHeight: DesignTokens.typography.fontSize.sm * DesignTokens.typography.lineHeight.normal,
+    lineHeight:
+      DesignTokens.typography.fontSize.sm *
+      DesignTokens.typography.lineHeight.normal,
   },
   itemPreviewExpanded: {
     color: DesignTokens.colors.neutral[800],
@@ -126,7 +129,9 @@ export default StyleSheet.create({
   expandedText: {
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.neutral[800],
-    lineHeight: DesignTokens.typography.fontSize.base * DesignTokens.typography.lineHeight.relaxed,
+    lineHeight:
+      DesignTokens.typography.fontSize.base *
+      DesignTokens.typography.lineHeight.relaxed,
   },
   selectButton: {
     backgroundColor: DesignTokens.colors.primary[500],
