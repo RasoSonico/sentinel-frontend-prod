@@ -39,7 +39,7 @@ class TelemetryService {
     this.client.loadAppInsights();
     this.client.setAuthenticatedUserContext(userId);
     this.client.addTelemetryInitializer((envelope: ITelemetryItem) => {
-      envelope.data = { ...envelope.data, role };
+      envelope.data = { ...envelope.data, role, env: __DEV__ ? "dev" : "prod" };
     });
 
     this.initialized = true;
