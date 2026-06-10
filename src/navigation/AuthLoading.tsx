@@ -4,7 +4,7 @@ import {
   clearCredentials,
   setIsAuthenticated,
 } from "src/redux/slices/authSlice";
-import { maybeRefreshToken } from "src/utils/auth";
+import { getTokenResponse, maybeRefreshToken } from "src/utils/auth";
 import { Surface, ActivityIndicator, Text, useTheme } from "react-native-paper";
 import styles from "./AuthLoading.styles";
 
@@ -18,16 +18,51 @@ const AuthLoading = ({ onAuthChecked }: AuthLoadingProps) => {
 
   useEffect(() => {
     (async () => {
-      const refreshed = await maybeRefreshToken();
-
       console.group("<AuthLoading />");
-      if (refreshed) {
-        console.log("Token is present and valid, user is authenticated");
+
+      const token = await getTokenResponse();
+
+      if (!token) {
+        // No token in SecureStore at all — user must log in
+        console.log("No token found — user must log in");
+        dispatch(clearCredentials());
+        onAuthChecked();
+        console.groupEnd();
+        return;
+      }
+
+      if (!token.shouldRefresh()) {
+        // Token is still valid — no network call needed
+        console.log("Token is valid, user is authenticated");
+        dispatch(setIsAuthenticated(true));
+        onAuthChecked();
+        console.groupEnd();
+        return;
+      }
+
+      // Token is expired — attempt a refresh
+      console.log("Token is expired, attempting refresh...");
+      const refreshResult = await maybeRefreshToken();
+
+      if (refreshResult !== null && refreshResult !== "network_error") {
+        // Refresh succeeded
+        console.log("Token refreshed successfully, user is authenticated");
+        dispatch(setIsAuthenticated(true));
+      } else if (refreshResult === "network_error") {
+        // Network unavailable right now, but the token still exists in SecureStore.
+        // Keep the user authenticated — the 401 interceptor will handle a real
+        // refresh once network is available.
+        console.log(
+          "Token refresh failed (network error) — keeping user authenticated, will retry on next API call",
+        );
         dispatch(setIsAuthenticated(true));
       } else {
-        console.log("Token was not refreshed, clearing credentials");
+        // null = Azure explicitly rejected the tokens (invalid_grant, revoked, etc.)
+        // The session is truly invalid — user must re-authenticate.
+        console.log("Token confirmed invalid by Azure — user must log in");
         dispatch(clearCredentials());
       }
+
       onAuthChecked();
       console.groupEnd();
     })();

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePendingAdvanceQueue } from "./usePendingAdvanceQueue";
 import { usePendingPhotoQueue } from "./usePendingPhotoQueue";
 import { useNetworkStatus } from "../utils/useNetworkStatus";
+import { useAppSelector } from "src/redux/hooks";
 import { useSnackbar } from "../useSnackbar";
 import { submitAdvance } from "../data/api/avanceApi";
 import { AVANCE_QUERY_KEYS } from "../data/query/avanceQueries.const";
@@ -16,6 +17,7 @@ export function useAdvanceSyncWorker() {
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
   const isOnline = useNetworkStatus();
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
 
   const {
     pendingItems,
@@ -66,8 +68,13 @@ export function useAdvanceSyncWorker() {
    * Process the sync queue
    */
   const processQueue = useCallback(async () => {
-    // Guard against concurrent processing
-    if (syncInProgressRef.current || !isOnline || pendingCount === 0) {
+    // Guard against concurrent processing or unauthenticated state
+    if (
+      syncInProgressRef.current ||
+      !isOnline ||
+      !isAuthenticated ||
+      pendingCount === 0
+    ) {
       return;
     }
 
@@ -110,14 +117,17 @@ export function useAdvanceSyncWorker() {
           // 3. Remove advance from queue
           const atomicSuccess = completeAdvanceSyncAtomic(
             item._id,
-            physicalAdvanceId
+            physicalAdvanceId,
           );
 
           if (!atomicSuccess) {
             console.error(
-              `[SyncWorker] Failed to atomically complete sync for advance ${item._id}`
+              `[SyncWorker] Failed to atomically complete sync for advance ${item._id}`,
             );
-            markAsFailed(item._id, "Error al completar la sincronización local");
+            markAsFailed(
+              item._id,
+              "Error al completar la sincronización local",
+            );
             failCount++;
             continue;
           }
@@ -136,7 +146,7 @@ export function useAdvanceSyncWorker() {
           const photoText = hasPhotos ? " (fotos en cola)" : "";
           showSnackbar(
             `Avance enviado: ${item.conceptDescription.substring(0, 30)}${item.conceptDescription.length > 30 ? "..." : ""}${photoText}`,
-            "success"
+            "success",
           );
         } catch (error) {
           const errorMessage =
@@ -159,7 +169,7 @@ export function useAdvanceSyncWorker() {
                   // This will be handled by the UI to open the sync sheet
                   console.log("[SyncWorker] User wants to see error details");
                 },
-              }
+              },
             );
           } else {
             // Increment retry and keep as pending for next attempt
@@ -184,14 +194,14 @@ export function useAdvanceSyncWorker() {
         if (failCount === 0) {
           showSnackbar(
             `${successCount} avances sincronizados correctamente`,
-            "success"
+            "success",
           );
         } else if (successCount === 0) {
           showSnackbar(`${failCount} avances fallaron al sincronizar`, "error");
         } else {
           showSnackbar(
             `${successCount} sincronizados, ${failCount} fallidos`,
-            "info"
+            "info",
           );
         }
       }
@@ -209,6 +219,7 @@ export function useAdvanceSyncWorker() {
     }
   }, [
     isOnline,
+    isAuthenticated,
     pendingCount,
     pendingItems,
     markAsSyncing,
@@ -222,7 +233,12 @@ export function useAdvanceSyncWorker() {
 
   // Debounced effect to trigger sync when conditions are met
   useEffect(() => {
-    if (!isOnline || pendingCount === 0 || syncInProgressRef.current) {
+    if (
+      !isOnline ||
+      !isAuthenticated ||
+      pendingCount === 0 ||
+      syncInProgressRef.current
+    ) {
       return;
     }
 
@@ -232,7 +248,7 @@ export function useAdvanceSyncWorker() {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timeoutId);
-  }, [isOnline, pendingCount, processQueue]);
+  }, [isOnline, isAuthenticated, pendingCount, processQueue]);
 
   // Show notification when connection is restored
   const prevOnlineRef = useRef(isOnline);
@@ -240,7 +256,7 @@ export function useAdvanceSyncWorker() {
     if (isOnline && !prevOnlineRef.current && pendingCount > 0) {
       showSnackbar(
         `Conexión restaurada. Sincronizando ${pendingCount} avance${pendingCount > 1 ? "s" : ""}...`,
-        "info"
+        "info",
       );
     }
     prevOnlineRef.current = isOnline;
@@ -275,7 +291,7 @@ export function useAdvanceSyncWorker() {
         await processQueue();
       }
     },
-    [isOnline, processQueue, getItemById, markAsPending]
+    [isOnline, processQueue, getItemById, markAsPending],
   );
 
   return {

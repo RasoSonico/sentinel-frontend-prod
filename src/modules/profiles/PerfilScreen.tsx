@@ -12,8 +12,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Avatar, Card, Chip } from "react-native-paper";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
-import { logout } from "../../redux/slices/authSlice";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
   selectUserName,
@@ -27,7 +25,6 @@ import { es } from "date-fns/locale";
 import { useAssignedConstruction } from "src/hooks/data/query/useAvance";
 
 const PerfilScreen = () => {
-  const dispatch = useAppDispatch();
   const auth = useAuth();
   const user = useAppSelector(selectUser);
   const userName = useAppSelector(selectUserName) || "Usuario";
@@ -82,18 +79,10 @@ const PerfilScreen = () => {
           text: "Sí, Cerrar Sesión",
           onPress: async () => {
             try {
-              console.log("Cerrando sesión...");
-
-              // Limpiamos AsyncStorage completamente para pruebas
-              await AsyncStorage.clear();
-
-              // Llamamos al logout de auth (si existe)
+              // auth.logout() calls forceLogout() which clears:
+              // SecureStore token, Redux auth state, and React Query cache.
+              // redux-persist writes the cleared state to AsyncStorage automatically.
               await auth.logout();
-
-              // Disparamos la acción de logout en Redux
-              dispatch(logout());
-
-              console.log("Sesión cerrada correctamente");
             } catch (error) {
               console.error("Error al cerrar sesión:", error);
               Alert.alert("Error", "No se pudo cerrar sesión correctamente");

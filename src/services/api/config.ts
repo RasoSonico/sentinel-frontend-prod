@@ -42,6 +42,15 @@ export const API_CONFIG = {
     reportes: {
       physicalAdvance: "/api/reportes/physical-advance/",
     },
+    maquinaria: {
+      hub: "/api/maquinaria/hub-diario/",
+      tipos: "/api/maquinaria/tipos/",
+      maquinarias: "/api/maquinaria/maquinarias/",
+      estancias: "/api/maquinaria/estancias/",
+      jornadas: "/api/maquinaria/jornadas/",
+      jornadaTransitoria: "/api/maquinaria/jornadas/transitoria/",
+      reconciliaciones: "/api/maquinaria/reconciliaciones/",
+    },
   },
   azureBlobUrl: "https://sentinel.blob.core.windows.net",
 };

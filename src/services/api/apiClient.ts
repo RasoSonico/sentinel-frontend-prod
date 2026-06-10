@@ -10,7 +10,9 @@ import {
   getTokenResponse,
   forceLogout,
   forceRefreshToken,
+  type RefreshResult,
 } from "../../utils/auth";
+import { TokenResponse } from "expo-auth-session";
 
 interface RetryableAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -33,6 +35,7 @@ const addTokenToRequestsInterceptor = (client: AxiosInstance) =>
         if (tokenResponse?.accessToken) {
           token = tokenResponse.accessToken;
           console.log("Using token from SecureStore (Azure AD)");
+          if (isDevelopment) console.log("[DEV]: Bearer token:", token);
         }
       } catch (error: unknown) {
         console.log("No token found in SecureStore, trying AsyncStorage...");
@@ -89,15 +92,26 @@ const responseHandlerInterceptor = (client: AxiosInstance) =>
             console.log(
               "[Auth] 401 received - attempting silent token refresh",
             );
-            const newToken = await forceRefreshToken();
-            if (newToken?.accessToken) {
+            const refreshResult: RefreshResult = await forceRefreshToken();
+            if (
+              refreshResult !== null &&
+              refreshResult !== "network_error" &&
+              (refreshResult as TokenResponse).accessToken
+            ) {
               console.log(
                 "[Auth] Refresh succeeded - retrying original request",
               );
-              originalRequest.headers.Authorization = `Bearer ${newToken.accessToken}`;
+              originalRequest.headers.Authorization = `Bearer ${(refreshResult as TokenResponse).accessToken}`;
               return client.request(originalRequest);
+            } else if (refreshResult === "network_error") {
+              // Transient network failure — preserve the session, just fail this request
+              console.log(
+                "[Auth] Token refresh failed due to network error - session preserved, request rejected",
+              );
+              return Promise.reject(error);
             } else {
-              console.log("[Auth] Refresh failed - forcing logout");
+              // null = Azure confirmed the tokens are invalid → safe to log out
+              console.log("[Auth] Confirmed auth failure - forcing logout");
               telemetry.trackEvent("auth_session_expired", {
                 endpoint: error.config?.url ?? "unknown",
                 had_queued_advances: false,
@@ -105,6 +119,7 @@ const responseHandlerInterceptor = (client: AxiosInstance) =>
               await forceLogout();
             }
           } else {
+            // The retried request also got 401 — token is genuinely invalid
             console.log("[Auth] Retried request also got 401 - forcing logout");
             telemetry.trackEvent("auth_session_expired", {
               endpoint: error.config?.url ?? "unknown",

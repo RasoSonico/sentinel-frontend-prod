@@ -3,7 +3,8 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AppTabParamList } from "./types";
 import { AvanceNavigator } from "./moduleNavigators/AvanceNavigator";
 import { IncidenciaNavigator } from "./moduleNavigators/IncidenciaNavigator";
-import { Ionicons } from "@expo/vector-icons";
+import { MaquinariaNavigator } from "./moduleNavigators/MaquinariaNavigator";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { View, Text, StyleSheet } from "react-native";
 import PerfilScreen from "../modules/profiles/PerfilScreen";
 import { ActivityIndicator } from "react-native-paper";
@@ -174,6 +175,16 @@ export const AppNavigator = () => {
             return <QueueTabIcon focused={focused} size={size} />;
           }
 
+          if (route.name === "Maquinaria") {
+            return (
+              <MaterialCommunityIcons
+                name="excavator"
+                size={size}
+                color={color}
+              />
+            );
+          }
+
           const iconName = getTabBarIconName(route.name, focused);
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -191,6 +202,11 @@ export const AppNavigator = () => {
             options={{ tabBarLabel: "Inicio" }}
           />
           <Tab.Screen name="Incidencias" component={IncidenciaNavigator} />
+          <Tab.Screen
+            name="Maquinaria"
+            component={MaquinariaNavigator}
+            options={{ tabBarLabel: "Maquinaria" }}
+          />
         </>
       )}
 

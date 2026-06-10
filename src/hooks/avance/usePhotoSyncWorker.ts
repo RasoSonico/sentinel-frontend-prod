@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import * as FileSystem from "expo-file-system";
 import { usePendingPhotoQueue } from "./usePendingPhotoQueue";
 import { useNetworkStatus } from "../utils/useNetworkStatus";
+import { useAppSelector } from "src/redux/hooks";
 import { useSnackbar } from "../useSnackbar";
 import {
   requestSingleUpload,
@@ -24,6 +25,7 @@ const DEBOUNCE_MS = 500;
 export function usePhotoSyncWorker() {
   const { showSnackbar } = useSnackbar();
   const isOnline = useNetworkStatus();
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
 
   const {
     waitingPhotos,
@@ -58,7 +60,7 @@ export function usePhotoSyncWorker() {
     if (orphanResult.orphanedCount > 0) {
       console.log(
         `[PhotoSyncWorker] Detected ${orphanResult.orphanedCount} orphaned photos, ` +
-          `handled ${orphanResult.handledCount}`
+          `handled ${orphanResult.handledCount}`,
       );
     }
   }, [resetStuckSyncingPhotos, detectAndHandleOrphanedPhotos]);
@@ -93,7 +95,7 @@ export function usePhotoSyncWorker() {
         throw error;
       }
     },
-    []
+    [],
   );
 
   /**
@@ -101,12 +103,16 @@ export function usePhotoSyncWorker() {
    */
   const uploadPhoto = useCallback(
     async (
-      photo: PendingPhotoSubmission
-    ): Promise<{ success: boolean; remotePhotoId?: string; error?: string }> => {
+      photo: PendingPhotoSubmission,
+    ): Promise<{
+      success: boolean;
+      remotePhotoId?: string;
+      error?: string;
+    }> => {
       if (!photo.physicalAdvanceId) {
         console.error(
           "[PhotoSyncWorker] Photo missing physicalAdvanceId:",
-          photo._id
+          photo._id,
         );
         return { success: false, error: "Falta ID de avance físico" };
       }
@@ -118,7 +124,7 @@ export function usePhotoSyncWorker() {
         if (!fileInfo.exists) {
           console.error(
             "[PhotoSyncWorker] Local file not found:",
-            photo.localUri
+            photo.localUri,
           );
           // Return a special error indicating the file is permanently missing
           return {
@@ -128,7 +134,7 @@ export function usePhotoSyncWorker() {
         }
         console.log(
           "[PhotoSyncWorker] File verified, size:",
-          "size" in fileInfo ? fileInfo.size : "unknown"
+          "size" in fileInfo ? fileInfo.size : "unknown",
         );
       } catch (error) {
         console.error("[PhotoSyncWorker] Error checking file:", error);
@@ -157,7 +163,7 @@ export function usePhotoSyncWorker() {
 
         console.log(
           "[PhotoSyncWorker] Requesting SAS token for:",
-          photo.filename
+          photo.filename,
         );
 
         // Step 1: Request SAS token
@@ -172,7 +178,7 @@ export function usePhotoSyncWorker() {
         const azureResult: AzureUploadResult = await uploadToAzureBlob(
           uploadResponse.upload_url,
           fileBlob,
-          "image/jpeg"
+          "image/jpeg",
         );
 
         if (!azureResult.success) {
@@ -180,7 +186,7 @@ export function usePhotoSyncWorker() {
           console.error(
             "[PhotoSyncWorker] Azure upload failed:",
             photo.filename,
-            azureResult
+            azureResult,
           );
 
           // If it's a SAS token issue, we need to request a new one
@@ -206,7 +212,7 @@ export function usePhotoSyncWorker() {
           // Return partial success so we can retry just the confirmation
           console.error(
             "[PhotoSyncWorker] Confirm failed after successful upload:",
-            confirmError
+            confirmError,
           );
           return {
             success: false,
@@ -221,7 +227,7 @@ export function usePhotoSyncWorker() {
         return { success: false, error: errorMessage };
       }
     },
-    [confirmPhotoUpload]
+    [confirmPhotoUpload],
   );
 
   /**
@@ -229,12 +235,12 @@ export function usePhotoSyncWorker() {
    */
   const retryConfirmation = useCallback(
     async (
-      photo: PendingPhotoSubmission
+      photo: PendingPhotoSubmission,
     ): Promise<{ success: boolean; error?: string }> => {
       if (!photo.remotePhotoId) {
         console.error(
           "[PhotoSyncWorker] Cannot retry confirmation - no remotePhotoId:",
-          photo._id
+          photo._id,
         );
         return { success: false, error: "Falta ID de foto remota" };
       }
@@ -242,12 +248,12 @@ export function usePhotoSyncWorker() {
       try {
         console.log(
           "[PhotoSyncWorker] Retrying confirmation for:",
-          photo.filename
+          photo.filename,
         );
         await confirmPhotoUpload(photo.remotePhotoId, true);
         console.log(
           "[PhotoSyncWorker] Confirmation retry successful:",
-          photo.filename
+          photo.filename,
         );
         return { success: true };
       } catch (error) {
@@ -257,7 +263,7 @@ export function usePhotoSyncWorker() {
         return { success: false, error: errorMessage };
       }
     },
-    [confirmPhotoUpload]
+    [confirmPhotoUpload],
   );
 
   /**
@@ -266,19 +272,24 @@ export function usePhotoSyncWorker() {
   const processQueue = useCallback(async () => {
     // Get photos ready for upload (waiting with physicalAdvanceId)
     const photosReadyForUpload = [...waitingPhotos].filter(
-      (p) => p.physicalAdvanceId !== null
+      (p) => p.physicalAdvanceId !== null,
     );
 
     // Get photos that need confirmation retry (uploaded with remotePhotoId)
     const photosNeedingConfirmation = [...uploadedPhotos].filter(
-      (p) => p.remotePhotoId !== null
+      (p) => p.remotePhotoId !== null,
     );
 
     const totalToProcess =
       photosReadyForUpload.length + photosNeedingConfirmation.length;
 
-    // Guard against concurrent processing
-    if (syncInProgressRef.current || !isOnline || totalToProcess === 0) {
+    // Guard against concurrent processing or unauthenticated state
+    if (
+      syncInProgressRef.current ||
+      !isOnline ||
+      !isAuthenticated ||
+      totalToProcess === 0
+    ) {
       return;
     }
 
@@ -305,17 +316,17 @@ export function usePhotoSyncWorker() {
           if (photo.retryCount + 1 >= photo.maxRetries) {
             markPhotoAsFailed(
               photo._id,
-              result.error || "Error al confirmar subida"
+              result.error || "Error al confirmar subida",
             );
             failCount++;
             showSnackbar(
               `Error al confirmar foto: ${photo.filename.substring(0, 15)}...`,
-              "error"
+              "error",
             );
           } else {
             markPhotoAsFailed(
               photo._id,
-              result.error || "Error al confirmar subida"
+              result.error || "Error al confirmar subida",
             );
             // Keep as uploaded so we retry confirmation, not full upload
             markPhotoAsUploaded(photo._id, photo.remotePhotoId!);
@@ -345,7 +356,7 @@ export function usePhotoSyncWorker() {
             markPhotoAsUploaded(photo._id, result.remotePhotoId);
             console.log(
               "[PhotoSyncWorker] Photo uploaded, pending confirmation:",
-              photo.filename
+              photo.filename,
             );
 
             // Try confirmation again after a delay
@@ -362,31 +373,31 @@ export function usePhotoSyncWorker() {
               // File is permanently missing - mark as failed and don't retry
               markPhotoAsFailed(
                 photo._id,
-                result.error || "Archivo local no encontrado"
+                result.error || "Archivo local no encontrado",
               );
               failCount++;
               console.warn(
                 "[PhotoSyncWorker] Photo file permanently missing, marking as failed:",
-                photo.filename
+                photo.filename,
               );
               showSnackbar(
                 `Archivo de foto no encontrado: ${photo.filename.substring(0, 15)}...`,
-                "error"
+                "error",
               );
             } else if (photo.retryCount + 1 >= photo.maxRetries) {
               markPhotoAsFailed(
                 photo._id,
-                result.error || "Error al subir foto"
+                result.error || "Error al subir foto",
               );
               failCount++;
               showSnackbar(
                 `Error al subir foto: ${photo.filename.substring(0, 15)}...`,
-                "error"
+                "error",
               );
             } else {
               markPhotoAsFailed(
                 photo._id,
-                result.error || "Error al subir foto"
+                result.error || "Error al subir foto",
               );
               markPhotoAsWaiting(photo._id);
 
@@ -401,7 +412,7 @@ export function usePhotoSyncWorker() {
       if (successCount > 0) {
         showSnackbar(
           `${successCount} foto${successCount > 1 ? "s" : ""} sincronizada${successCount > 1 ? "s" : ""}`,
-          "success"
+          "success",
         );
       }
     } finally {
@@ -420,22 +431,28 @@ export function usePhotoSyncWorker() {
     removePhoto,
     uploadPhoto,
     retryConfirmation,
+    isAuthenticated,
     showSnackbar,
   ]);
 
   // Debounced effect to trigger sync when conditions are met
   useEffect(() => {
     const photosReadyForUpload = [...waitingPhotos].filter(
-      (p) => p.physicalAdvanceId !== null
+      (p) => p.physicalAdvanceId !== null,
     );
     const photosNeedingConfirmation = [...uploadedPhotos].filter(
-      (p) => p.remotePhotoId !== null
+      (p) => p.remotePhotoId !== null,
     );
 
     const totalToProcess =
       photosReadyForUpload.length + photosNeedingConfirmation.length;
 
-    if (!isOnline || totalToProcess === 0 || syncInProgressRef.current) {
+    if (
+      !isOnline ||
+      !isAuthenticated ||
+      totalToProcess === 0 ||
+      syncInProgressRef.current
+    ) {
       return;
     }
 
@@ -444,7 +461,7 @@ export function usePhotoSyncWorker() {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timeoutId);
-  }, [isOnline, waitingPhotos, uploadedPhotos, processQueue]);
+  }, [isOnline, isAuthenticated, waitingPhotos, uploadedPhotos, processQueue]);
 
   /**
    * Manually trigger sync
@@ -464,7 +481,10 @@ export function usePhotoSyncWorker() {
     async (photoId: string) => {
       const photo = getPhotoById(photoId);
 
-      if (!photo || (photo.status !== "failed" && photo.status !== "uploaded")) {
+      if (
+        !photo ||
+        (photo.status !== "failed" && photo.status !== "uploaded")
+      ) {
         return;
       }
 
@@ -498,7 +518,7 @@ export function usePhotoSyncWorker() {
       checkPhotoFileExists,
       removePhoto,
       showSnackbar,
-    ]
+    ],
   );
 
   return {

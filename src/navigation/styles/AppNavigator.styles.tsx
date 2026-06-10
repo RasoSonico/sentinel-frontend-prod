@@ -1,13 +1,13 @@
-
 import { StyleSheet } from "react-native";
 
 const appNavigatorStyles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    flexDirection: 'column',
+    flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    gap: 8
+    gap: 8,
+    backgroundColor: "#FFFFFF",
   },
   loadingText: {
     fontSize: 16,

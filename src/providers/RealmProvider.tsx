@@ -21,6 +21,10 @@ import { AssignedConstructionResponse } from "src/realm/assignedConstruction/Res
 import { ConstructionRealm } from "src/realm/assignedConstruction/Construction";
 import { PendingAdvanceSubmission } from "src/realm/pendingAdvance/PendingAdvanceSubmission";
 import { PendingPhotoSubmission } from "src/realm/pendingAdvance/PendingPhotoSubmission";
+import { MaquinariaHubResponse } from "src/realm/maquinariaHub/Response";
+import { MaquinariaHubItemRealm } from "src/realm/maquinariaHub/MaquinariaHubItemRealm";
+import { TiposMaquinariaResponse } from "src/realm/tiposMaquinaria/Response";
+import { TipoMaquinariaRealm } from "src/realm/tiposMaquinaria/TipoMaquinariaRealm";
 
 // One-time wipe function - REMOVE AFTER DEPLOYMENT
 const performDatabaseWipe = async (realm: Realm) => {
@@ -97,16 +101,19 @@ export default function RealmProviderWrapper({
         PendingAdvanceSubmission,
         // Pending Photo Submission schema
         PendingPhotoSubmission,
+        // Maquinaria schemas
+        MaquinariaHubResponse,
+        MaquinariaHubItemRealm,
+        TiposMaquinariaResponse,
+        TipoMaquinariaRealm,
       ]}
-      schemaVersion={8}
+      schemaVersion={9}
       migration={(oldRealm, newRealm) => {
         if (oldRealm.schemaVersion < 8) {
-          // ConstructionRealm changed TopLevel→Embedded; AssignedConstructionResponse restructured.
-          // AvanceBaseConcept gained two new required string fields.
-          // All affected data is API-cached — delete and re-fetch on next sync.
           newRealm.delete(newRealm.objects("AssignedConstructionResponse"));
           newRealm.delete(newRealm.objects("AvanceBaseResponse"));
         }
+        // schemaVersion 9: added Maquinaria schemas — no existing data to migrate
       }}
     >
       {children}

@@ -19,6 +19,7 @@ export type AppTabParamList = {
   Cronogramas: undefined;
   Avances: undefined;
   Incidencias: undefined;
+  Maquinaria: undefined;
   Perfil: undefined;
   Dashboard: undefined;
   Aprobacion: undefined;
@@ -82,6 +83,13 @@ export type IncidenciaStackParamList = {
   IncidentsList: undefined;
   IncidentRegistration: undefined;
   IncidentDetail: { incident: Incident };
+};
+
+// Parámetros para el navegador de Maquinaria
+export type MaquinariaStackParamList = {
+  HubDiario: undefined;
+  AltaNuevaMaquinaria: { constructionId: number };
+  ReactivarMaquinaria: { constructionId: number };
 };
 
 // Tipos para props de navegación específicas
@@ -155,4 +163,12 @@ export type AvanceRouteProps = RouteProp<
 export type IncidenciaRouteProps = RouteProp<
   IncidenciaStackParamList,
   keyof IncidenciaStackParamList
+>;
+
+export type MaquinariaNavigationProp =
+  StackNavigationProp<MaquinariaStackParamList>;
+
+export type MaquinariaRouteProps = RouteProp<
+  MaquinariaStackParamList,
+  keyof MaquinariaStackParamList
 >;

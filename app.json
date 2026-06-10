@@ -46,6 +46,7 @@
       ]
     },
     "android": {
+      "package": "com.urbaingenieria.sentinel",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -68,10 +69,10 @@
       "bundler": "metro"
     },
     "extra": {
-      "apiUrl": "https://sentinel-backend-app-bcbjhve6fcd6f4fz.mexicocentral-01.azurewebsites.net",
+      "apiUrl": "http://192.168.1.X:8000/api/",
       "environment": "development",
       "eas": {
-        "projectId": "d96d8296-ab75-49bb-9206-6005139d6314"
+        "projectId": "1ae1353b-4774-4c57-a67a-e6791bff07c3"
       }
     }
   }

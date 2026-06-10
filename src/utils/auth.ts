@@ -25,6 +25,11 @@ export async function deleteToken() {
   await SecureStore.deleteItemAsync(STORAGE_KEY);
 }
 
+// TokenResponse  → success, new tokens saved to SecureStore
+// null           → confirmed auth failure (Azure: invalid_grant, revoked, etc.) → caller should log out
+// 'network_error'→ transient failure (no internet, DNS, timeout) → caller must NOT log out
+export type RefreshResult = TokenResponse | "network_error" | null;
+
 function _buildAzureDiscovery(): { tokenEndpoint: string } {
   const tenantId = (authConfig as AuthConfig).providers.azure.tenantId!;
   return {
@@ -32,9 +37,7 @@ function _buildAzureDiscovery(): { tokenEndpoint: string } {
   };
 }
 
-async function _performRefresh(
-  token: TokenResponse,
-): Promise<TokenResponse | null> {
+async function _performRefresh(token: TokenResponse): Promise<RefreshResult> {
   if (!token.refreshToken) {
     console.log("[Auth] No refresh token available, cannot refresh.");
     return null;
@@ -51,13 +54,35 @@ async function _performRefresh(
       await saveTokenResponse(refreshed);
       return refreshed;
     }
-  } catch (error) {
-    console.error("[Auth] Token refresh failed:", error);
+    return null;
+  } catch (error: any) {
+    // Identify whether Azure explicitly rejected the tokens (auth failure)
+    // vs a transient network/connectivity problem.
+    const errorCode: string = error?.error ?? error?.code ?? "";
+    const errorMsg: string = error?.message ?? "";
+    const isConfirmedAuthFailure =
+      errorCode === "invalid_grant" ||
+      errorCode === "invalid_token" ||
+      errorMsg.includes("AADSTS70043") || // refresh token already used / rotated
+      errorMsg.includes("AADSTS70008") || // refresh token expired
+      errorMsg.includes("AADSTS50173") || // token revoked
+      errorMsg.includes("invalid_grant");
+
+    if (isConfirmedAuthFailure) {
+      console.log(
+        "[Auth] Confirmed auth failure from Azure:",
+        errorCode || errorMsg,
+      );
+      return null;
+    }
+
+    // Everything else is a transient error — network unreachable, DNS, timeout, etc.
+    console.log("[Auth] Transient refresh error (will retry later):", error);
+    return "network_error";
   }
-  return null;
 }
 
-export async function maybeRefreshToken(): Promise<TokenResponse | null> {
+export async function maybeRefreshToken(): Promise<RefreshResult> {
   console.group("Auth Token Management");
   const token = await getTokenResponse();
 
@@ -79,19 +104,19 @@ export async function maybeRefreshToken(): Promise<TokenResponse | null> {
   }
 
   console.log("Token is expired, refreshing...");
-  const refreshed = await _performRefresh(token);
+  const result = await _performRefresh(token);
   console.groupEnd();
-  return refreshed;
+  return result;
 }
 
-let _refreshPromise: Promise<TokenResponse | null> | null = null;
+let _refreshPromise: Promise<RefreshResult> | null = null;
 
-export async function forceRefreshToken(): Promise<TokenResponse | null> {
+export async function forceRefreshToken(): Promise<RefreshResult> {
   if (_refreshPromise) {
     console.log("[Auth] Refresh already in progress, waiting...");
     return _refreshPromise;
   }
-  _refreshPromise = (async () => {
+  _refreshPromise = (async (): Promise<RefreshResult> => {
     try {
       console.log("[Auth] Force refresh token requested");
       const token = await getTokenResponse();

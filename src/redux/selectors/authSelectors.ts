@@ -10,42 +10,40 @@ export const selectLoading = (state: RootState) => state.auth.loading;
 export const selectError = (state: RootState) => state.auth.error;
 
 // Selectores derivados
-export const selectIsAuthenticated = createSelector(
-  [selectToken],
-  (token) => !!token
-);
+export const selectIsAuthenticated = (state: RootState) =>
+  state.auth.isAuthenticated;
 
 export const selectUserId = createSelector([selectUser], (user) => user?.id);
 
 export const selectUserEmail = createSelector(
   [selectUser],
-  (user) => user?.email
+  (user) => user?.email,
 );
 
 export const selectUserName = createSelector(
   [selectUser],
-  (user) => user?.name
+  (user) => user?.name,
 );
 
 // Selectores de roles
 export const selectIsAdmin = createSelector([selectUser], (user) =>
-  user?.roles.includes("ADMIN")
+  user?.roles.includes("ADMIN"),
 );
 
 export const selectIsDesarrollador = createSelector([selectUser], (user) =>
-  user?.roles.includes("DESARROLLADOR")
+  user?.roles.includes("DESARROLLADOR"),
 );
 
 export const selectIsContratista = createSelector([selectUser], (user) =>
-  user?.roles.includes("CONTRATISTA")
+  user?.roles.includes("CONTRATISTA"),
 );
 
 export const selectIsInversionista = createSelector([selectUser], (user) =>
-  user?.roles.includes("INVERSIONISTA")
+  user?.roles.includes("INVERSIONISTA"),
 );
 
 export const selectIsInspector = createSelector([selectUser], (user) =>
-  user?.roles.includes("INSPECTOR")
+  user?.roles.includes("INSPECTOR"),
 );
 
 // Selector combinado
@@ -60,5 +58,5 @@ export const selectAuthInfo = createSelector(
     userRoles: user?.roles || [],
     token,
     user,
-  })
+  }),
 );
