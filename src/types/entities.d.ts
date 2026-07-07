@@ -231,6 +231,15 @@ export interface UserConstruction {
   construction_details: Construction;
 }
 
+// Avance Base Section
+export interface AvanceBaseSection {
+  id: number;
+  name: string;
+  level: number;
+  parent_id: number | null;
+  work_item_id: number;
+}
+
 // Avance Base Concept
 export interface AvanceBaseConcept {
   id: number;
@@ -241,12 +250,15 @@ export interface AvanceBaseConcept {
   clasification: string;
   cumulative_volume: string;
   quantity_left: string;
+  section_id: number | null;
+  wbs_code: string | null;
 }
 
 // Avance Base Work Item
 export interface AvanceBaseWorkItem {
   id: number;
   name: string;
+  sections: AvanceBaseSection[];
   concepts: AvanceBaseConcept[];
 }
 

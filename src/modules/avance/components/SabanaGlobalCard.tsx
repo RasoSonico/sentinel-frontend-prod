@@ -1,0 +1,46 @@
+import React, { memo } from "react";
+import { View, Text } from "react-native";
+import { SabanaGlobalStats } from "src/hooks/data/query/useAvance/utils/sabanaTreeBuilder";
+import styles from "../styles/SabanaScreen.styles";
+
+interface Props {
+  stats: SabanaGlobalStats;
+}
+
+function formatCurrency(value: number): string {
+  if (value >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(2)}M`;
+  }
+  if (value >= 1_000) {
+    return `$${(value / 1_000).toFixed(1)}K`;
+  }
+  return `$${value.toFixed(0)}`;
+}
+
+const SabanaGlobalCard: React.FC<Props> = ({ stats }) => {
+  const pct = Math.round(stats.global_pct);
+
+  return (
+    <View style={styles.globalCard}>
+      <View style={styles.globalCardRow}>
+        <View>
+          <Text style={styles.globalPct}>{pct}%</Text>
+          <Text style={styles.globalPctLabel}>avance global del contrato</Text>
+        </View>
+      </View>
+      <View style={styles.globalBarBg}>
+        <View style={[styles.globalBarFill, { width: `${pct}%` }]} />
+      </View>
+      <View style={styles.globalMetas}>
+        <Text style={styles.globalMeta}>
+          Contratado: {formatCurrency(stats.total_contracted)}
+        </Text>
+        <Text style={styles.globalMeta}>
+          Ejecutado: {formatCurrency(stats.total_executed)}
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+export default memo(SabanaGlobalCard);

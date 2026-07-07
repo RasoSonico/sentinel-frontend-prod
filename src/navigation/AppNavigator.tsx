@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AppTabParamList } from "./types";
 import { AvanceNavigator } from "./moduleNavigators/AvanceNavigator";
+import { SabanaNavigator } from "./moduleNavigators/SabanaNavigator";
 import { IncidenciaNavigator } from "./moduleNavigators/IncidenciaNavigator";
 import { MaquinariaNavigator } from "./moduleNavigators/MaquinariaNavigator";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -197,9 +198,14 @@ export const AppNavigator = () => {
       {hasRole("CONTRATISTA") && (
         <>
           <Tab.Screen
+            name="Home"
+            component={SabanaNavigator}
+            options={{ tabBarLabel: "Inicio" }}
+          />
+          <Tab.Screen
             name="Avances"
             component={AvanceNavigator}
-            options={{ tabBarLabel: "Inicio" }}
+            options={{ tabBarLabel: "Avances" }}
           />
           <Tab.Screen name="Incidencias" component={IncidenciaNavigator} />
           <Tab.Screen

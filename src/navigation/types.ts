@@ -92,6 +92,11 @@ export type MaquinariaStackParamList = {
   ReactivarMaquinaria: { constructionId: number };
 };
 
+// Parámetros para el navegador de Sábana
+export type SabanaStackParamList = {
+  SabanaHome: undefined;
+};
+
 // Tipos para props de navegación específicas
 export type AvanceListScreenNavigationProp = StackNavigationProp<
   AvanceStackParamList,
@@ -171,4 +176,11 @@ export type MaquinariaNavigationProp =
 export type MaquinariaRouteProps = RouteProp<
   MaquinariaStackParamList,
   keyof MaquinariaStackParamList
+>;
+
+export type SabanaNavigationProp = StackNavigationProp<SabanaStackParamList>;
+
+export type SabanaRouteProps = RouteProp<
+  SabanaStackParamList,
+  keyof SabanaStackParamList
 >;

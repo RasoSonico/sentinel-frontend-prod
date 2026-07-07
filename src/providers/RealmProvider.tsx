@@ -8,6 +8,7 @@ import { AvanceBaseConcept } from "src/realm/avanceBase/Concept";
 import { AvanceBaseFiltersApplied } from "src/realm/avanceBase/FiltersApplied";
 import { AvanceBaseMeta } from "src/realm/avanceBase/Meta";
 import { AvanceBaseResponse } from "src/realm/avanceBase/Response";
+import { AvanceBaseSection } from "src/realm/avanceBase/Section";
 import { AvanceBaseWorkItem } from "src/realm/avanceBase/WorkItem";
 import { PhysicalAdvanceResponse } from "src/realm/avanceByCatalog/PhysicalAdvanceResponse";
 import { AvancesByCatalogResponse } from "src/realm/avanceByCatalog/Response";
@@ -79,6 +80,7 @@ export default function RealmProviderWrapper({
         AvanceBaseResponse,
         AvanceBaseCatalog,
         AvanceBaseWorkItem,
+        AvanceBaseSection,
         AvanceBaseConcept,
         AvanceBaseMeta,
         AvanceBaseFiltersApplied,
@@ -107,13 +109,19 @@ export default function RealmProviderWrapper({
         TiposMaquinariaResponse,
         TipoMaquinariaRealm,
       ]}
-      schemaVersion={9}
+      schemaVersion={10}
       migration={(oldRealm, newRealm) => {
         if (oldRealm.schemaVersion < 8) {
           newRealm.delete(newRealm.objects("AssignedConstructionResponse"));
           newRealm.delete(newRealm.objects("AvanceBaseResponse"));
         }
         // schemaVersion 9: added Maquinaria schemas — no existing data to migrate
+        // schemaVersion 10: added AvanceBaseSection, section_id and wbs_code on
+        // AvanceBaseConcept, sections list on AvanceBaseWorkItem — structural
+        // change requires a fresh sync to repopulate
+        if (oldRealm.schemaVersion < 10) {
+          newRealm.delete(newRealm.objects("AvanceBaseResponse"));
+        }
       }}
     >
       {children}

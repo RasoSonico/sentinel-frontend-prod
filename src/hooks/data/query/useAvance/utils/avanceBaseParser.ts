@@ -21,6 +21,14 @@ export const parseAvanceBaseForRealm = (
         work_items: catalog.work_items.map((workItem) => ({
           id: Number(workItem.id) || 0,
           name: workItem.name || "",
+          sections: (workItem.sections ?? []).map((section) => ({
+            id: Number(section.id) || 0,
+            name: section.name || "",
+            level: Number(section.level) || 2,
+            parent_id:
+              section.parent_id != null ? Number(section.parent_id) : null,
+            work_item_id: Number(section.work_item_id) || 0,
+          })),
           concepts: workItem.concepts.map((concept) => ({
             id: Number(concept.id) || 0,
             description: concept.description || "",
@@ -30,6 +38,9 @@ export const parseAvanceBaseForRealm = (
             clasification: concept.clasification || "",
             cumulative_volume: String(concept.cumulative_volume || "0"),
             quantity_left: String(concept.quantity_left || "0"),
+            section_id:
+              concept.section_id != null ? Number(concept.section_id) : null,
+            wbs_code: concept.wbs_code ?? null,
           })),
         })),
       })),

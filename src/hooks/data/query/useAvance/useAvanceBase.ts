@@ -24,6 +24,9 @@ export const avanceBaseOptions = (realm: Realm, isOnline: boolean | null) =>
   queryOptions({
     queryKey: [AVANCE_QUERY_KEYS.BASE],
     enabled: isOnline === true,
+    // Static key shared across all users — must refetch on mount so User 2 never
+    // sees User 1's stale data that PersistQueryClientProvider rehydrated from AsyncStorage.
+    refetchOnMount: true,
     queryFn: async () => {
       logApiFetchStart("Avance Base");
       const data = await getAvanceBase();

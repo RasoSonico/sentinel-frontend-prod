@@ -7,10 +7,12 @@ export class AvanceBaseConcept extends Realm.Object<AvanceBaseConcept> {
   clasification!: string;
   cumulative_volume!: string;
   quantity_left!: string;
+  section_id!: number | null;
+  wbs_code!: string | null;
 
   static schema: Realm.ObjectSchema = {
     name: "AvanceBaseConcept",
-    embedded: true, // important: lives inside parent, no standalone lifecycle
+    embedded: true,
     properties: {
       id: "int",
       description: "string",
@@ -20,6 +22,8 @@ export class AvanceBaseConcept extends Realm.Object<AvanceBaseConcept> {
       clasification: "string",
       cumulative_volume: "string",
       quantity_left: "string",
+      section_id: "int?",
+      wbs_code: "string?",
     },
   };
 }
