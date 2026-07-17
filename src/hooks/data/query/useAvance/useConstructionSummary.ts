@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { getConstructionSummary } from "../../api/avanceApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
 import { AVANCE_QUERY_KEYS } from "../avanceQueries.const";
@@ -18,5 +19,12 @@ export const useConstructionSummary = (constructionId: number | undefined) => {
     queryFn: () => getConstructionSummary(constructionId!),
     enabled: !!constructionId && isOnline === true,
     staleTime: 5 * 60 * 1000,
+    // 404 = obra ya no asignada (p. ej. id cacheado tras un cambio de
+    // asignación): reintentar no lo arregla; el refetch de my_constructions
+    // trae el id vigente y esta query se re-crea con la key nueva
+    retry: (failureCount, error) => {
+      if (isAxiosError(error) && error.response?.status === 404) return false;
+      return failureCount < 2;
+    },
   });
 };
