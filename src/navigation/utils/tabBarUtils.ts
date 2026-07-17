@@ -8,17 +8,16 @@ export function getTabBarIconName(
 ): IoniconName {
   switch (routeName) {
     case "Home":
-      return focused ? "home" : "home-outline";
+      // Home = Sábana (grilla de avance) desde ADR-003 Fase 1
+      return focused ? "grid" : "grid-outline";
     case "Obras":
       return focused ? "business" : "business-outline";
     case "Catalogos":
       return focused ? "list" : "list-outline";
     case "Cronogramas":
       return focused ? "calendar" : "calendar-outline";
-    case "Avances":
-      return focused ? "trending-up" : "trending-up-outline";
-    case "Incidencias":
-      return focused ? "warning" : "warning-outline";
+    case "Reportes":
+      return focused ? "document-text" : "document-text-outline";
     case "Perfil":
       return focused ? "person" : "person-outline";
     case "Cola":

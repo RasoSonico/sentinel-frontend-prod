@@ -14,7 +14,7 @@ import { StackNavigationProp } from "@react-navigation/stack";
 import NetInfo from "@react-native-community/netinfo";
 import { Ionicons } from "@expo/vector-icons";
 import AdvanceForm from "../forms/AdvanceForm";
-import { AvanceStackParamList } from "../../../navigation/types";
+import { SabanaStackParamList } from "../../../navigation/types";
 import { useAppDispatch, useAppSelector } from "../../../redux/hooks";
 import {
   setOnlineStatus,
@@ -24,12 +24,12 @@ import { selectUser } from "../../../redux/selectors/authSelectors";
 import { telemetry } from "../../../services/telemetry";
 
 type AdvanceRegistrationScreenRouteProp = RouteProp<
-  AvanceStackParamList,
+  SabanaStackParamList,
   "AvanceRegistration"
 >;
 
 type AdvanceRegistrationScreenNavigationProp = StackNavigationProp<
-  AvanceStackParamList,
+  SabanaStackParamList,
   "AvanceRegistration"
 >;
 

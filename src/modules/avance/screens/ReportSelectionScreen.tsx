@@ -10,12 +10,12 @@ import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { Ionicons } from "@expo/vector-icons";
 
-import { AvanceStackParamList } from "src/navigation/types";
+import { ReportesStackParamList } from "src/navigation/types";
 import { DesignTokens } from "src/styles/designTokens";
 import { useAssignedConstruction } from "src/hooks/data/query/useAvance";
 
 type NavigationProp = StackNavigationProp<
-  AvanceStackParamList,
+  ReportesStackParamList,
   "ReportSelection"
 >;
 

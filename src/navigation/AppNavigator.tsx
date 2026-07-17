@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AppTabParamList } from "./types";
-import { AvanceNavigator } from "./moduleNavigators/AvanceNavigator";
 import { SabanaNavigator } from "./moduleNavigators/SabanaNavigator";
-import { IncidenciaNavigator } from "./moduleNavigators/IncidenciaNavigator";
+import { ReportesNavigator } from "./moduleNavigators/ReportesNavigator";
 import { MaquinariaNavigator } from "./moduleNavigators/MaquinariaNavigator";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text } from "react-native";
 import PerfilScreen from "../modules/profiles/PerfilScreen";
 import { ActivityIndicator } from "react-native-paper";
 import { useAuthMeQuery } from "src/hooks/data/query/useAuthQueries";
@@ -16,7 +15,6 @@ import { UserRole } from "src/types/auth";
 import ObrasListScreen from "src/modules/obra/screens/ObraListScreen";
 import ServerErrorModal from "src/components/ServerErrorModal";
 import { DesignTokens } from "../styles/designTokens";
-import { usePendingAdvanceQueue } from "src/hooks/avance/usePendingAdvanceQueue";
 
 // --- Skeletons for role-based screens ---
 const AprobacionAvancesScreen = () => (
@@ -53,78 +51,6 @@ const EstatusFinancieroScreen = () => (
 // ----------------------------------------
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
-
-// Custom icon component for Cola tab with badge
-interface QueueTabIconProps {
-  focused: boolean;
-  size: number;
-}
-
-const QueueTabIcon: React.FC<QueueTabIconProps> = ({ focused, size }) => {
-  const { pendingCount, failedCount, syncingCount } = usePendingAdvanceQueue();
-  const totalCount = pendingCount + failedCount + syncingCount;
-
-  // Determine icon color based on status
-  const hasFailures = failedCount > 0;
-  const hasPending = pendingCount > 0 || syncingCount > 0;
-
-  let iconColor: string;
-  let badgeColor: string;
-
-  if (hasFailures) {
-    iconColor = focused
-      ? DesignTokens.colors.error[500]
-      : DesignTokens.colors.error[400];
-    badgeColor = DesignTokens.colors.error[500];
-  } else if (hasPending) {
-    iconColor = focused
-      ? DesignTokens.colors.warning[500]
-      : DesignTokens.colors.warning[400];
-    badgeColor = DesignTokens.colors.warning[500];
-  } else {
-    iconColor = focused
-      ? DesignTokens.colors.success[500]
-      : DesignTokens.colors.neutral[400];
-    badgeColor = DesignTokens.colors.success[500];
-  }
-
-  const iconName = focused ? "cloud-upload" : "cloud-upload-outline";
-
-  return (
-    <View style={tabIconStyles.container}>
-      <Ionicons name={iconName} size={size} color={iconColor} />
-      {totalCount > 0 && (
-        <View style={[tabIconStyles.badge, { backgroundColor: badgeColor }]}>
-          <Text style={tabIconStyles.badgeText}>
-            {totalCount > 99 ? "99+" : totalCount}
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-};
-
-const tabIconStyles = StyleSheet.create({
-  container: {
-    position: "relative",
-  },
-  badge: {
-    position: "absolute",
-    top: -4,
-    right: -10,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "700",
-  },
-});
 
 export const AppNavigator = () => {
   const {
@@ -171,11 +97,6 @@ export const AppNavigator = () => {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
-          // Use custom icon for Cola tab
-          if (route.name === "Cola") {
-            return <QueueTabIcon focused={focused} size={size} />;
-          }
-
           if (route.name === "Maquinaria") {
             return (
               <MaterialCommunityIcons
@@ -195,19 +116,21 @@ export const AppNavigator = () => {
         headerShown: false,
       })}
     >
+      {/* ADR-003 Fase 1: la sábana es el home; Reportes sube a tab de primer
+          nivel; las tabs Avances e Incidencias desaparecen (sus pantallas
+          viven en el stack de Sábana) */}
       {hasRole("CONTRATISTA") && (
         <>
           <Tab.Screen
             name="Home"
             component={SabanaNavigator}
-            options={{ tabBarLabel: "Inicio" }}
+            options={{ tabBarLabel: "Sábana" }}
           />
           <Tab.Screen
-            name="Avances"
-            component={AvanceNavigator}
-            options={{ tabBarLabel: "Avances" }}
+            name="Reportes"
+            component={ReportesNavigator}
+            options={{ tabBarLabel: "Reportes" }}
           />
-          <Tab.Screen name="Incidencias" component={IncidenciaNavigator} />
           <Tab.Screen
             name="Maquinaria"
             component={MaquinariaNavigator}

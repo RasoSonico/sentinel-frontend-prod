@@ -3,6 +3,7 @@ import { RouteProp } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { NavigatorScreenParams } from "@react-navigation/native";
 import { Incident } from "../types/incidencia";
+import { DateFilter } from "../components/ui/filters/DateRangeFilter";
 
 // Parámetros para la navegación de autenticación
 export type AuthStackParamList = {
@@ -12,13 +13,15 @@ export type AuthStackParamList = {
 };
 
 // Parámetros para la navegación principal
+// (ADR-003 Fase 1: tabs CONTRATISTA = Sábana (Home) · Reportes · Maquinaria ·
+// Perfil; las tabs Avances e Incidencias desaparecen — sus pantallas viven en
+// el stack de Sábana)
 export type AppTabParamList = {
-  Home: undefined;
+  Home: NavigatorScreenParams<SabanaStackParamList> | undefined;
   Obras: undefined;
   Catalogos: undefined;
   Cronogramas: undefined;
-  Avances: undefined;
-  Incidencias: undefined;
+  Reportes: NavigatorScreenParams<ReportesStackParamList> | undefined;
   Maquinaria: undefined;
   Perfil: undefined;
   Dashboard: undefined;
@@ -61,30 +64,6 @@ export type CronogramaStackParamList = {
   GanttView: { cronogramaId: string; title: string };
 };
 
-// Parámetros para el navegador de Avances
-export type AvanceStackParamList = {
-  AvancesList: undefined;
-  AvanceRegistration: { constructionId: string; constructionName: string };
-  AvanceDetail: { avanceId: string; title: string };
-  AvanceCreate: undefined;
-  AvanceEdit: { avanceId: string };
-  EstimacionesList: undefined;
-  EstimacionDetail: { estimacionId: string; title: string };
-  EstimacionCreate: undefined;
-  EstimacionEdit: { estimacionId: string };
-  Dashboard: undefined;
-  ReportSelection: undefined;
-  AdvanceReport: { constructionId: string; constructionName: string };
-  PendingSync: undefined;
-};
-
-// Parámetros para el navegador de Incidencias
-export type IncidenciaStackParamList = {
-  IncidentsList: undefined;
-  IncidentRegistration: undefined;
-  IncidentDetail: { incident: Incident };
-};
-
 // Parámetros para el navegador de Maquinaria
 export type MaquinariaStackParamList = {
   HubDiario: undefined;
@@ -92,40 +71,57 @@ export type MaquinariaStackParamList = {
   ReactivarMaquinaria: { constructionId: number };
 };
 
-// Parámetros para el navegador de Sábana
+// Parámetros para el navegador de Sábana (home del CONTRATISTA, ADR-003).
+// Absorbe el historial de avances, el registro, la cola de sync y las
+// pantallas de incidencias (la tab Incidencias dejó de existir).
 export type SabanaStackParamList = {
   SabanaHome: undefined;
+  AvancesList:
+    | { initialFilter?: DateFilter; openAdvanceId?: number }
+    | undefined;
+  AvanceRegistration: { constructionId: string; constructionName: string };
+  PendingSync: undefined;
+  IncidentsList: { initialFilter?: DateFilter } | undefined;
+  IncidentRegistration: undefined;
+  IncidentDetail: { incident: Incident };
+};
+
+// Parámetros para el navegador de Reportes (tab de primer nivel, ADR-003)
+export type ReportesStackParamList = {
+  ReportSelection: undefined;
+  AdvanceReport: {
+    constructionId: string;
+    constructionName: string;
+    /** Fecha local YYYY-MM-DD para inicializar el rango (Reporte del día) */
+    dateFrom?: string;
+    dateTo?: string;
+  };
 };
 
 // Tipos para props de navegación específicas
 export type AvanceListScreenNavigationProp = StackNavigationProp<
-  AvanceStackParamList,
+  SabanaStackParamList,
   "AvancesList"
 >;
 
 export type AdvanceRegistrationScreenNavigationProp = StackNavigationProp<
-  AvanceStackParamList,
+  SabanaStackParamList,
   "AvanceRegistration"
->;
-
-export type AdvanceDetailScreenNavigationProp = StackNavigationProp<
-  AvanceStackParamList,
-  "AvanceDetail"
 >;
 
 // Tipos para props de navegación específicas de Incidencias
 export type IncidentListScreenNavigationProp = StackNavigationProp<
-  IncidenciaStackParamList,
+  SabanaStackParamList,
   "IncidentsList"
 >;
 
 export type IncidentRegistrationScreenNavigationProp = StackNavigationProp<
-  IncidenciaStackParamList,
+  SabanaStackParamList,
   "IncidentRegistration"
 >;
 
 export type IncidentDetailScreenNavigationProp = StackNavigationProp<
-  IncidenciaStackParamList,
+  SabanaStackParamList,
   "IncidentDetail"
 >;
 
@@ -143,9 +139,8 @@ export type CatalogoNavigationProp =
   StackNavigationProp<CatalogoStackParamList>;
 export type CronogramaNavigationProp =
   StackNavigationProp<CronogramaStackParamList>;
-export type AvanceNavigationProp = StackNavigationProp<AvanceStackParamList>;
-export type IncidenciaNavigationProp =
-  StackNavigationProp<IncidenciaStackParamList>;
+export type ReportesNavigationProp =
+  StackNavigationProp<ReportesStackParamList>;
 export type RootNavigationProp = StackNavigationProp<RootStackParamList>;
 
 // Tipos para las propiedades de ruta
@@ -161,13 +156,9 @@ export type CronogramaRouteProps = RouteProp<
   CronogramaStackParamList,
   keyof CronogramaStackParamList
 >;
-export type AvanceRouteProps = RouteProp<
-  AvanceStackParamList,
-  keyof AvanceStackParamList
->;
-export type IncidenciaRouteProps = RouteProp<
-  IncidenciaStackParamList,
-  keyof IncidenciaStackParamList
+export type ReportesRouteProps = RouteProp<
+  ReportesStackParamList,
+  keyof ReportesStackParamList
 >;
 
 export type MaquinariaNavigationProp =

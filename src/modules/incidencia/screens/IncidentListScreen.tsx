@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Alert,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { Ionicons } from "@expo/vector-icons";
 import { DateRangeFilter } from "../../../components/ui/filters/DateRangeFilter";
@@ -18,7 +18,7 @@ import { DateUtils } from "../../../utils/dateUtils";
 import FilterChip from "../../../components/ui/FilterChip";
 import FilterGroup from "../../../components/ui/FilterGroup";
 import ActiveFiltersBadge from "../../../components/ui/ActiveFiltersBadge";
-import { IncidenciaStackParamList } from "../../../navigation/types";
+import { SabanaStackParamList } from "../../../navigation/types";
 import { Incident } from "../../../types/incidencia";
 import {
   useIncidentsQuery,
@@ -35,12 +35,18 @@ import styles from "../styles/IncidentListScreen.styles";
 import { DesignTokens } from "../../../styles/designTokens";
 
 type IncidentListScreenNavigationProp = StackNavigationProp<
-  IncidenciaStackParamList,
+  SabanaStackParamList,
+  "IncidentsList"
+>;
+
+type IncidentListScreenRouteProp = RouteProp<
+  SabanaStackParamList,
   "IncidentsList"
 >;
 
 const IncidentListScreen: React.FC = () => {
   const navigation = useNavigation<IncidentListScreenNavigationProp>();
+  const route = useRoute<IncidentListScreenRouteProp>();
   const dispatch = useAppDispatch();
 
   // Estados para filtros y UI
@@ -49,7 +55,8 @@ const IncidentListScreen: React.FC = () => {
     "all" | number
   >("all");
 
-  // Hook para filtro de fecha
+  // Hook para filtro de fecha — inicializable por ruta (el contador
+  // Incidencias de la franja Hoy llega con el filtro de hoy, ADR-003 D5)
   const {
     dateFilter,
     setDateFilter,
@@ -57,7 +64,7 @@ const IncidentListScreen: React.FC = () => {
     endDate,
     singleDate,
     hasFilter: hasDateFilter,
-  } = useDateRangeFilter();
+  } = useDateRangeFilter(route.params?.initialFilter ?? null);
 
   const [refreshing, setRefreshing] = useState(false);
 

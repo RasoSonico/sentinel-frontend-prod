@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -14,8 +14,9 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
+import { format } from "date-fns";
 
-import { AvanceStackParamList } from "src/navigation/types";
+import { ReportesStackParamList } from "src/navigation/types";
 import { DesignTokens } from "src/styles/designTokens";
 import {
   downloadAdvanceReport,
@@ -23,7 +24,7 @@ import {
   ReportError,
 } from "../services/reportService";
 
-type RouteProps = RouteProp<AvanceStackParamList, "AdvanceReport">;
+type RouteProps = RouteProp<ReportesStackParamList, "AdvanceReport">;
 
 type ScopeOption = {
   value: ReportScope;
@@ -67,15 +68,42 @@ const formatDate = (date: Date): string =>
     year: "numeric",
   });
 
-const toISODate = (date: Date): string => date.toISOString().split("T")[0];
+// Fecha local YYYY-MM-DD por componentes (ADR-003 D9). El toISOString()
+// anterior convertía a UTC y corría el día en CDMX después de las 17/18 h —
+// crítico para "Reporte del día".
+const toISODate = (date: Date): string => format(date, "yyyy-MM-dd");
+
+// Parsea un param YYYY-MM-DD como fecha LOCAL (new Date(string) interpretaría
+// medianoche UTC y correría el día)
+const parseLocalDateParam = (value?: string): Date | null => {
+  if (!value) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return isNaN(d.getTime()) ? null : d;
+};
 
 const AdvanceReportScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const { constructionId, constructionName } = route.params;
 
-  // Date state
-  const [dateFrom, setDateFrom] = useState<Date>(firstOfMonth());
-  const [dateTo, setDateTo] = useState<Date>(today());
+  // Date state — inicializable por params de ruta ("Reporte del día" llega
+  // con dateFrom = dateTo = hoy desde la franja Hoy de la sábana)
+  const [dateFrom, setDateFrom] = useState<Date>(
+    () => parseLocalDateParam(route.params.dateFrom) ?? firstOfMonth(),
+  );
+  const [dateTo, setDateTo] = useState<Date>(
+    () => parseLocalDateParam(route.params.dateTo) ?? today(),
+  );
+
+  // Si la pantalla ya estaba montada en la tab, una nueva navegación con
+  // params (p. ej. otro tap a "Reporte del día") debe re-aplicar el rango
+  useEffect(() => {
+    const from = parseLocalDateParam(route.params.dateFrom);
+    const to = parseLocalDateParam(route.params.dateTo);
+    if (from) setDateFrom(from);
+    if (to) setDateTo(to);
+  }, [route.params.dateFrom, route.params.dateTo]);
 
   // Picker visibility (Android shows inline modal, iOS uses inline)
   const [showFromPicker, setShowFromPicker] = useState(false);
