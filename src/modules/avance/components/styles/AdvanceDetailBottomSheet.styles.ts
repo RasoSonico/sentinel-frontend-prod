@@ -84,6 +84,34 @@ const styles = StyleSheet.create({
     borderRadius: DesignTokens.borderRadius.md,
   },
 
+  // Bloque de contexto único (ADR-003 D7): cejilla + descripción
+  contextEyebrow: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.neutral[400],
+    fontWeight: DesignTokens.typography.fontWeight.medium as any,
+    marginBottom: DesignTokens.spacing.xs,
+  },
+  contextDescription: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.semibold as any,
+    color: DesignTokens.colors.neutral[800],
+    lineHeight:
+      DesignTokens.typography.fontSize.sm *
+      DesignTokens.typography.lineHeight.normal,
+  },
+
+  // Franja de evidencia fotográfica (ADR-003 D7)
+  evidenceRow: {
+    flexDirection: "row",
+    gap: DesignTokens.spacing.sm,
+  },
+  evidenceThumb: {
+    width: 74,
+    height: 74,
+    borderRadius: DesignTokens.borderRadius.base,
+    backgroundColor: DesignTokens.colors.neutral[100],
+  },
+
   // Item label - Minimalista
   itemLabel: {
     flexDirection: "row",

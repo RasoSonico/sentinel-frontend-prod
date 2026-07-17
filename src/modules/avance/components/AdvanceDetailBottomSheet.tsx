@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomSheet, {
@@ -23,6 +24,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PhysicalAdvanceResponse } from "../../../types/entities";
 import { useUpdateAdvance } from "../../../hooks/data/query/useAvance";
+import { useFormattedDate } from "../../../hooks/ui/useDateFormatting";
 import {
   advanceEditSchema,
   advanceEditDefaultValues,
@@ -52,6 +54,10 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
 
   // Mutations
   const updateAdvanceMutation = useUpdateAdvance();
+
+  // Fecha vía DateUtils (ADR-003 D9): new Date("YYYY-MM-DD") interpretaba
+  // medianoche UTC y mostraba el día anterior en CDMX
+  const formattedDate = useFormattedDate(advance?.date, "medium");
 
   // Refs
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -211,13 +217,7 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         <View style={styles.dateStatusRow}>
           <View style={styles.dateContainer}>
             <Text style={styles.valueText}>
-              {advance.date
-                ? new Date(advance.date).toLocaleDateString("es-ES", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })
-                : "Sin fecha"}
+              {advance.date ? formattedDate : "Sin fecha"}
             </Text>
           </View>
 
@@ -256,32 +256,22 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         ref={scrollViewRef}
         contentContainerStyle={styles.contentContainer}
       >
-        {/* Catálogo */}
+        {/* Bloque de contexto único (ADR-003 D7, L-01c): cejilla
+            catálogo · partida › sección · wbs + descripción del concepto —
+            mismo lenguaje de cabecera en toda la app */}
         <View style={styles.itemContainer}>
-          <View style={styles.itemLabel}>
-            <Text style={styles.labelText}>Catálogo</Text>
-          </View>
-          <Text style={styles.valueText}>
-            {advance.catalog_name || "No disponible"}
+          <Text style={styles.contextEyebrow} numberOfLines={2}>
+            {[
+              advance.catalog_name,
+              advance.concept_section_name
+                ? `${advance.work_item_name ?? ""} › ${advance.concept_section_name}`
+                : advance.work_item_name,
+              advance.concept_wbs_code,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </Text>
-        </View>
-
-        {/* Partida */}
-        <View style={styles.itemContainer}>
-          <View style={styles.itemLabel}>
-            <Text style={styles.labelText}>Partida</Text>
-          </View>
-          <Text style={styles.valueText}>
-            {advance.work_item_name || "No disponible"}
-          </Text>
-        </View>
-
-        {/* Concepto */}
-        <View style={styles.itemContainer}>
-          <View style={styles.itemLabel}>
-            <Text style={styles.labelText}>Concepto</Text>
-          </View>
-          <Text style={styles.valueText}>
+          <Text style={styles.contextDescription}>
             {advance.concept_description || `Concepto #${advance.concept}`}
           </Text>
         </View>
@@ -364,6 +354,34 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
             </Text>
           )}
         </View>
+
+        {/* Evidencia fotográfica (ADR-003 D7): franja horizontal de
+            miniaturas, solo lectura — agregar fotos desde el detalle queda
+            en deuda técnica. Oculta si el avance no tiene fotos. */}
+        {advance.photos && advance.photos.length > 0 ? (
+          <View style={styles.itemContainer}>
+            <View style={styles.itemLabel}>
+              <Text style={styles.labelText}>
+                Evidencia · {advance.photos.length}{" "}
+                {advance.photos.length === 1 ? "foto" : "fotos"}
+              </Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.evidenceRow}
+            >
+              {Array.from(advance.photos).map((photo) => (
+                <Image
+                  key={photo.id}
+                  source={{ uri: photo.thumbnail_url || photo.url }}
+                  style={styles.evidenceThumb}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
 
         {/* Comentario */}
         <View

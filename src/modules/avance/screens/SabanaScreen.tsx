@@ -42,6 +42,7 @@ import SabanaTreeItem from "../components/SabanaTreeItem";
 import SabanaSearchResult from "../components/SabanaSearchResult";
 import HoyResumenHeader from "../components/HoyResumenHeader";
 import QueueHeaderButton from "../components/QueueHeaderButton";
+import FotosDelDiaSheet from "../components/FotosDelDiaSheet";
 
 import styles from "../styles/SabanaScreen.styles";
 import { DesignTokens } from "src/styles/designTokens";
@@ -70,6 +71,7 @@ const SabanaScreen: React.FC = () => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<Mode>("tree");
   const [query, setQuery] = useState("");
+  const [fotosSheetVisible, setFotosSheetVisible] = useState(false);
 
   const { catalogs, effectiveCatalogId, tree, globalStats, isLoading } =
     useSabanaData(selectedCatalogId);
@@ -98,12 +100,22 @@ const SabanaScreen: React.FC = () => {
     navigation.navigate("AvancesList", { initialFilter: buildTodayFilter() });
   }, [navigation]);
 
-  // Fallback aprobado del ADR mientras la galería llega en el siguiente
-  // paquete: navegar al historial de hoy
   const handleFotosPress = useCallback(() => {
     telemetry.trackEvent("hoy_counter_tapped", { counter: "fotos" });
-    navigation.navigate("AvancesList", { initialFilter: buildTodayFilter() });
-  }, [navigation]);
+    setFotosSheetVisible(true);
+  }, []);
+
+  // Tap en foto de la galería → abrir el avance que la respalda
+  const handleOpenAdvanceFromFoto = useCallback(
+    (advanceId: number) => {
+      setFotosSheetVisible(false);
+      navigation.navigate("AvancesList", {
+        initialFilter: buildTodayFilter(),
+        openAdvanceId: advanceId,
+      });
+    },
+    [navigation],
+  );
 
   const handleIncidenciasPress = useCallback(() => {
     telemetry.trackEvent("hoy_counter_tapped", { counter: "incidencias" });
@@ -377,6 +389,14 @@ const SabanaScreen: React.FC = () => {
         initialNumToRender={20}
         maxToRenderPerBatch={15}
         windowSize={10}
+      />
+
+      {/* Galería de fotos del día (L-01a) — destino del contador Fotos */}
+      <FotosDelDiaSheet
+        isVisible={fotosSheetVisible}
+        onClose={() => setFotosSheetVisible(false)}
+        constructionId={constructionId}
+        onOpenAdvance={handleOpenAdvanceFromFoto}
       />
     </SafeAreaView>
   );
