@@ -29,7 +29,9 @@ const SabanaGlobalCard: React.FC<Props> = ({ stats }) => {
         </View>
       </View>
       <View style={styles.globalBarBg}>
-        <View style={[styles.globalBarFill, { width: `${pct}%` }]} />
+        <View
+          style={[styles.globalBarFill, { width: `${Math.min(100, pct)}%` }]}
+        />
       </View>
       <View style={styles.globalMetas}>
         <Text style={styles.globalMeta}>

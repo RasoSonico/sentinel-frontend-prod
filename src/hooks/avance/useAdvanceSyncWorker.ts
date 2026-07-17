@@ -44,6 +44,9 @@ export function useAdvanceSyncWorker() {
         concept: item.conceptId,
         volume: Number(item.volume),
         comments: item.comments,
+        // Idempotencia: si la respuesta se pierde y reintentamos, el backend
+        // responde el avance ya creado en lugar de duplicarlo (ADR-002)
+        client_id: item._id,
       });
     },
   });

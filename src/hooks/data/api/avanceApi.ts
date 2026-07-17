@@ -3,7 +3,12 @@ import { API_CONFIG } from "src/services/api/config";
 import { CatalogoApiResponse } from "src/types/catalogo";
 import { PartidaApiResponse } from "src/types/partida";
 import { ConceptoApiResponse } from "src/types/concepto";
-import { SubmitAdvance, SubmitAvanceResponse } from "src/types/avance";
+import {
+  SubmitAdvance,
+  SubmitAvanceResponse,
+  ConstructionSummaryResponse,
+  ConstructionPhoto,
+} from "src/types/avance";
 import {
   PhysicalAdvanceResponse,
   Construction,
@@ -107,6 +112,9 @@ export const getAdvancesByCatalog = async ({
 }): Promise<{ advances: PhysicalAdvanceResponse[]; count: number }> => {
   const params = new URLSearchParams({
     catalog: catalogId.toString(),
+    // Máximo permitido por la paginación del backend; sin esto solo llega la
+    // primera página (15) y el historial/cache quedan truncados
+    page_size: "100",
   });
 
   // Agregar parámetro detailed si está habilitado
@@ -127,6 +135,53 @@ export const getAdvancesByCatalog = async ({
     advances: response.results || [],
     count: response.count || 0,
   };
+};
+
+/**
+ * Agregado global de avance físico por obra (ADR-002 backend)
+ */
+export const getConstructionSummary = async (
+  constructionId: number,
+): Promise<ConstructionSummaryResponse> => {
+  const endpoint = `${API_CONFIG.endpoints.advances.constructionSummary}${constructionId}/summary/`;
+
+  return await apiRequest<ConstructionSummaryResponse>(
+    "get",
+    endpoint,
+    "Error al obtener el resumen global de la obra",
+  );
+};
+
+/**
+ * Fotos de una obra en un rango de fechas (para la galería del día).
+ * Nota: date_from/date_to truncan uploaded_at a fecha UTC en el servidor;
+ * el llamador debe pedir un rango holgado y afinar del lado del cliente.
+ */
+export const getPhotosByRange = async ({
+  constructionId,
+  dateFrom,
+  dateTo,
+}: {
+  constructionId: number;
+  dateFrom: string; // YYYY-MM-DD
+  dateTo: string; // YYYY-MM-DD
+}): Promise<ConstructionPhoto[]> => {
+  const params = new URLSearchParams({
+    construction_id: constructionId.toString(),
+    date_from: dateFrom,
+    date_to: dateTo,
+    upload_status: "COMPLETED",
+    page_size: "100",
+  });
+
+  const endpoint = `${API_CONFIG.endpoints.photos.list}?${params.toString()}`;
+
+  const response = await apiRequest<{
+    results: ConstructionPhoto[];
+    count: number;
+  }>("get", endpoint, "Error al obtener las fotos de la obra");
+
+  return response.results || [];
 };
 
 /**

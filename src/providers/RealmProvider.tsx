@@ -11,6 +11,7 @@ import { AvanceBaseResponse } from "src/realm/avanceBase/Response";
 import { AvanceBaseSection } from "src/realm/avanceBase/Section";
 import { AvanceBaseWorkItem } from "src/realm/avanceBase/WorkItem";
 import { PhysicalAdvanceResponse } from "src/realm/avanceByCatalog/PhysicalAdvanceResponse";
+import { AdvancePhoto } from "src/realm/avanceByCatalog/Photo";
 import { AvancesByCatalogResponse } from "src/realm/avanceByCatalog/Response";
 import { CatalogsByConstructionResponse } from "src/realm/catalogsByConstruction/Response";
 import { CatalogoItemRealm } from "src/realm/catalogsByConstruction/CatalogoItem";
@@ -87,6 +88,7 @@ export default function RealmProviderWrapper({
         // Advances By Catalog schemas
         AvancesByCatalogResponse,
         PhysicalAdvanceResponse,
+        AdvancePhoto,
         // Catalogs By Construction schemas
         CatalogsByConstructionResponse,
         CatalogoItemRealm,
@@ -109,8 +111,11 @@ export default function RealmProviderWrapper({
         TiposMaquinariaResponse,
         TipoMaquinariaRealm,
       ]}
-      schemaVersion={10}
-      migration={(oldRealm, newRealm) => {
+      schemaVersion={11}
+      // Nota: la prop correcta de @realm/react es onMigration; el nombre
+      // anterior (migration) no existía y las migraciones v8/v10 nunca
+      // corrieron por esa vía
+      onMigration={(oldRealm: Realm, newRealm: Realm) => {
         if (oldRealm.schemaVersion < 8) {
           newRealm.delete(newRealm.objects("AssignedConstructionResponse"));
           newRealm.delete(newRealm.objects("AvanceBaseResponse"));
@@ -121,6 +126,13 @@ export default function RealmProviderWrapper({
         // change requires a fresh sync to repopulate
         if (oldRealm.schemaVersion < 10) {
           newRealm.delete(newRealm.objects("AvanceBaseResponse"));
+        }
+        // schemaVersion 11 (ADR-003 Fase 1): AdvancePhoto embebido + photos/
+        // photo_count/concept_wbs_code/concept_section_name en
+        // PhysicalAdvanceResponse — el cache de avances se repuebla al
+        // siguiente sync; la cola pendiente no se toca
+        if (oldRealm.schemaVersion < 11) {
+          newRealm.delete(newRealm.objects("AvancesByCatalogResponse"));
         }
       }}
     >

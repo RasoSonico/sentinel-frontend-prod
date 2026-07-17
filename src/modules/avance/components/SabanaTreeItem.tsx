@@ -72,7 +72,7 @@ const WorkItemRow: React.FC<{
             <View
               style={[
                 styles.rowMiniBarFill,
-                { width: `${pct}%`, backgroundColor: barColor(pct) },
+                { width: `${Math.min(100, pct)}%`, backgroundColor: barColor(pct) },
               ]}
             />
           </View>
@@ -132,7 +132,7 @@ const SectionRow: React.FC<{
             <View
               style={[
                 styles.rowMiniBarFill,
-                { width: `${pct}%`, backgroundColor: barColor(pct) },
+                { width: `${Math.min(100, pct)}%`, backgroundColor: barColor(pct) },
               ]}
             />
           </View>
@@ -189,7 +189,7 @@ const ConceptRow: React.FC<{ item: FlatTreeItemConcept }> = memo(({ item }) => {
         <View
           style={[
             styles.conceptBarFill,
-            { width: `${pct}%`, backgroundColor: barColor(pct) },
+            { width: `${Math.min(100, pct)}%`, backgroundColor: barColor(pct) },
           ]}
         />
       </View>

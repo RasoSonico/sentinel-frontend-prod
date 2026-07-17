@@ -96,9 +96,12 @@ function parseNum(value: string | number | null | undefined): number {
   return isNaN(n) ? 0 : n;
 }
 
+// Los porcentajes NO se recortan a 100: la sobre-ejecución se refleja tal
+// cual (decisión de producto, ADR-003 Fase 1). Piso en 0: nunca negativos.
+// El recorte visual de las barras es responsabilidad de cada componente.
 function conceptPct(concept: SabanaConceptNode): number {
   if (concept.quantity === 0) return 0;
-  return Math.min(100, (concept.cumulative_volume / concept.quantity) * 100);
+  return Math.max(0, (concept.cumulative_volume / concept.quantity) * 100);
 }
 
 // Value-weighted rollup: Σ(cumulative_volume × price) / Σ(quantity × price) × 100
@@ -111,7 +114,7 @@ function rollupPct(concepts: SabanaConceptNode[]): number {
     totalContracted += c.quantity * c.price;
   }
   if (totalContracted === 0) return 0;
-  return Math.min(100, (totalExecuted / totalContracted) * 100);
+  return Math.max(0, (totalExecuted / totalContracted) * 100);
 }
 
 function collectLeafConcepts(section: SabanaSectionNode): SabanaConceptNode[] {
@@ -393,9 +396,10 @@ export function computeGlobalStats(
     wi.sections.forEach(walkSection);
   }
 
+  // Sin recorte a 100 (ver nota en conceptPct); piso en 0
   const global_pct =
     totalContracted > 0
-      ? Math.min(100, (totalExecuted / totalContracted) * 100)
+      ? Math.max(0, (totalExecuted / totalContracted) * 100)
       : 0;
 
   return {

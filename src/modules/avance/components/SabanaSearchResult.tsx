@@ -117,7 +117,7 @@ const SabanaSearchResult: React.FC<Props> = ({ item }) => {
         <View
           style={[
             styles.conceptBarFill,
-            { width: `${pct}%`, backgroundColor: barClr },
+            { width: `${Math.min(100, pct)}%`, backgroundColor: barClr },
           ]}
         />
       </View>

@@ -19,11 +19,14 @@ export const API_CONFIG = {
     advances: {
       list: "/api/avance/physical/",
       base: "/api/avance/base/",
+      // + `${constructionId}/summary/` (agregado global de obra, ADR-002)
+      constructionSummary: "/api/avance/construction/",
     },
     photos: {
       confirmUpload: "/api/avance/photos/confirm-upload/",
       bulkUpload: "/api/avance/photos/bulk-upload/",
       upload: "/api/avance/photos/upload/",
+      list: "/api/avance/photos/",
     },
     construction: {
       catalog: "/api/catalogo/catalog/",

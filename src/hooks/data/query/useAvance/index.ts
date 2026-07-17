@@ -35,6 +35,9 @@ export {
   advancesByCatalogOptions,
 } from "./useAdvancesByCatalog";
 
+export { useConstructionSummary } from "./useConstructionSummary";
+export { useTodayPhotos } from "./useTodayPhotos";
+
 // Mutation hooks
 export { useSubmitAdvance } from "./useSubmitAdvance";
 export { useUpdateAdvance } from "./useUpdateAdvance";

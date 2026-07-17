@@ -5,4 +5,6 @@ export const AVANCE_QUERY_KEYS = {
   CONCEPTS_BY_WORK_ITEM: "conceptsByWorkItem",
   ASSIGNED_CONSTRUCTION: "assignedConstruction",
   ADVANCES_BY_CATALOG: "advancesByCatalog",
+  CONSTRUCTION_SUMMARY: "constructionSummary",
+  PHOTOS_BY_DAY: "photosByDay",
 };

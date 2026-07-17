@@ -192,6 +192,8 @@ export interface PhysicalAdvanceResponse {
   concept_quantity?: string;
   concept_unit_price?: string;
   concept_classification?: string;
+  concept_wbs_code?: string | null;
+  concept_section_name?: string | null;
   work_item_id?: number;
   work_item_name?: string;
   catalog_id?: number;
@@ -199,6 +201,9 @@ export interface PhysicalAdvanceResponse {
   construction_id?: number;
   construction_name?: string;
   total_amount?: string;
+  // Evidencia fotográfica (ADR-002 backend; opcionales para backend viejo)
+  photo_count?: number;
+  photos?: AdvancePhoto[];
 }
 
 // Tipos adicionales para la entidad UserConstruction

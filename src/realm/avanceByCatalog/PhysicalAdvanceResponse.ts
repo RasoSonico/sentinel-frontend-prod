@@ -1,4 +1,5 @@
 import Realm from "realm";
+import { AdvancePhoto } from "./Photo";
 
 export class PhysicalAdvanceResponse extends Realm.Object<PhysicalAdvanceResponse> {
   id!: number;
@@ -14,6 +15,8 @@ export class PhysicalAdvanceResponse extends Realm.Object<PhysicalAdvanceRespons
   concept_quantity?: string;
   concept_unit_price?: string;
   concept_classification?: string;
+  concept_wbs_code?: string;
+  concept_section_name?: string;
   work_item_id?: number;
   work_item_name?: string;
   catalog_id?: number;
@@ -21,6 +24,11 @@ export class PhysicalAdvanceResponse extends Realm.Object<PhysicalAdvanceRespons
   construction_id?: number;
   construction_name?: string;
   total_amount?: string;
+  photo_count?: number;
+  // Declarado como arreglo (no Realm.List) para compatibilidad estructural
+  // con la interfaz PhysicalAdvanceResponse de src/types/entities; en
+  // runtime Realm lo materializa como List igualmente
+  photos?: AdvancePhoto[];
 
   static schema: Realm.ObjectSchema = {
     name: "PhysicalAdvanceResponse",
@@ -39,6 +47,8 @@ export class PhysicalAdvanceResponse extends Realm.Object<PhysicalAdvanceRespons
       concept_quantity: "string?",
       concept_unit_price: "string?",
       concept_classification: "string?",
+      concept_wbs_code: "string?",
+      concept_section_name: "string?",
       work_item_id: "int?",
       work_item_name: "string?",
       catalog_id: "int?",
@@ -46,6 +56,8 @@ export class PhysicalAdvanceResponse extends Realm.Object<PhysicalAdvanceRespons
       construction_id: "int?",
       construction_name: "string?",
       total_amount: "string?",
+      photo_count: "int?",
+      photos: "AdvancePhoto[]",
     },
   };
 }

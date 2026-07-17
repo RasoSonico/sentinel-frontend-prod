@@ -52,6 +52,19 @@ export const parseAdvanceForRealm = (
       total_amount: item.total_amount
         ? String(item.total_amount)
         : undefined,
+      concept_wbs_code: item.concept_wbs_code ?? undefined,
+      concept_section_name: item.concept_section_name ?? undefined,
+      // Evidencia fotográfica (ADR-002; undefined con backend viejo)
+      photo_count:
+        item.photo_count != null ? Number(item.photo_count) : undefined,
+      photos: Array.isArray(item.photos)
+        ? item.photos.map((p) => ({
+            id: String(p.id),
+            url: String(p.url ?? ""),
+            thumbnail_url: String(p.thumbnail_url ?? ""),
+            created_at: String(p.created_at ?? ""),
+          }))
+        : undefined,
     };
   } catch (error) {
     console.error("❌ Error parsing Advance for Realm:", error);
