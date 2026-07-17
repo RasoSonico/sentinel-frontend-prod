@@ -64,7 +64,7 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
   const scrollViewRef = useRef<ScrollView>(null);
 
   // BottomSheet snap points — two points so the sheet can extend above the keyboard
-  const snapPoints = useMemo(() => ["75%", "95%"], []);
+  const snapPoints = useMemo(() => ["60%", "95%"], []);
 
   // React Hook Form setup
   const {
@@ -205,23 +205,14 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         <BottomSheetBackdrop {...props} onPress={onClose} />
       )}
     >
+      {/* Header compacto en una sola fila (L-01c): título · fecha · estado */}
       <View style={styles.fixedHeader}>
-        {/* Header Title */}
-        <View style={styles.subheaderSection}>
-          <View style={styles.headerTitleSection}>
-            <Text style={styles.headerTitle}>Detalle de Avances</Text>
-          </View>
-        </View>
-
-        {/* Date and Status Row */}
-        <View style={styles.dateStatusRow}>
-          <View style={styles.dateContainer}>
-            <Text style={styles.valueText}>
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Detalle de avance</Text>
+          <View style={styles.headerMeta}>
+            <Text style={styles.headerDate}>
               {advance.date ? formattedDate : "Sin fecha"}
             </Text>
-          </View>
-
-          <View style={styles.statusContainer}>
             <View
               style={[
                 styles.statusBadge,
@@ -259,7 +250,7 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         {/* Bloque de contexto único (ADR-003 D7, L-01c): cejilla
             catálogo · partida › sección · wbs + descripción del concepto —
             mismo lenguaje de cabecera en toda la app */}
-        <View style={styles.itemContainer}>
+        <View style={[styles.itemContainer, styles.contextBox]}>
           <Text style={styles.contextEyebrow} numberOfLines={2}>
             {[
               advance.catalog_name,

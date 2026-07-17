@@ -35,7 +35,6 @@ import {
 } from "src/navigation/types";
 import { telemetry } from "src/services/telemetry";
 
-import OfflineIndicator from "../components/OfflineIndicator";
 import SabanaCatalogSelector from "../components/SabanaCatalogSelector";
 import SabanaCatalogMetrics from "../components/SabanaCatalogMetrics";
 import SabanaTreeItem from "../components/SabanaTreeItem";
@@ -364,10 +363,8 @@ const SabanaScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.indicatorContainer}>
-        <OfflineIndicator />
-      </View>
-
+      {/* Sin OfflineIndicator aquí: su contenedor dejaba una franja vacía
+          bajo el header y la franja Hoy ya trae banner offline propio */}
       <FlatList
         data={listData}
         renderItem={renderItem}

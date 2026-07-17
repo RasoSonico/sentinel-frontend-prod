@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+﻿import { StyleSheet } from "react-native";
 import { DesignTokens } from "../../../../styles/designTokens";
 
 const styles = StyleSheet.create({
@@ -22,17 +22,34 @@ const styles = StyleSheet.create({
 
   // Content container
   contentContainer: {
-    backgroundColor: DesignTokens.colors.neutral[200],
-    paddingTop: DesignTokens.spacing.md,
-    paddingBottom: DesignTokens.spacing["6xl"],
+    backgroundColor: DesignTokens.colors.background.secondary,
+    paddingTop: DesignTokens.spacing.sm,
+    paddingBottom: DesignTokens.spacing["4xl"],
   },
 
-  // Fixed header with cleaner design
+  // Fixed header compacto (L-01c): una sola fila título · fecha · estado
   fixedHeader: {
     backgroundColor: DesignTokens.colors.background.primary,
-    paddingBottom: DesignTokens.spacing.md,
+    paddingBottom: DesignTokens.spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: DesignTokens.colors.neutral[100],
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: DesignTokens.spacing.lg,
+    paddingTop: DesignTokens.spacing.xs,
+  },
+  headerMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: DesignTokens.spacing.sm,
+    flexShrink: 0,
+  },
+  headerDate: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.neutral[500],
   },
 
   // New: Header with title only
@@ -57,7 +74,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   headerTitle: {
-    fontSize: DesignTokens.typography.fontSize.xl,
+    fontSize: DesignTokens.typography.fontSize.base,
     fontWeight: DesignTokens.typography.fontWeight.semibold as any,
     color: DesignTokens.colors.neutral[800],
     letterSpacing: -0.3,
@@ -75,13 +92,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Clean item container - minimal styling
+  // Clean item container - minimal styling (compactado, L-01c)
   itemContainer: {
     backgroundColor: DesignTokens.colors.background.primary,
-    marginHorizontal: DesignTokens.spacing.lg,
+    marginHorizontal: DesignTokens.spacing.md,
     marginBottom: DesignTokens.spacing.sm,
-    padding: DesignTokens.spacing.lg,
+    paddingHorizontal: DesignTokens.spacing.md,
+    paddingVertical: DesignTokens.spacing.sm + 2,
     borderRadius: DesignTokens.borderRadius.md,
+  },
+
+  // Bloque de contexto único (ADR-003 D7): caja suave tipo cabecera de ficha
+  contextBox: {
+    backgroundColor: DesignTokens.colors.neutral[50],
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.neutral[200],
   },
 
   // Bloque de contexto único (ADR-003 D7): cejilla + descripción
@@ -141,7 +166,7 @@ const styles = StyleSheet.create({
       DesignTokens.typography.fontSize.sm *
       DesignTokens.typography.lineHeight.tight,
     fontWeight: DesignTokens.typography.fontWeight.normal as any,
-    paddingLeft: DesignTokens.spacing["4xl"] - DesignTokens.spacing.sm,
+    paddingLeft: 0,
   },
 
   // Volume specific - Destacado
@@ -149,7 +174,7 @@ const styles = StyleSheet.create({
     fontSize: DesignTokens.typography.fontSize.lg,
     fontWeight: DesignTokens.typography.fontWeight.semibold as any,
     color: DesignTokens.colors.neutral[800],
-    paddingLeft: DesignTokens.spacing["4xl"] - DesignTokens.spacing.sm,
+    paddingLeft: 0,
     marginBottom: DesignTokens.spacing.sm,
     letterSpacing: -0.5,
   },
@@ -157,7 +182,7 @@ const styles = StyleSheet.create({
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.success[600],
     fontWeight: DesignTokens.typography.fontWeight.semibold as any,
-    paddingLeft: DesignTokens.spacing["4xl"] - DesignTokens.spacing.sm,
+    paddingLeft: 0,
   },
 
   // Comment specific - Minimalista
@@ -167,7 +192,7 @@ const styles = StyleSheet.create({
     lineHeight:
       DesignTokens.typography.fontSize.base *
       DesignTokens.typography.lineHeight.normal,
-    paddingLeft: DesignTokens.spacing["4xl"] - DesignTokens.spacing.sm,
+    paddingLeft: 0,
   },
 
   // Status badge - Minimalista
@@ -208,7 +233,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: DesignTokens.spacing.md,
-    paddingLeft: DesignTokens.spacing["4xl"] - DesignTokens.spacing.sm,
+    paddingLeft: 0,
   },
   volumeInput: {
     flex: 1,

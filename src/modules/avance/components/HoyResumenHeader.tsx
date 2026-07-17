@@ -57,10 +57,16 @@ const HoyResumenHeader: React.FC<Props> = ({
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <View>
-          <Text style={styles.title}>Hoy · {fechaLabel}</Text>
+        {/* El bloque izquierdo cede espacio (flex + ellipsis); el % tiene su
+            espacio garantizado sin importar el largo de fecha/obra */}
+        <View style={styles.topLeft}>
+          <Text style={styles.title} numberOfLines={1}>
+            Hoy · {fechaLabel}
+          </Text>
           {obraNombre ? (
-            <Text style={styles.eyebrow}>Obra · {obraNombre}</Text>
+            <Text style={styles.eyebrow} numberOfLines={1}>
+              Obra · {obraNombre}
+            </Text>
           ) : null}
         </View>
         {resumenObra ? (

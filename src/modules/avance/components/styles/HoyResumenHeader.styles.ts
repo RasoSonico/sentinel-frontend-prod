@@ -25,6 +25,10 @@ export default StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
+  topLeft: {
+    flex: 1,
+    paddingRight: sp(10),
+  },
   title: {
     color: DesignTokens.colors.background.primary,
     fontSize: 14,
@@ -39,6 +43,7 @@ export default StyleSheet.create({
   },
   pctBlock: {
     alignItems: "flex-end",
+    flexShrink: 0,
   },
   pctLabel: {
     color: "rgba(255,255,255,0.55)",
