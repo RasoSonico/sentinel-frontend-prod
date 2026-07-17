@@ -1,8 +1,7 @@
 import React, { memo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { PhysicalAdvanceResponse } from "src/types/entities";
-import { useFormattedDate } from "src/hooks/ui/useDateFormatting";
-import ProgramStatusBadge from "./ProgramStatusBadge";
+import { useCustomFormattedDate } from "src/hooks/ui/useDateFormatting";
 import { ColorUtils } from "src/styles/designTokens";
 import styles from "../styles/AdvanceListScreen.styles";
 
@@ -11,8 +10,15 @@ interface AdvanceItemCardProps {
   onPress: (item: PhysicalAdvanceResponse) => void;
 }
 
+/**
+ * Card del historial rejerarquizada (ADR-003 D6, lámina L-01b): el volumen
+ * con unidad es el único protagonista tipográfico; el importe va etiquetado
+ * en línea propia; la partida baja a cejilla con WBS; el estado se conserva
+ * (borde izquierdo + chip, D10). "sin foto" en ámbar como señal suave; si el
+ * backend aún no expone photo_count, el indicador 📷 se omite (deuda #10).
+ */
 const AdvanceItemCard: React.FC<AdvanceItemCardProps> = ({ item, onPress }) => {
-  const formattedDate = useFormattedDate(item.date, "medium");
+  const hora = useCustomFormattedDate(item.date, "HH:mm");
 
   if (!item) {
     return null;
@@ -22,6 +28,17 @@ const AdvanceItemCard: React.FC<AdvanceItemCardProps> = ({ item, onPress }) => {
     item.concept_description || `Concepto #${item.concept}`;
   const conceptUnit = item.concept_unit || "";
   const partidaName = item.work_item_name || "Partida no disponible";
+  const cejilla = item.concept_wbs_code
+    ? `${partidaName} · ${item.concept_wbs_code}`
+    : partidaName;
+
+  const importe =
+    item.total_amount != null
+      ? Number(item.total_amount).toLocaleString("es-MX", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+      : null;
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -58,7 +75,9 @@ const AdvanceItemCard: React.FC<AdvanceItemCardProps> = ({ item, onPress }) => {
     >
       <View style={styles.advanceHeader}>
         <View style={styles.conceptInfo}>
-          <Text style={styles.partidaName}>{partidaName}</Text>
+          <Text style={styles.cardCejilla} numberOfLines={1}>
+            {cejilla}
+          </Text>
           <Text style={styles.conceptDescription} numberOfLines={2}>
             {conceptDescription}
           </Text>
@@ -71,35 +90,27 @@ const AdvanceItemCard: React.FC<AdvanceItemCardProps> = ({ item, onPress }) => {
         </View>
       </View>
 
-      <View style={styles.advanceDetails}>
-        <View style={styles.quantityContainer}>
-          <Text style={styles.quantityLabel}>Volumen:</Text>
-          <Text style={styles.quantityValue}>
-            {item.volume || "0"} {conceptUnit}
+      <Text style={styles.cardVolume}>
+        {item.volume || "0"} {conceptUnit}
+      </Text>
+
+      <View style={styles.cardMetaRow}>
+        {importe !== null ? (
+          <Text style={styles.cardImporte}>Importe ${importe}</Text>
+        ) : (
+          <View />
+        )}
+        {item.photo_count == null ? (
+          <Text style={styles.cardMetaRight}>{hora}</Text>
+        ) : item.photo_count > 0 ? (
+          <Text style={styles.cardMetaRight}>
+            📷 {item.photo_count} · {hora}
           </Text>
-        </View>
-      </View>
-
-      {item.comments && (
-        <View style={styles.notesContainer}>
-          <Text style={styles.notesLabel}>Comentarios:</Text>
-          <Text style={styles.notesText} numberOfLines={2}>
-            {item.comments}
+        ) : (
+          <Text style={[styles.cardMetaRight, styles.cardMetaAmber]}>
+            sin foto · {hora}
           </Text>
-        </View>
-      )}
-
-      <View style={styles.bottomSection}>
-        <View style={styles.programStatusContainer}>
-          <ProgramStatusBadge
-            status={item.status === "APPROVED" ? "completed" : "onSchedule"}
-            compact={true}
-          />
-        </View>
-
-        <View style={styles.dateContainer}>
-          <Text style={styles.dateText}>{formattedDate}</Text>
-        </View>
+        )}
       </View>
     </TouchableOpacity>
   );

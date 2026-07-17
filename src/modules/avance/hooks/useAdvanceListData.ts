@@ -5,14 +5,17 @@ import {
   useAdvancesByCatalog,
 } from "src/hooks/data/query/useAvance";
 import { PhysicalAdvanceResponse } from "src/realm/avanceByCatalog/PhysicalAdvanceResponse";
+import { DateUtils } from "src/utils/dateUtils";
 
 export type StatusFilter = "all" | "pending" | "approved" | "rejected";
 
+// Fechas como strings ISO UTC (las que produce useDateRangeFilter), nunca
+// Date construidos con new Date(string) — patrón obligatorio ADR-003 D9
 interface UseAdvanceListDataProps {
   statusFilter: StatusFilter;
-  startDate?: Date;
-  endDate?: Date;
-  singleDate?: Date;
+  startDate?: string;
+  endDate?: string;
+  singleDate?: string;
 }
 
 const filterByStatus = (
@@ -45,27 +48,30 @@ const filterByStatus = (
 
 const filterByDateRange = (
   advances: PhysicalAdvanceResponse[],
-  startDate: Date,
-  endDate: Date,
+  startDate: string,
+  endDate: string,
 ): PhysicalAdvanceResponse[] => {
-  return advances.filter((advance) => {
-    const advanceDate = new Date(advance.date);
-    return advanceDate >= startDate && advanceDate <= endDate;
-  });
+  return advances.filter((advance) =>
+    DateUtils.isDateInUTCRange(advance.date, startDate, endDate),
+  );
 };
 
 const filterBySingleDate = (
   advances: PhysicalAdvanceResponse[],
-  singleDate: Date,
+  singleDate: string,
 ): PhysicalAdvanceResponse[] => {
-  return advances.filter((advance) => {
-    const advanceDate = new Date(advance.date);
-    return (
-      advanceDate.getFullYear() === singleDate.getFullYear() &&
-      advanceDate.getMonth() === singleDate.getMonth() &&
-      advanceDate.getDate() === singleDate.getDate()
+  // Legacy: convertir el día a su rango local completo (mismo criterio que
+  // useDateRangeFilter aplica para type "single")
+  try {
+    const range = DateUtils.localDateToUTCRange(
+      DateUtils.parseUTCDate(singleDate),
     );
-  });
+    return advances.filter((advance) =>
+      DateUtils.isDateInUTCRange(advance.date, range.start, range.end),
+    );
+  } catch {
+    return advances;
+  }
 };
 
 const calculateSummary = (advances: PhysicalAdvanceResponse[] | null) => {
@@ -172,9 +178,7 @@ export const useAdvanceListData = ({
     }
 
     // Sort by date descending (most recent first) across all catalogs
-    return filtered.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
+    return filtered.sort((a, b) => DateUtils.compareUTCDates(b.date, a.date));
   }, [allAdvancesRealmList, statusFilter, startDate, endDate, singleDate]);
 
   return {

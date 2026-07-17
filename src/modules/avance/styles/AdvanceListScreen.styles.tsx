@@ -140,6 +140,16 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     textAlignVertical: "center",
   },
+  // Encabezado de sección por día (SectionList, ADR-003 D6)
+  sectionHeader: {
+    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.xs),
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.neutral[500],
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: getResponsiveSpacing(DesignTokens.spacing.md),
+    marginBottom: getResponsiveSpacing(DesignTokens.spacing.sm),
+  },
   advanceItem: {
     backgroundColor: DesignTokens.colors.background.primary,
     borderRadius: getResponsiveSpacing(DesignTokens.borderRadius.md),
@@ -148,6 +158,41 @@ const styles = StyleSheet.create({
     marginBottom: getResponsiveSpacing(DesignTokens.spacing.sm),
     ...DesignTokens.shadows.base,
     borderLeftWidth: 4,
+  },
+  // Card rejerarquizada (L-01b): el volumen es el protagonista tipográfico
+  cardCejilla: {
+    fontSize: getResponsiveFontSize(DesignTokens.typography.fontSize.xs),
+    color: DesignTokens.colors.neutral[400],
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    includeFontPadding: false,
+  },
+  cardVolume: {
+    fontSize: getResponsiveFontSize(18),
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.neutral[900],
+    marginTop: getResponsiveSpacing(4),
+    includeFontPadding: false,
+    fontVariant: ["tabular-nums"],
+  },
+  cardMetaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: getResponsiveSpacing(4),
+  },
+  cardImporte: {
+    fontSize: getResponsiveFontSize(11),
+    color: DesignTokens.colors.success[600],
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    fontVariant: ["tabular-nums"],
+  },
+  cardMetaRight: {
+    fontSize: getResponsiveFontSize(11),
+    color: DesignTokens.colors.neutral[500],
+    fontVariant: ["tabular-nums"],
+  },
+  cardMetaAmber: {
+    color: DesignTokens.colors.warning[700],
   },
   advanceHeader: {
     flexDirection: "row",

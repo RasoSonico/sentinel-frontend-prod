@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo, memo } from "react";
 import {
-  FlatList,
+  SectionList,
   SafeAreaView,
   TouchableOpacity,
   RefreshControl,
@@ -9,9 +9,10 @@ import {
   ActivityIndicator,
   Text,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { Ionicons } from "@expo/vector-icons";
+import { format } from "date-fns";
 
 import { SabanaStackParamList } from "src/navigation/types";
 import { PhysicalAdvanceResponse } from "src/types/entities";
@@ -20,6 +21,11 @@ import { useAdvanceListData, StatusFilter } from "../hooks/useAdvanceListData";
 import { usePendingAdvanceQueue } from "src/hooks/avance/usePendingAdvanceQueue";
 import { useBottomSheet } from "../hooks/useBottomSheet";
 import { useDateRangeFilter } from "src/hooks/ui/useDateRangeFilter";
+import {
+  useRelativeDate,
+  useCustomFormattedDate,
+} from "src/hooks/ui/useDateFormatting";
+import { DateUtils } from "src/utils/dateUtils";
 
 import AdvanceItemCard from "../components/AdvanceItemCard";
 import AdvanceListHeader from "../components/AdvanceListHeader";
@@ -35,6 +41,27 @@ type AdvanceListScreenNavigationProp = StackNavigationProp<
   "AvancesList"
 >;
 
+type AdvanceListScreenRouteProp = RouteProp<SabanaStackParamList, "AvancesList">;
+
+interface DaySection {
+  key: string;
+  date: string;
+  data: PhysicalAdvanceResponse[];
+}
+
+// Título de sección por día local: "Hoy · jueves 16 de julio", "Ayer · …",
+// o la fecha completa capitalizada (ADR-003 D6; fechas vía DateUtils, D9)
+const DaySectionHeader = memo(({ date }: { date: string }) => {
+  const relative = useRelativeDate(date);
+  const full = useCustomFormattedDate(date, "EEEE d 'de' MMMM");
+  const label =
+    relative === "Hoy" || relative === "Ayer"
+      ? `${relative} · ${full}`
+      : full.charAt(0).toUpperCase() + full.slice(1);
+  return <Text style={styles.sectionHeader}>{label}</Text>;
+});
+DaySectionHeader.displayName = "DaySectionHeader";
+
 const AdvanceListScreen: React.FC = () => {
   // State
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -42,20 +69,17 @@ const AdvanceListScreen: React.FC = () => {
 
   // Hooks
   const navigation = useNavigation<AdvanceListScreenNavigationProp>();
+  const route = useRoute<AdvanceListScreenRouteProp>();
 
+  // Filtro inicial por ruta: los contadores de la franja Hoy llegan con el
+  // rango de hoy (ADR-003 D5)
   const {
     dateFilter,
     setDateFilter,
-    startDate: startDateStr,
-    endDate: endDateStr,
-    singleDate: singleDateStr,
-  } = useDateRangeFilter();
-
-  // useAdvanceListData expects Date objects — convert from the string values
-  // returned by useDateRangeFilter
-  const startDate = startDateStr ? new Date(startDateStr) : undefined;
-  const endDate = endDateStr ? new Date(endDateStr) : undefined;
-  const singleDate = singleDateStr ? new Date(singleDateStr) : undefined;
+    startDate,
+    endDate,
+    singleDate,
+  } = useDateRangeFilter(route.params?.initialFilter ?? null);
 
   const {
     assignedConstruction,
@@ -88,6 +112,38 @@ const AdvanceListScreen: React.FC = () => {
     closeBottomSheet,
     setSelectedAdvance,
   } = useBottomSheet();
+
+  // Agrupación por día local — el día es la unidad de memoria del contratista
+  // (ADR-003 D6). `advances` ya viene ordenado descendente.
+  const sections = useMemo<DaySection[]>(() => {
+    const map = new Map<string, DaySection>();
+    for (const advance of advances) {
+      let key: string;
+      try {
+        key = format(DateUtils.parseUTCDate(advance.date), "yyyy-MM-dd");
+      } catch {
+        key = advance.date || "unknown";
+      }
+      const existing = map.get(key);
+      if (existing) {
+        existing.data.push(advance);
+      } else {
+        map.set(key, { key, date: advance.date, data: [advance] });
+      }
+    }
+    return Array.from(map.values());
+  }, [advances]);
+
+  // Abrir un avance específico al llegar desde la galería de fotos del día
+  const openAdvanceId = route.params?.openAdvanceId;
+  useEffect(() => {
+    if (!openAdvanceId) return;
+    const target = advances.find((a) => a.id === openAdvanceId);
+    if (target) {
+      openBottomSheet(target);
+      navigation.setParams({ openAdvanceId: undefined });
+    }
+  }, [openAdvanceId, advances, openBottomSheet, navigation]);
 
   // Set header title and queue button
   useEffect(() => {
@@ -240,11 +296,15 @@ const AdvanceListScreen: React.FC = () => {
         <OfflineIndicator />
       </View>
 
-      {/* Main List */}
-      <FlatList
-        data={advances}
+      {/* Main List — SectionList agrupada por día local (ADR-003 D6) */}
+      <SectionList
+        sections={sections}
         renderItem={renderItem}
+        renderSectionHeader={({ section }) => (
+          <DaySectionHeader date={(section as DaySection).date} />
+        )}
         keyExtractor={keyExtractor}
+        stickySectionHeadersEnabled={false}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmpty}
