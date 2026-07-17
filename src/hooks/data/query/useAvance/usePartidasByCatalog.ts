@@ -90,7 +90,9 @@ export const partidasByCatalogOptions = (
         );
       } catch (error) {
         logRealmStoreError("Partidas By Catalog", error, data);
-        throw error;
+        // Realm cerrado en pleno vuelo: devolver los datos de la API sin
+        // cachear (patrón de useHubDiario); el siguiente refetch cachea
+        return data;
       }
 
       return data;

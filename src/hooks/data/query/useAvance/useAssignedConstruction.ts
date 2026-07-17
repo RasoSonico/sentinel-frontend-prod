@@ -88,7 +88,9 @@ export const assignedConstructionOptions = (
         );
       } catch (error) {
         logRealmStoreError("Assigned Construction", error, data);
-        throw error;
+        // Realm cerrado en pleno vuelo: devolver los datos de la API sin
+        // cachear (patrón de useHubDiario); el siguiente refetch cachea
+        return data;
       }
 
       return data;

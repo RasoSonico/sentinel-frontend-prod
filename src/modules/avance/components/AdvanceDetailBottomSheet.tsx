@@ -20,6 +20,7 @@ import BottomSheet, {
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
 import BottomSheetBackdrop from "../../../components/ui/BottomSheetBackdrop";
+import ImageView from "react-native-image-viewing";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PhysicalAdvanceResponse } from "../../../types/entities";
@@ -51,6 +52,8 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [volumeItemY, setVolumeItemY] = useState(0);
   const [commentItemY, setCommentItemY] = useState(0);
+  // Visor de fotos a pantalla completa (swipe + pinch-zoom)
+  const [photoViewerIndex, setPhotoViewerIndex] = useState<number | null>(null);
 
   // Mutations
   const updateAdvanceMutation = useUpdateAdvance();
@@ -188,7 +191,13 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
 
   if (!advance) return null;
 
+  const viewerImages = (advance.photos ?? []).map((photo) => ({
+    // Imagen completa; fallback al thumbnail si el SAS de la grande falló
+    uri: photo.url || photo.thumbnail_url,
+  }));
+
   return (
+    <>
     <BottomSheet
       ref={bottomSheetRef}
       index={isVisible ? 0 : -1}
@@ -362,13 +371,18 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.evidenceRow}
             >
-              {Array.from(advance.photos).map((photo) => (
-                <Image
+              {Array.from(advance.photos).map((photo, index) => (
+                <TouchableOpacity
                   key={photo.id}
-                  source={{ uri: photo.thumbnail_url || photo.url }}
-                  style={styles.evidenceThumb}
-                  resizeMode="cover"
-                />
+                  activeOpacity={0.8}
+                  onPress={() => setPhotoViewerIndex(index)}
+                >
+                  <Image
+                    source={{ uri: photo.thumbnail_url || photo.url }}
+                    style={styles.evidenceThumb}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
@@ -482,6 +496,23 @@ const AdvanceDetailBottomSheet: React.FC<AdvanceDetailBottomSheetProps> = ({
         </View>
       )}
     </BottomSheet>
+
+    {/* Visor de evidencia a pantalla completa: swipe entre fotos + pinch
+        zoom (react-native-image-viewing, JS puro — renderiza en un Modal) */}
+    <ImageView
+      images={viewerImages}
+      imageIndex={photoViewerIndex ?? 0}
+      visible={photoViewerIndex !== null}
+      onRequestClose={() => setPhotoViewerIndex(null)}
+      swipeToCloseEnabled
+      doubleTapToZoomEnabled
+      FooterComponent={({ imageIndex }) => (
+        <Text style={styles.viewerFooter}>
+          {imageIndex + 1} / {viewerImages.length}
+        </Text>
+      )}
+    />
+    </>
   );
 };
 

@@ -136,6 +136,12 @@ const styles = StyleSheet.create({
     borderRadius: DesignTokens.borderRadius.base,
     backgroundColor: DesignTokens.colors.neutral[100],
   },
+  viewerFooter: {
+    textAlign: "center",
+    color: "#FFFFFF",
+    fontSize: DesignTokens.typography.fontSize.sm,
+    paddingBottom: DesignTokens.spacing["2xl"],
+  },
 
   // Item label - Minimalista
   itemLabel: {

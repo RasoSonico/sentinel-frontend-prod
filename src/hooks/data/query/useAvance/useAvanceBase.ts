@@ -75,7 +75,9 @@ export const avanceBaseOptions = (realm: Realm, isOnline: boolean | null) =>
         });
       } catch (error) {
         logRealmStoreError("Avance Base", error, data);
-        throw error;
+        // Realm cerrado en pleno vuelo: devolver los datos de la API sin
+        // cachear (patrón de useHubDiario); el siguiente refetch cachea
+        return data;
       }
 
       return data;
