@@ -1,20 +1,14 @@
 import React, { memo } from "react";
 import { View, Text } from "react-native";
 import { SabanaGlobalStats } from "src/hooks/data/query/useAvance/utils/sabanaTreeBuilder";
+import { formatCurrency } from "../utils/formatCurrency";
 import styles from "../styles/SabanaScreen.styles";
+
+// NOTA (ADR-003 D3): retirada del cuerpo de la sábana; queda disponible para
+// reciclarse en una futura ficha de obra (deuda técnica #5 del ADR).
 
 interface Props {
   stats: SabanaGlobalStats;
-}
-
-function formatCurrency(value: number): string {
-  if (value >= 1_000_000) {
-    return `$${(value / 1_000_000).toFixed(2)}M`;
-  }
-  if (value >= 1_000) {
-    return `$${(value / 1_000).toFixed(1)}K`;
-  }
-  return `$${value.toFixed(0)}`;
 }
 
 const SabanaGlobalCard: React.FC<Props> = ({ stats }) => {

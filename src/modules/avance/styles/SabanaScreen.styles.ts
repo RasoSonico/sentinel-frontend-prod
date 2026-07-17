@@ -70,6 +70,33 @@ export default StyleSheet.create({
     marginBottom: 4,
     marginTop: 8,
   },
+  // Línea compacta de métricas del catálogo activo (ADR-003 D3): la zona
+  // blanca es dominio exclusivo del catálogo
+  catMetrics: {
+    marginHorizontal: 12,
+    marginBottom: 10,
+  },
+  catMetricsText: {
+    fontSize: 12,
+    color: DesignTokens.colors.neutral[500],
+    fontVariant: ["tabular-nums"],
+  },
+  catMetricsPct: {
+    color: DesignTokens.colors.success[700],
+    fontWeight: "700",
+  },
+  catMetricsBarBg: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: DesignTokens.colors.neutral[200],
+    marginTop: 5,
+    overflow: "hidden",
+  },
+  catMetricsBarFill: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: DesignTokens.colors.success[500],
+  },
   catalogSelectorStatic: {
     paddingVertical: 6,
   },

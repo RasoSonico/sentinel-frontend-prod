@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   SafeAreaView,
   View,
@@ -10,20 +10,38 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  useNavigation,
+  CompositeNavigationProp,
+} from "@react-navigation/native";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { format } from "date-fns";
 
 import { useSabanaData } from "../hooks/useSabanaData";
+import { useTodaySummary } from "../hooks/useTodaySummary";
 import {
   buildFlatTree,
   getSearchResults,
   FlatTreeItem,
   SearchResultItem,
 } from "src/hooks/data/query/useAvance/utils/sabanaTreeBuilder";
+import { usePendingAdvanceQueue } from "src/hooks/avance/usePendingAdvanceQueue";
+import { DateUtils } from "src/utils/dateUtils";
+import { DateFilter } from "src/components/ui/filters/DateRangeFilter";
+import {
+  AppTabParamList,
+  SabanaStackParamList,
+} from "src/navigation/types";
+import { telemetry } from "src/services/telemetry";
 
 import OfflineIndicator from "../components/OfflineIndicator";
 import SabanaCatalogSelector from "../components/SabanaCatalogSelector";
-import SabanaGlobalCard from "../components/SabanaGlobalCard";
+import SabanaCatalogMetrics from "../components/SabanaCatalogMetrics";
 import SabanaTreeItem from "../components/SabanaTreeItem";
 import SabanaSearchResult from "../components/SabanaSearchResult";
+import HoyResumenHeader from "../components/HoyResumenHeader";
+import QueueHeaderButton from "../components/QueueHeaderButton";
 
 import styles from "../styles/SabanaScreen.styles";
 import { DesignTokens } from "src/styles/designTokens";
@@ -33,7 +51,19 @@ type ListItem =
   | { kind: "tree"; item: FlatTreeItem }
   | { kind: "search"; item: SearchResultItem };
 
+type SabanaHomeNavigationProp = CompositeNavigationProp<
+  StackNavigationProp<SabanaStackParamList, "SabanaHome">,
+  BottomTabNavigationProp<AppTabParamList>
+>;
+
+// Filtro "hoy" (rango UTC del día local) para los destinos de los contadores
+const buildTodayFilter = (): DateFilter => {
+  const { start, end } = DateUtils.getTodayUTCRange();
+  return { type: "range", startDate: start, endDate: end, label: "Hoy" };
+};
+
 const SabanaScreen: React.FC = () => {
+  const navigation = useNavigation<SabanaHomeNavigationProp>();
   const [selectedCatalogId, setSelectedCatalogId] = useState<number | null>(
     null,
   );
@@ -43,6 +73,63 @@ const SabanaScreen: React.FC = () => {
 
   const { catalogs, effectiveCatalogId, tree, globalStats, isLoading } =
     useSabanaData(selectedCatalogId);
+
+  const { constructionId, obraNombre, resumenObra, counts } = useTodaySummary();
+
+  // Ícono de nube con badge en el header de navegación → cola de sync
+  const { pendingCount, failedCount, syncingCount } = usePendingAdvanceQueue();
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <QueueHeaderButton
+          pendingCount={pendingCount}
+          failedCount={failedCount}
+          syncingCount={syncingCount}
+          onPress={() => navigation.navigate("PendingSync")}
+        />
+      ),
+    });
+  }, [navigation, pendingCount, failedCount, syncingCount]);
+
+  // ── Handlers de la franja Hoy (ADR-003 D2/D5: los contadores NAVEGAN,
+  // jamás filtran el árbol in situ) ──────────────────────────────────────────
+  const handleAvancesPress = useCallback(() => {
+    telemetry.trackEvent("hoy_counter_tapped", { counter: "avances" });
+    navigation.navigate("AvancesList", { initialFilter: buildTodayFilter() });
+  }, [navigation]);
+
+  // Fallback aprobado del ADR mientras la galería llega en el siguiente
+  // paquete: navegar al historial de hoy
+  const handleFotosPress = useCallback(() => {
+    telemetry.trackEvent("hoy_counter_tapped", { counter: "fotos" });
+    navigation.navigate("AvancesList", { initialFilter: buildTodayFilter() });
+  }, [navigation]);
+
+  const handleIncidenciasPress = useCallback(() => {
+    telemetry.trackEvent("hoy_counter_tapped", { counter: "incidencias" });
+    navigation.navigate("IncidentsList", { initialFilter: buildTodayFilter() });
+  }, [navigation]);
+
+  const handleReporteDiaPress = useCallback(() => {
+    if (constructionId === null) return;
+    telemetry.trackEvent("reporte_del_dia_tapped", {
+      obra_id: constructionId,
+    });
+    const hoy = format(new Date(), "yyyy-MM-dd");
+    navigation.navigate("Reportes", {
+      screen: "AdvanceReport",
+      params: {
+        constructionId: String(constructionId),
+        constructionName: obraNombre ?? "",
+        dateFrom: hoy,
+        dateTo: hoy,
+      },
+    });
+  }, [navigation, constructionId, obraNombre]);
+
+  const handleIncidenciaPress = useCallback(() => {
+    navigation.navigate("IncidentRegistration");
+  }, [navigation]);
 
   const handleToggle = useCallback((nodeKey: string) => {
     setExpandedIds((prev) => {
@@ -112,6 +199,19 @@ const SabanaScreen: React.FC = () => {
   const ListHeader = useMemo(
     () => (
       <>
+        {/* Franja ejecutiva del día (zona oscura, ADR-003 D2/D3); viaja con
+            el scroll — al bajar, la sábana toma el 100% de la pantalla */}
+        <HoyResumenHeader
+          obraNombre={obraNombre}
+          resumenObra={resumenObra}
+          counts={counts}
+          onPressAvances={handleAvancesPress}
+          onPressFotos={handleFotosPress}
+          onPressIncidencias={handleIncidenciasPress}
+          onPressReporteDia={handleReporteDiaPress}
+          onPressIncidencia={handleIncidenciaPress}
+        />
+
         {/* Catalog selector — on screen, not in Stack header */}
         <SabanaCatalogSelector
           catalogs={catalogs}
@@ -119,8 +219,9 @@ const SabanaScreen: React.FC = () => {
           onSelect={handleCatalogSelect}
         />
 
-        {/* Global progress card */}
-        <SabanaGlobalCard stats={globalStats} />
+        {/* Métricas del catálogo activo (la GlobalCard se retiró: el global
+            de obra vive en la franja oscura) */}
+        <SabanaCatalogMetrics stats={globalStats} />
 
         {/* Mode toggle */}
         <View style={styles.modeToggle}>
@@ -222,6 +323,14 @@ const SabanaScreen: React.FC = () => {
       handleModeChange,
       query,
       resultsLabel,
+      obraNombre,
+      resumenObra,
+      counts,
+      handleAvancesPress,
+      handleFotosPress,
+      handleIncidenciasPress,
+      handleReporteDiaPress,
+      handleIncidenciaPress,
     ],
   );
 
