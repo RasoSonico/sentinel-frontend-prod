@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SENTINEL · Renders finales — Rediseño de navegación y flujo del contratista</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c2430; --ink-2:#4b5563; --ink-3:#8b95a3;
+    --paper:#fafaf8; --line:#d8dce2; --line-soft:#eceff3;
+    --teal:#0f766e; --teal-soft:#e6f3f1;
+    --violet:#6d5fd3; --violet-soft:#efedfa;
+    --coral:#d6554d; --coral-soft:#fbeeec;
+    --slate:#1e293b; --slate-2:#334155;
+    --green:#10b981; --red:#ef4444; --amber:#f59e0b; --blue:#3b82f6;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans',system-ui,sans-serif; font-size:15px; line-height:1.55;}
+  .wrap{max-width:1040px; margin:0 auto; padding:32px 20px 80px;}
+
+  /* ── Cajetín (title block) ─────────────────────────── */
+  .cajetin{border:1.5px solid var(--ink); background:#fff;}
+  .cj-top{display:flex; justify-content:space-between; align-items:stretch; border-bottom:1.5px solid var(--ink);}
+  .cj-brand{padding:18px 22px; border-right:1.5px solid var(--ink);}
+  .cj-brand h1{font-family:'Archivo',sans-serif; font-weight:700; font-size:26px; letter-spacing:.14em; text-transform:uppercase;}
+  .cj-brand small{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-2); letter-spacing:.08em;}
+  .cj-title{padding:18px 22px; flex:1;}
+  .cj-title h2{font-family:'Archivo',sans-serif; font-weight:600; font-size:17px; line-height:1.3;}
+  .cj-title p{font-size:13px; color:var(--ink-2); margin-top:4px;}
+  .cj-meta{display:grid; grid-template-columns:repeat(4,1fr);}
+  .cj-cell{padding:10px 22px; border-right:1px solid var(--line);}
+  .cj-cell:last-child{border-right:none;}
+  .cj-cell b{display:block; font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:500; color:var(--ink-3); text-transform:uppercase; letter-spacing:.1em; margin-bottom:2px;}
+  .cj-cell span{font-size:13px; font-weight:500;}
+  .legend{display:flex; gap:18px; flex-wrap:wrap; padding:14px 4px 0; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-2);}
+  .legend i{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:-1px;}
+
+  /* ── Secciones por plano ───────────────────────────── */
+  .sec{margin-top:52px;}
+  .sec-head{display:flex; align-items:baseline; gap:14px; border-bottom:2px solid var(--acc); padding-bottom:8px; margin-bottom:6px;}
+  .sec-head .code{font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:500; color:#fff; background:var(--acc); padding:3px 9px; letter-spacing:.08em;}
+  .sec-head h3{font-family:'Archivo',sans-serif; font-weight:600; font-size:19px; text-transform:uppercase; letter-spacing:.06em; color:var(--acc);}
+  .sec-head p{font-size:13px; color:var(--ink-2);}
+  .sec.teal{--acc:var(--teal); --acc-soft:var(--teal-soft);}
+  .sec.violet{--acc:var(--violet); --acc-soft:var(--violet-soft);}
+  .sec.coral{--acc:var(--coral); --acc-soft:var(--coral-soft);}
+
+  /* ── Lámina (screen + notes) ───────────────────────── */
+  .lamina{display:flex; gap:26px; align-items:flex-start; flex-wrap:wrap; padding:26px 0 8px; border-bottom:1px dashed var(--line);}
+  .lamina:last-child{border-bottom:none;}
+  .lam-id{width:100%; display:flex; align-items:center; gap:10px;}
+  .lam-id .tag{font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:500; background:var(--acc-soft); color:var(--acc); padding:3px 9px; border:1px solid var(--acc);}
+  .lam-id h4{font-family:'Archivo',sans-serif; font-size:16px; font-weight:600;}
+  .lam-id em{font-size:12.5px; color:var(--ink-3); font-style:normal;}
+
+  .notes{flex:1; min-width:250px; display:flex; flex-direction:column; gap:9px;}
+  .ann{display:flex; gap:10px; background:#fff; border:1px solid var(--line-soft); border-left:3px solid var(--acc); padding:10px 12px;}
+  .ann .n{font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:500; color:#fff; background:var(--acc); min-width:18px; height:18px; display:flex; align-items:center; justify-content:center; margin-top:2px;}
+  .ann p{font-size:13px; color:var(--ink-2); line-height:1.5;}
+  .ann b{color:var(--ink); font-weight:600;}
+
+  /* markers dentro del teléfono */
+  .mk{font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:500; color:#fff; background:var(--acc,#6d5fd3); min-width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; border-radius:3px; flex-shrink:0;}
+
+  /* ── Teléfono (tokens SENTINEL, fidelidad) ─────────── */
+  .phone{width:344px; max-width:100%; background:#f9fafb; border-radius:22px; border:1px solid #c8cdd5; overflow:hidden; flex-shrink:0; box-shadow:0 1px 3px rgba(20,26,34,.08); font-size:13px;}
+  .p-hdr{background:var(--slate); padding:13px 14px; display:flex; align-items:center; justify-content:space-between; color:#fff;}
+  .p-hdr .t{font-size:15.5px; font-weight:500; text-align:center; flex:1;}
+  .p-hdr .sub{font-size:11.5px; color:#94a3b8; text-align:center;}
+  .strip{background:var(--slate-2); padding:12px 14px; color:#fff;}
+  .strip .row{display:flex; justify-content:space-between; align-items:center;}
+  .stats{display:flex; gap:6px; margin:10px 0;}
+  .stat{flex:1; background:rgba(255,255,255,.08); border-radius:8px; padding:7px 3px; text-align:center;}
+  .stat b{display:block; font-size:16px; font-weight:600;}
+  .stat span{font-size:10.5px; color:#94a3b8;}
+  .stat.warn{background:rgba(245,158,11,.18);}
+  .stat.warn b,.stat.warn span{color:#fbbf24;}
+  .eco{display:flex; justify-content:space-between; align-items:center; background:rgba(109,95,211,.22); border-radius:8px; padding:7px 10px; margin-bottom:10px; color:#c7d2fe; font-size:11.5px;}
+  .acts{display:flex; gap:8px;}
+  .btn-g{flex:1; background:var(--green); border-radius:8px; padding:9px 0; text-align:center; color:#fff; font-size:12.5px; font-weight:500;}
+  .btn-o{flex:1; border:1px solid #64748b; border-radius:8px; padding:8px 0; text-align:center; color:#e2e8f0; font-size:12.5px; font-weight:500;}
+  .p-body{padding:10px 12px 12px;}
+  .card{background:#fff; border-radius:9px; border:1px solid #e5e7eb; padding:10px 12px; margin-bottom:7px;}
+  .card.sub{margin-left:10px;}
+  .rowsb{display:flex; justify-content:space-between; align-items:center;}
+  .rowst{display:flex; justify-content:space-between; align-items:flex-start;}
+  .wbs{font-size:10.5px; color:#9ca3af;}
+  .desc{font-size:11.5px; color:#374151; line-height:1.35; margin:3px 0 5px;}
+  .meta{font-size:10.5px; color:#6b7280; margin-bottom:4px;}
+  .chip{font-size:10px; font-weight:600; border-radius:8px; padding:1px 7px; white-space:nowrap;}
+  .ch-green{background:#d1fae5; color:#065f46;}
+  .ch-red{background:#fee2e2; color:#991b1b;}
+  .ch-blue{background:#dbeafe; color:#1e40af;}
+  .ch-gray{background:#f3f4f6; color:#6b7280;}
+  .ch-ind{background:#eef2ff; color:#4338ca;}
+  .bar{height:4px; background:#e5e7eb; border-radius:2px; position:relative;}
+  .bar .fill{height:4px; border-radius:2px; background:var(--green);}
+  .bar .fill.r{background:var(--red);} .bar .fill.b{background:var(--blue);}
+  .bar .markpt{position:absolute; top:-3px; width:2px; height:10px; background:#6b7280;}
+  .plus{width:32px; height:32px; border-radius:16px; background:var(--green); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:600; flex-shrink:0;}
+  .tabs{background:#fff; border-top:1px solid #e5e7eb; display:flex; padding:7px 0 9px;}
+  .tab{flex:1; text-align:center; font-size:9.5px; color:#9ca3af;}
+  .tab .ic{font-size:15px; line-height:1.2;}
+  .tab.on{color:var(--slate); font-weight:600;}
+  /* sheets */
+  .dim{background:#64748b;}
+  .dim .p-hdr{background:rgba(30,41,59,.85);} .dim .p-hdr .t{color:rgba(255,255,255,.55);}
+  .ghost{height:64px; background:rgba(51,65,85,.5);}
+  .sheet{background:#fff; border-radius:18px 18px 0 0; padding:10px 15px 15px;}
+  .handle{width:36px; height:4px; background:#d1d5db; border-radius:2px; margin:0 auto 12px;}
+  .cbox{background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:9px 12px; margin-bottom:11px;}
+  .cbox.warn{background:#fef2f2; border-color:#fecaca;}
+  .lbl{font-size:12px; color:#374151; font-weight:600; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;}
+  .input{border:1px solid #d1d5db; border-radius:8px; padding:10px 12px; font-size:17px; font-weight:600; color:#111827;}
+  .stepper{display:inline-flex; align-items:center; border:1px solid #d1d5db; border-radius:8px; overflow:hidden; background:#fff;}
+  .stepper i{padding:7px 13px; color:#6b7280; font-size:16px; font-style:normal;}
+  .stepper b{padding:7px 15px; font-size:16px; border-left:1px solid #d1d5db; border-right:1px solid #d1d5db;}
+  .photos{display:flex; gap:8px;}
+  .ph{width:56px; height:56px; border-radius:8px; background:#e5e7eb; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:10px;}
+  .ph.add{background:#fff; border:1.5px dashed var(--green); color:var(--green); flex-direction:column; font-weight:600;}
+  .cta{background:var(--green); border-radius:10px; padding:12px 0; text-align:center; color:#fff; font-size:14px; font-weight:600;}
+  .cta.dark{background:var(--slate);}
+  .foot{text-align:center; font-size:10.5px; color:#9ca3af; margin-top:8px;}
+  .days{display:flex; gap:4px;}
+  .day{flex:1; text-align:center; padding:5px 0; border-radius:7px; background:rgba(255,255,255,.06); color:#94a3b8; font-size:11px;}
+  .day.on{background:var(--green); color:#fff; font-weight:600;}
+  .day.off{background:rgba(255,255,255,.03); color:#64748b;}
+  .mini-days{display:flex; gap:3px;}
+  .md{width:19px; height:19px; border-radius:5px; background:#e5e7eb; color:#9ca3af; font-size:9.5px; display:flex; align-items:center; justify-content:center; font-weight:600;}
+  .md.on{background:var(--green); color:#fff;}
+  .srcbtn{flex:1; border:1.5px dashed #9ca3af; border-radius:9px; padding:8px 0; text-align:center; color:#374151; font-size:11.5px; font-weight:600;}
+  .trz{border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; margin-bottom:11px;}
+  .trz .r{display:flex; justify-content:space-between; padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:11.5px; color:#374151;}
+  .trz .r b{color:#1f2937;}
+  .trz .r.hoy{background:#f0fdf4;}
+  .trz .more{text-align:center; padding:8px; font-size:11.5px; color:#2563eb; font-weight:600;}
+  .chart{border:1px solid #e5e7eb; border-radius:10px; padding:12px 12px 8px; margin-bottom:11px;}
+  .bars{display:flex; align-items:flex-end; gap:10px; height:96px;}
+  .bg{flex:1; display:flex; align-items:flex-end; justify-content:center; gap:3px; height:100%;}
+  .bg.cur{background:#f0fdf4; border-radius:6px;}
+  .bcol{width:12px; border-radius:3px 3px 0 0;}
+  .b-p{background:#cbd5e1;} .b-e{background:var(--green);} .b-er{background:var(--red);}
+  .xlab{display:flex; gap:10px; margin-top:5px;}
+  .xlab span{flex:1; text-align:center; font-size:10px; color:#9ca3af;}
+  .xlab span.cur{color:#065f46; font-weight:600;}
+  .leg{display:flex; gap:14px; justify-content:center; margin-top:7px; font-size:10.5px; color:#6b7280;}
+  .leg i{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px;}
+  .fr-chips{display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;}
+  .fr{background:#fff; border:1px solid #d1d5db; color:#374151; font-size:10.5px; border-radius:12px; padding:4px 10px;}
+  .fr.on{background:var(--slate); border-color:var(--slate); color:#fff; font-weight:600;}
+  .cause{display:inline-block; font-size:10.5px; border:1px solid #d1d5db; border-radius:11px; padding:3px 9px; color:#374151; margin:0 4px 5px 0;}
+  .cause.on{background:#fee2e2; border-color:#ef4444; color:#991b1b; font-weight:600;}
+  .rep{display:flex; align-items:center; gap:11px; background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:12px; margin-bottom:8px;}
+  .rep .ic{width:38px; height:38px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0;}
+  .rep h5{font-size:13px; font-weight:600; color:#1f2937;}
+  .rep p{font-size:11px; color:#6b7280; line-height:1.35;}
+  .rep.dis{opacity:.55; border-style:dashed;}
+  .panel{background:#eef2f7; border:1px solid #cbd5e1; border-left:3px solid var(--slate); border-radius:9px; padding:11px 12px; margin-bottom:9px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:.09em; text-transform:uppercase; color:#64748b; font-weight:500;}
+  .panel .big{font-size:22px; font-weight:600; color:#0f172a; line-height:1.15;}
+  .panel .big span{font-size:11px; font-weight:500; color:#475569;}
+  .panel-sub{font-size:11px; color:#475569;}
+  .pdiv{height:1px; background:#cbd5e1; margin:9px 0;}
+  .gcard{background:#1e293b; border-radius:12px; padding:14px 16px; margin-bottom:9px;}
+  .gpct{font-size:30px; font-weight:500; color:#e8f0fb; line-height:1.1;}
+  .glab{font-size:11px; color:#6fa3d8; margin-top:1px;}
+  .gbarbg{background:#0d1e3a; border-radius:4px; height:7px; margin-top:9px; position:relative;}
+  .gbarfill{height:7px; border-radius:4px; background:#3d8ef0;}
+  .gmark{position:absolute; top:-3px; width:2px; height:13px; background:#94a3b8;}
+  .gmetas{display:flex; justify-content:space-between; margin-top:6px; font-size:10.5px; color:#6fa3d8;}
+  .catline{padding:0 2px; margin-bottom:10px;}
+  .catname{font-size:15px; font-weight:600; color:#1f2937; display:flex; justify-content:space-between; align-items:center;}
+  .catsub{font-size:11px; color:#6b7280;}
+  @media print{.wrap{padding:0;} .lamina{break-inside:avoid;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══ CAJETÍN ══ -->
+  <div class="cajetin">
+    <div class="cj-top">
+      <div class="cj-brand"><h1>Sentinel</h1><small>CONTROL DE OBRA · MX</small></div>
+      <div class="cj-title">
+        <h2>Rediseño de navegación y flujo del contratista — Renders finales</h2>
+        <p>Especificación visual de referencia para ADR y desarrollo. Ocho láminas organizadas por plano.</p>
+      </div>
+    </div>
+    <div class="cj-meta">
+      <div class="cj-cell"><b>Documento</b><span>UX-SPEC-01 · Rev D</span></div>
+      <div class="cj-cell"><b>Fecha</b><span>15 · jul · 2026</span></div>
+      <div class="cj-cell"><b>Rol</b><span>Contratista</span></div>
+      <div class="cj-cell"><b>Alcance</b><span>Fases 1 – 3</span></div>
+    </div>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--teal)"></i>Plano contractual · sábana</span>
+    <span><i style="background:var(--violet)"></i>Plano producción · semana</span>
+    <span><i style="background:var(--coral)"></i>Entregable · reportes</span>
+    <span style="margin-left:auto">Regla de oro: producción lee la sábana, jamás escribe en ella</span>
+  </div>
+
+  <!-- ════════════════ PLANO CONTRACTUAL ════════════════ -->
+  <section class="sec teal">
+    <div class="sec-head"><span class="code">PC</span><h3>Plano contractual</h3><p>La sábana como home · Fases 1 y 2</p></div>
+
+    <!-- Lámina 1: Sábana home -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-01 · Rev D</span><h4>Sábana (home)</h4><em>zona oscura ejecutiva · zona blanca del catálogo</em></div>
+      <div class="phone">
+        <div class="p-hdr"><span style="width:22px"></span><span class="t">Sábana de Avance</span>
+          <span style="position:relative">☁<span style="position:absolute;top:-6px;right:-8px;background:#f59e0b;color:#1e293b;font-size:10px;font-weight:600;border-radius:8px;padding:0 4px">2</span></span>
+        </div>
+        <div class="strip">
+          <div class="rowst">
+            <div>
+              <b style="font-size:13px">Hoy · jueves 16 de julio</b> <span class="mk" style="--acc:var(--teal)">1</span>
+              <div class="eyebrow" style="color:#94a3b8;margin-top:3px">Obra · GDL – Jalisco</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:12.5px;color:#e8f0fb"><span style="color:#94a3b8;font-size:10px;letter-spacing:.06em">AVANCE</span> <b>38.4%</b></div>
+              <div style="font-size:12.5px;margin-top:1px"><span style="color:#94a3b8;font-size:10px;letter-spacing:.06em">PROG.</span> <b style="color:#6fa3d8">44.0%</b> <span class="mk" style="--acc:var(--teal)">2</span></div>
+            </div>
+          </div>
+          <div class="gbarbg" style="margin-top:6px;height:5px"><div class="gbarfill" style="width:38.4%;height:5px"></div><div class="gmark" style="left:44%;height:11px"></div></div>
+          <div class="rowsb" style="margin-top:4px"><span style="font-size:10px;color:#6fa3d8">Ejecutado $12.6M</span><span style="font-size:10px;color:#6fa3d8">Contratado $32.8M</span></div>
+          <div class="stats">
+            <div class="stat"><b>6</b><span>Avances</span></div>
+            <div class="stat"><b>4</b><span>Fotos</span></div>
+            <div class="stat"><b>1</b><span>Incidencias</span></div>
+          </div>
+          <div class="eco"><span>▦ Semana 29: 2 al día · 1 atrasada</span><span>❯</span></div>
+          <div class="acts"><div class="btn-g">⬇ Reporte del día</div><div class="btn-o">⚠ Incidencia</div></div>
+        </div>
+        <div class="p-body">
+          <div class="catline">
+            <div class="catname"><span>Albañilerías</span><span style="font-size:14px;color:#9ca3af">⇄</span></div>
+            <div class="catsub">GDL – Jalisco</div>
+            <div class="catsub" style="margin-top:5px">Físico <b style="color:#0f766e">42.3%</b> · prog. 48.0% · Importe $4.2M</div>
+            <div class="bar" style="margin-top:4px"><div class="fill" style="width:42%"></div><div class="markpt" style="left:48%"></div></div>
+          </div>
+          <div class="card"><div class="rowsb"><span style="font-weight:600;font-size:13px">▾ Cimentaciones</span><span style="color:#10b981;font-weight:600;font-size:12px">58%</span></div></div>
+          <div class="card sub">
+            <div class="rowst"><span class="wbs">1.2.03</span>
+              <span style="display:flex;gap:5px;align-items:center"><span class="chip ch-red">Atrasado</span><span class="mk" style="--acc:var(--teal)">3</span></span></div>
+            <div class="desc">Excavación en cepas a máquina en material tipo II…</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1"><div class="meta">Debía <b style="color:#991b1b">180.0</b> · lleva <b style="color:#1f2937">145.5 m³</b></div>
+                <div class="bar"><div class="fill r" style="width:73%"></div><div class="markpt" style="left:90%"></div></div></div>
+              <div class="plus">+</div>
+            </div>
+          </div>
+          <div class="card sub">
+            <div class="rowst"><span class="wbs">1.2.04</span>
+              <span style="display:flex;gap:5px;align-items:center"><span class="chip ch-gray">Inicia S31</span><span class="mk" style="--acc:var(--teal)">4</span></span></div>
+            <div class="desc">Plantilla de concreto f'c=100 kg/cm² de 5 cm…</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1"><div class="meta">Ejec: <b style="color:#1f2937">0.0 / 85.0 m²</b> · aún no programado</div>
+                <div class="bar"></div></div>
+              <div class="plus">+</div>
+            </div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab on"><div class="ic">▦</div>Sábana</div>
+          <div class="tab"><div class="ic">▤</div>Semana</div>
+          <div class="tab"><div class="ic">▥</div>Reportes</div>
+          <div class="tab"><div class="ic">⛟</div>Maquinaria</div>
+          <div class="tab" style="position:relative"><div class="ic">◉</div>Perfil<span class="mk" style="--acc:var(--teal);position:absolute;top:-4px;right:6px">5</span></div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>Hoy: viaja con el scroll, no es fijo.</b> Primer elemento de la lista: al bajar desaparece y la sábana toma el 100%; el tercio se paga solo en el aterrizaje. <b>Rev C:</b> se retiró el contador "Por sync" — duplicaba al ícono de la nube del header, que ya navega a la cola de sincronización. Tres contadores, franja más ligera.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>Obra vive en la franja oscura.</b> Rev D: la card grande se retira de verdad; Avance y Prog. apilados en la esquina superior derecha a la altura de "Hoy" (punto de lectura fijo), barra delgada con marca de programado e importes debajo (~30px vs ~90px de la card). La división de color queda semántica: zona oscura = resumen ejecutivo (día + obra); zona blanca = dominio del catálogo. Recursos RN de costo cero: barras View, tabular-nums, cejillas; anillo SVG o contador Reanimated solo si el piloto pide más jerarquía. Fórmula reutilizada de rollupPct; agregado servido por backend (deuda técnica en ADR). SabanaGlobalCard se retira o se recicla para una futura ficha de obra.</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Atraso por concepto.</b> La lectura cultural directa: "debía 180, lleva 145.5", acumulado a la fecha de corte. Solo aparece si el programa existe a este nivel — jamás se prorratea. <b>Rev B:</b> se retiró el badge "hoy"; su función vive en el contador Avances (filtra al día), en la trazabilidad de la ficha y en el aviso anti-duplicado del sheet de captura ("ya registraste 12.5 m³ hoy"). Si el piloto pide la señal en fila, regresa como punto discreto junto al WBS.</p></div>
+        <div class="ann"><span class="n">4</span><p><b>"Inicia S31" con versionado.</b> El chip lee siempre el programa <i>vigente</i>. Pateo formal (reprogramación, convenio) = versión nueva cargada en escritorio con fecha, origen y motivo — historia inmutable: "inicio S28 → S30 → S31, dos reprogramaciones". Pateo informal: sin control especial — al llegar S31 con volumen exigido y cero ejecución, el chip se vuelve "Atrasado" solo. El sistema no persigue el pateo, lo exhibe. Futuro documentado: "original vs vigente" en la ficha.</p></div>
+        <div class="ann"><span class="n">5</span><p><b>Cinco tabs, cinco significados.</b> Contrato · producción · entregable · equipo · yo. Regla de gesto en toda la app: fila = ver, "+" = capturar.</p></div>
+      </div>
+    </div>
+
+    <!-- Lámina 1a: Destinos de los contadores -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-01a · Rev D</span><h4>Destinos de los contadores</h4><em>qué ve el usuario al tocar Avances · Fotos · Incidencias</em></div>
+      <div class="phone dim">
+        <div class="p-hdr"><span class="t">Sábana de Avance</span></div>
+        <div class="ghost" style="height:70px"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <div class="rowsb" style="margin-bottom:2px">
+            <span style="font-size:14px;font-weight:600;color:#1f2937">Fotos de hoy · 4</span>
+            <span class="mk" style="--acc:var(--teal)">2</span>
+          </div>
+          <div style="font-size:11px;color:#6b7280;margin-bottom:10px">jueves 16 de julio</div>
+          <div style="margin-bottom:6px"><span style="font-size:11.5px;font-weight:600;color:#374151">Cimentaciones › Zapatas aisladas</span> <span style="font-size:10.5px;color:#9ca3af">· 3 fotos</span></div>
+          <div style="display:flex;gap:7px;margin-bottom:12px">
+            <div class="ph" style="width:31%;height:80px;font-size:20px">📷</div>
+            <div class="ph" style="width:31%;height:80px;font-size:20px">📷</div>
+            <div class="ph" style="width:31%;height:80px;font-size:20px">📷</div>
+          </div>
+          <div style="margin-bottom:6px"><span style="font-size:11.5px;font-weight:600;color:#374151">Instalaciones eléctricas › Canalizaciones</span> <span style="font-size:10.5px;color:#9ca3af">· 1 foto</span></div>
+          <div style="display:flex;gap:7px;margin-bottom:10px">
+            <div class="ph" style="width:31%;height:80px;font-size:20px">📷</div>
+          </div>
+          <div class="foot">Toca una foto para abrir el avance que la respalda</div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>Avances (6) → historial de hoy.</b> Empuja AdvanceListScreen existente con filtro inicial de rango = hoy. Cero pantallas nuevas: detalle, estado y fotos por avance ya viven ahí. El historial conserva un rol claro tras dejar de ser home.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>Fotos (4) → galería agrupada por partida › sección.</b> Bottom sheet con SectionList: el encabezado usa el breadcrumb de ancestros que la búsqueda de la sábana ya construye (getSearchResults → ancestors) — cero estructura nueva. Conceptos con section_id null muestran solo la partida; con nivel 3, el breadcrumb completo. Tap en foto → navega al avance que la respalda. Fallback documentado: navegar al historial de hoy.</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Incidencias (1) → lista de hoy.</b> Empuja IncidentListScreen existente filtrada a hoy. La pantalla huérfana de la tab eliminada revive como destino contextual.</p></div>
+        <div class="ann"><span class="n">4</span><p><b>Regla: los contadores navegan, nunca filtran el árbol en sitio.</b> Un filtro silencioso sobre la sábana es un estado de modo oculto ("¿por qué desapareció mi catálogo?"). El detalle del día se ve en pantallas con regreso explícito; la sábana permanece sin modos.</p></div>
+      </div>
+    </div>
+
+    <!-- Lámina 1b: Historial de avances reformado -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-01b · Rev D</span><h4>Historial de avances (reforma ligera)</h4><em>AdvanceListScreen en su nuevo rol: historial y detalle del día</em></div>
+      <div class="phone">
+        <div class="p-hdr"><span style="font-size:16px">‹</span><span class="t">Avances</span><span style="width:16px"></span></div>
+        <div class="p-body">
+          <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin:2px 0 7px">Hoy · jueves 16 de julio</div>
+          <div class="card" style="border-left:3px solid #f59e0b;border-top-left-radius:0;border-bottom-left-radius:0">
+            <div class="rowst">
+              <span class="wbs">Cimentaciones · 1.2.03</span>
+              <span style="display:flex;gap:5px;align-items:center"><span class="chip ch-gray">Pendiente</span><span class="mk" style="--acc:var(--teal)">1</span></span>
+            </div>
+            <div class="desc" style="margin:2px 0 4px">Excavación en cepas a máquina en material tipo II…</div>
+            <div style="font-size:16px;font-weight:600;color:#1f2937">12.5 m³</div>
+            <div class="rowsb" style="margin-top:3px">
+              <span style="font-size:10.5px;color:#059669;font-weight:600">Importe $8,450.00</span>
+              <span style="font-size:10.5px;color:#6b7280">📷 2 · 14:22</span>
+            </div>
+          </div>
+          <div class="card" style="border-left:3px solid #f59e0b;border-top-left-radius:0;border-bottom-left-radius:0">
+            <div class="rowst"><span class="wbs">Cimentaciones · 1.2.04</span><span class="chip ch-gray">Pendiente</span></div>
+            <div class="desc" style="margin:2px 0 4px">Plantilla de concreto f'c=100 kg/cm²…</div>
+            <div style="font-size:16px;font-weight:600;color:#1f2937">22.0 m²</div>
+            <div class="rowsb" style="margin-top:3px">
+              <span style="font-size:10.5px;color:#059669;font-weight:600">Importe $3,120.00</span>
+              <span style="font-size:10.5px;color:#b45309">sin foto · 11:40</span>
+            </div>
+          </div>
+          <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 7px">Miércoles 15 de julio <span class="mk" style="--acc:var(--teal)">2</span></div>
+          <div class="card" style="border-left:3px solid #f59e0b;border-top-left-radius:0;border-bottom-left-radius:0">
+            <div class="rowst"><span class="wbs">Cimentaciones · 1.2.03</span><span class="chip ch-gray">Pendiente</span></div>
+            <div class="desc" style="margin:2px 0 4px">Excavación en cepas a máquina…</div>
+            <div style="font-size:16px;font-weight:600;color:#1f2937">28.0 m³</div>
+            <div class="rowsb" style="margin-top:3px">
+              <span style="font-size:10.5px;color:#059669;font-weight:600">Importe $18,928.00</span>
+              <span style="font-size:10.5px;color:#6b7280">📷 1 · 16:05</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px">
+            <span style="display:flex;align-items:center;gap:6px"><div class="plus" style="width:44px;height:44px;border-radius:22px;font-size:22px">+</div><span class="mk" style="--acc:var(--teal)">3</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>Jerarquía corregida en la card.</b> El volumen con unidad es el único protagonista tipográfico; debajo, fila de metadatos con "Importe $" etiquetado en verde (línea propia = distinción real, presente en todas las cards) y fotos/hora a la derecha; la partida baja a cejilla con WBS. "Sin foto" en ámbar como señal suave. Verificar que el serializer retorne photo_count.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>Agrupación por día (SectionList).</b> El día es la unidad de memoria del contratista. Al llegar desde el contador Avances, filtro inicial = hoy (una sección); navegación libre conserva el header actual de resumen y filtros, que aprende a recibir initialFilter por ruta.</p></div>
+        <div class="ann"><span class="n">3</span><p><b>El speed dial muere.</b> Su acción "Reporte" ya es tab de primer nivel; queda FAB simple → formulario clásico de registro (ruta alternativa de captura).</p></div>
+        <div class="ann"><span class="n">4</span><p><b>Sheet de detalle (sin lámina, tres cambios):</b> (a) agregar franja horizontal de miniaturas — hoy la evidencia se captura pero nunca se puede volver a ver; (b) compactar Catálogo/Partida/Concepto en un bloque de contexto único, mismo patrón de cabecera que ficha y captura; (c) <b>bug UTC</b>: new Date("YYYY-MM-DD") interpreta medianoche UTC y muestra el día anterior en CDMX — toda fecha de negocio pasa por DateUtils. La edición inline de volumen/comentario se conserva tal cual.</p></div>
+      </div>
+    </div>
+
+    <!-- Lámina 1c: Sheet de detalle de avance reformado -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-01c · Rev D</span><h4>Detalle de avance (sheet reformado)</h4><em>AdvanceDetailBottomSheet: contexto compacto + evidencia visible</em></div>
+      <div class="phone dim">
+        <div class="p-hdr"><span class="t">Avances</span></div>
+        <div class="ghost" style="height:34px"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <div class="rowsb" style="margin-bottom:8px">
+            <span style="font-size:14px;font-weight:600;color:#1f2937">Detalle de avance</span>
+            <span style="display:flex;gap:6px;align-items:center"><span style="font-size:11px;color:#6b7280">16 jul 2026</span><span class="chip ch-gray">Pendiente</span></span>
+          </div>
+          <div class="cbox" style="background:#f8fafc;border-color:#e2e8f0">
+            <div class="rowsb"><span class="wbs">Albañilerías · Cimentaciones › Zapatas · 1.2.03</span><span class="mk" style="--acc:var(--teal)">1</span></div>
+            <div style="font-size:12.5px;font-weight:600;color:#1f2937;line-height:1.3;margin-top:2px">Excavación en cepas a máquina en material tipo II</div>
+          </div>
+          <div class="lbl" style="margin-top:2px">Volumen <span style="display:flex;gap:5px;align-items:center"><span style="font-size:12px;color:#2563eb">✎</span><span class="mk" style="--acc:var(--teal)">3</span></span></div>
+          <div style="font-size:19px;font-weight:600;color:#1f2937">12.50 m³</div>
+          <div style="font-size:12px;color:#059669;font-weight:600;margin:2px 0 12px">Importe: $8,450.00</div>
+          <div class="lbl">Evidencia · 2 fotos <span class="mk" style="--acc:var(--teal)">2</span></div>
+          <div class="photos" style="margin-bottom:12px">
+            <div class="ph" style="width:74px;height:74px;font-size:20px">📷</div>
+            <div class="ph" style="width:74px;height:74px;font-size:20px">📷</div>
+          </div>
+          <div class="lbl">Comentario <span style="font-size:12px;color:#2563eb">✎</span></div>
+          <div style="font-size:12px;color:#4b5563;line-height:1.45;margin-bottom:4px">Se avanzó en eje A-3, material húmedo en la mañana.</div>
+          <div class="foot rowsb" style="justify-content:center;gap:6px">Fecha formateada vía DateUtils (bug UTC → deuda técnica) <span class="mk" style="--acc:var(--teal)">4</span></div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>Bloque de contexto único.</b> Catálogo · partida › sección · WBS en cejilla + descripción del concepto, en lugar de tres bloques etiquetados verticales. Es el mismo patrón de cabecera de la ficha (L-02) y la captura (L-03): un solo lenguaje para "de qué concepto hablamos" en toda la app, y ~120px recuperados.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>La evidencia por fin es visible.</b> Franja horizontal de miniaturas del avance (hoy se captura y jamás se vuelve a ver). Lectura solamente en esta versión; agregar fotos desde el detalle queda documentado como evolución, no MVP.</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Edición inline se conserva tal cual.</b> Lápiz en Volumen y Comentario con el flujo actual (input + guardar/cancelar, validación zod). Ya está bien resuelto; no se toca. El importe se recalcula en vivo al editar volumen — dato que ya computa handleAdvanceUpdated.</p></div>
+        <div class="ann"><span class="n">4</span><p><b>Fecha por DateUtils.</b> new Date("YYYY-MM-DD") interpreta UTC y muestra el día anterior en CDMX. Registrado en deuda técnica del ADR como patrón: ninguna fecha de negocio pasa por new Date(string).</p></div>
+      </div>
+    </div>
+
+    <!-- Lámina 2: Ficha del concepto -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-02</span><h4>Ficha del concepto</h4><em>sheet · se abre al tocar la fila</em></div>
+      <div class="phone dim">
+        <div class="p-hdr"><span class="t">Sábana de Avance</span></div>
+        <div class="ghost"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <div style="margin-bottom:10px">
+            <span class="wbs">1.2.03 · Cimentaciones</span>
+            <div style="font-size:13.5px;font-weight:600;color:#1f2937;line-height:1.3;margin-top:2px">Excavación en cepas a máquina en material tipo II</div>
+            <div style="font-size:11.5px;color:#059669;margin-top:3px">Acumulado: 145.5 / 200.0 m³ · 72.8%</div>
+          </div>
+          <div class="cbox warn">
+            <div class="rowsb"><span style="font-size:11.5px;color:#991b1b">Acumulado: debía 180.0 · lleva 145.5 <b>(−34.5)</b></span><span class="mk" style="--acc:var(--teal)">1</span></div>
+            <div style="font-size:12.5px;color:#065f46;font-weight:600;margin-top:3px">Este periodo: debías 36.0 · llevas 40.5 (+4.5) — recuperando</div>
+          </div>
+          <div class="lbl">Programado vs ejecutado por periodo <span class="mk" style="--acc:var(--teal)">2</span></div>
+          <div class="chart">
+            <div class="bars">
+              <div class="bg"><div class="bcol b-p" style="height:45%"></div><div class="bcol b-e" style="height:42%"></div></div>
+              <div class="bg"><div class="bcol b-p" style="height:60%"></div><div class="bcol b-er" style="height:36%"></div></div>
+              <div class="bg"><div class="bcol b-p" style="height:55%"></div><div class="bcol b-e" style="height:64%"></div></div>
+              <div class="bg cur"><div class="bcol b-p" style="height:72%"></div><div class="bcol b-e" style="height:81%"></div></div>
+            </div>
+            <div class="xlab"><span>S26</span><span>S27</span><span>S28</span><span class="cur">S29</span></div>
+            <div class="leg"><span><i style="background:#cbd5e1"></i>Programado</span><span><i style="background:#10b981"></i>Ejecutado</span></div>
+          </div>
+          <div class="lbl">Trazabilidad de cargas <span class="mk" style="--acc:var(--teal)">3</span></div>
+          <div class="trz">
+            <div class="r hoy"><span>Hoy · 14:22</span><b>+12.5 m³ 📷</b></div>
+            <div class="r"><span>Mié 15 jul</span><b>+28.0 m³ 📷</b></div>
+            <div class="r"><span>Mar 14 jul</span><b>+18.0 m³</b></div>
+            <div class="more">Ver historial completo (11 cargas)</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center"><div class="cta" style="flex:1">+ Registrar avance</div><span class="mk" style="--acc:var(--teal)">4</span></div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>Doble lectura.</b> Acumulado (atrasado −34.5) y periodo (+4.5 arriba del plan) conviven: el concepto va tarde pero se está recuperando. Una sola métrica ocultaría exactamente esta historia.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>Barras por periodo.</b> Volumen del corte, no acumulado: se ve al instante qué semana se cayó (S27 en rojo) y cuál recuperó. Corte configurable por obra (dia_corte).</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Trazabilidad.</b> Últimas cargas con fecha, volumen y evidencia. "Ver historial completo" navega a la lista de avances filtrada por concepto — la pantalla actual baja de home a consulta.</p></div>
+        <div class="ann"><span class="n">4</span><p><b>Registrar sin salir.</b> Transiciona al sheet de captura (L-03) con el concepto ya cargado. El "+" de la fila en la sábana es el atajo que se salta esta ficha.</p></div>
+      </div>
+    </div>
+
+    <!-- Lámina 3: Captura rápida -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-03</span><h4>Captura rápida de avance</h4><em>sheet · el momento que le gana a la libreta</em></div>
+      <div class="phone dim">
+        <div class="p-hdr"><span class="t">Sábana de Avance</span></div>
+        <div class="ghost" style="height:40px"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <div class="cbox">
+            <div class="rowsb"><span class="wbs">1.2.03 · Cimentaciones</span><span class="mk" style="--acc:var(--teal)">1</span></div>
+            <div style="font-size:12.5px;font-weight:600;color:#1f2937;line-height:1.3">Excavación en cepas a máquina en material tipo II</div>
+            <div style="font-size:11.5px;color:#059669;margin-top:3px">Acumulado: 145.5 / 200.0 m³ · restan 54.5</div>
+          </div>
+          <div class="lbl">Cantidad ejecutada hoy <span class="mk" style="--acc:var(--teal)">2</span></div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:5px"><div class="input" style="flex:1">12.5</div><b style="color:#6b7280;font-size:14px">m³</b></div>
+          <div class="meta" style="margin-bottom:11px">Nuevo acumulado: <b style="color:#059669">158.0 m³ (79.0%)</b> · vs programa: <b style="color:#991b1b">−22.0</b></div>
+          <div class="lbl">Evidencia fotográfica <span class="mk" style="--acc:var(--teal)">3</span></div>
+          <div class="photos" style="margin-bottom:11px"><div class="ph">📷</div><div class="ph add">＋<span>Cámara</span></div></div>
+          <div class="cbox warn" style="margin-bottom:12px">
+            <div class="rowsb"><span style="font-size:11.5px;color:#991b1b">⚠ ¿Hubo un problema en este frente?</span>
+              <span style="display:flex;gap:5px;align-items:center"><b style="font-size:11.5px;color:#dc2626">Reportar</b><span class="mk" style="--acc:var(--teal)">4</span></span></div>
+          </div>
+          <div class="cta">Registrar avance</div>
+          <div class="foot">⇅ Sin conexión: se guarda y sincroniza solo</div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>Concepto precargado.</b> Viene de la fila o de la ficha. Muere la cascada catálogo → partida → concepto; el formulario completo actual queda como ruta alternativa de búsqueda.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>Acumulado y programa en vivo.</b> Al teclear ve el nuevo total, el % y su posición contra programa — información que la libreta jamás le dio, en el momento exacto de captura.</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Foto en el mismo paso.</b> Directo a cámara sin salir del sheet. La evidencia se captura donde ocurre; alimenta el reporte integral futuro.</p></div>
+        <div class="ann"><span class="n">4</span><p><b>Incidencia contextual.</b> Nace ligada al concepto y frente — datos conectados para el análisis de causa, no registros huérfanos. La tab de Incidencias desaparece; esto la sustituye.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════ PLANO PRODUCCIÓN ════════════════ -->
+  <section class="sec violet">
+    <div class="sec-head"><span class="code">PP</span><h3>Plano producción</h3><p>Last Planner semanal · Fase 3</p></div>
+
+    <!-- Lámina 4: Semana -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-04</span><h4>Semana (tab)</h4><em>compromisos del periodo · corte configurable</em></div>
+      <div class="phone">
+        <div class="p-hdr"><span style="width:22px"></span><span class="t">Mi semana</span><span style="width:22px"></span></div>
+        <div class="strip">
+          <div class="row"><b style="font-size:13px">Semana 29 · mié 15 – mar 21 jul</b>
+            <span style="display:flex;gap:6px;align-items:center"><span style="background:rgba(255,255,255,.1);color:#e2e8f0;font-size:10.5px;border-radius:8px;padding:2px 8px">PPC sem. 28: 71%</span><span class="mk">1</span></span></div>
+          <div class="days" style="margin-top:9px">
+            <div class="day">X</div><div class="day on">J</div><div class="day">V</div><div class="day off">S</div><div class="day off">D</div><div class="day">L</div><div class="day">M</div>
+          </div>
+        </div>
+        <div class="p-body">
+          <div style="display:flex;gap:6px;margin-bottom:9px">
+            <span class="chip ch-green" style="padding:3px 9px">2 al día</span>
+            <span class="chip ch-red" style="padding:3px 9px">1 atrasada</span>
+          </div>
+          <div class="card" style="border-left:3px solid #ef4444;border-top-left-radius:0;border-bottom-left-radius:0">
+            <div class="rowst"><span style="font-size:12.5px;font-weight:600;color:#1f2937">Salidas eléctricas · Nivel 2</span><span class="mk">2</span></div>
+            <div class="meta">Semana: debías <b style="color:#991b1b">6</b> · llevas <b style="color:#1f2937">5 de 15 pza</b></div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="bar" style="flex:1"><div class="fill r" style="width:33%"></div><div class="markpt" style="left:40%"></div></div>
+              <div class="plus" style="width:30px;height:30px;font-size:16px">+</div>
+            </div>
+          </div>
+          <div class="card" style="border-left:3px solid #10b981;border-top-left-radius:0;border-bottom-left-radius:0">
+            <div class="rowst"><span style="font-size:12.5px;font-weight:600;color:#1f2937">Excavación en cepas <span class="wbs">· 1.2.03</span></span>
+              <span style="display:flex;gap:5px;align-items:center"><span class="chip ch-ind">auto</span><span class="mk">3</span></span></div>
+            <div class="meta">Semana: debías <b style="color:#1f2937">10</b> · llevas <b style="color:#065f46">12.5 de 20 m³</b></div>
+            <div class="bar"><div class="fill" style="width:62%"></div><div class="markpt" style="left:50%"></div></div>
+          </div>
+          <div class="card" style="border-left:3px solid #3b82f6;border-top-left-radius:0;border-bottom-left-radius:0">
+            <div class="rowst"><span style="font-size:12.5px;font-weight:600;color:#1f2937">Firme de concreto · Nivel 1</span><span style="font-size:10.5px;color:#1e40af;font-weight:600">Adelantada</span></div>
+            <div class="meta">Semana: debías <b style="color:#1f2937">12</b> · llevas <b style="color:#1e40af">18 de 30 m²</b></div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="bar" style="flex:1"><div class="fill b" style="width:60%"></div><div class="markpt" style="left:40%"></div></div>
+              <div class="plus" style="width:30px;height:30px;font-size:16px">+</div>
+            </div>
+          </div>
+          <div class="cbox" style="background:#fff7ed;border-color:#fed7aa;margin-top:10px">
+            <div class="rowsb"><span style="font-size:11.5px;color:#9a3412">Cierre de semana: martes · registra causas si algo no se cumplió</span><span class="mk">4</span></div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><div class="ic">▦</div>Sábana</div>
+          <div class="tab on"><div class="ic">▤</div>Semana</div>
+          <div class="tab"><div class="ic">▥</div>Reportes</div>
+          <div class="tab"><div class="ic">⛟</div>Maquinaria</div>
+          <div class="tab"><div class="ic">◉</div>Perfil</div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>Periodo, no semana calendario.</b> Corre de corte a corte (aquí miércoles a martes, según dia_corte de la obra). El PPC del periodo anterior queda como referencia permanente y métrica personal.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>Actividad compuesta.</b> Unidad propia (pza), captura de un solo número con "+". La marca vertical es "dónde deberías ir hoy": el reparto lineal de la planeación hecho visual.</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Actividad vinculada 1:1.</b> Badge "auto", sin "+": su ejecutado se lee de la sábana en el rango del periodo. Lectura, nunca escritura. La vinculación fue decisión explícita al crearla.</p></div>
+        <div class="ann"><span class="n">4</span><p><b>Cierre con causas.</b> Al terminar el periodo, cada compromiso incumplido pide su causa (L-07). Alimenta PPC y el análisis de causa raíz.</p></div>
+      </div>
+    </div>
+
+    <!-- Lámina 5: Planear semana -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-05</span><h4>Planear semana</h4><em>planear = ajustar, nunca crear desde cero</em></div>
+      <div class="phone">
+        <div class="p-hdr"><div style="flex:1;text-align:center"><div class="t">Planear semana 30</div><div class="sub">mié 22 – mar 28 jul · corte: miércoles</div></div></div>
+        <div class="p-body">
+          <div class="fr-chips"><span class="fr on">Todos</span><span class="fr">Nivel 1</span><span class="fr">Nivel 2</span><span class="fr">Exteriores</span><span class="mk">3</span></div>
+          <div class="rowsb" style="margin-bottom:6px"><span class="meta" style="font-weight:600">Continúan de la semana 29</span><span class="mk">1</span></div>
+          <div class="card">
+            <div style="font-size:12.5px;font-weight:600;color:#1f2937">Salidas eléctricas · Nivel 2</div>
+            <div class="meta" style="margin:2px 0 7px">Quedaron 10 de 15 pza · sugerido: 10</div>
+            <div style="display:flex;align-items:center;gap:9px">
+              <span class="stepper"><i>−</i><b>10</b><i>＋</i></span><span class="meta">pza</span>
+              <span class="mini-days" style="margin-left:auto"><span class="md on">X</span><span class="md on">J</span><span class="md on">V</span><span class="md">S</span><span class="md on">L</span><span class="md on">M</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="rowsb">
+              <div><div style="font-size:12.5px;font-weight:600;color:#1f2937">Excavación en cepas <span class="chip ch-ind">auto</span></div>
+                <div class="meta" style="margin-top:2px">Sugerido: 15 m³ · lee de la sábana</div></div>
+              <span class="stepper"><i>−</i><b>15</b><i>＋</i></span>
+            </div>
+          </div>
+          <div class="cbox" style="margin-bottom:11px">
+            <span style="font-size:11.5px;color:#065f46">✓ Firme de concreto · Nivel 1 — terminada, no se propone</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:13px;align-items:center">
+            <div class="srcbtn">+ De mi lista</div><div class="srcbtn">+ Desde sábana</div><div class="srcbtn">+ Nueva</div><span class="mk">2</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center"><div class="cta dark" style="flex:1">Confirmar semana · 2 actividades</div><span class="mk">4</span></div>
+          <div class="foot">Al iniciar el corte, el plan se congela. Cambios posteriores quedan auditados.</div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>Rodar la semana.</b> Lo pendiente llega precargado con volumen sugerido (lo que faltó). En megaobra, las actividades activas por frente rara vez pasan de 15–20: planear toma ~2 minutos por frente.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>Tres fuentes.</b> Mi lista (actividades ya definidas), desde sábana (crea vinculada 1:1 en un tap) o nueva (nombre + unidad + frente — una sola vez en la vida de la actividad).</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Frentes.</b> El plan se arma frente por frente; solo aparecen las actividades activas del filtro, nunca las miles del catálogo.</p></div>
+        <div class="ann"><span class="n">4</span><p><b>Congelamiento.</b> Confirmar cierra la planeación y calcula el reparto diario lineal sobre los días activos. El ownership es del contratista: el último planificador compromete.</p></div>
+      </div>
+    </div>
+
+    <!-- Lámina 6: Capturar producción -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-06</span><h4>Capturar producción</h4><em>sheet · un número al día</em></div>
+      <div class="phone dim">
+        <div class="p-hdr"><span class="t">Mi semana</span></div>
+        <div class="ghost" style="height:110px"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <div class="cbox" style="background:#efedfa;border-color:#c9c3ee">
+            <div class="rowsb"><span class="wbs">Nivel 2 · pza</span><span class="mk">1</span></div>
+            <div style="font-size:13px;font-weight:600;color:#1f2937">Salidas eléctricas</div>
+            <div style="font-size:11.5px;color:#5b4fc0;margin-top:3px">Hoy debías 3 · semana: 5 de 15</div>
+          </div>
+          <div class="lbl">¿Cuántas terminaron hoy? <span class="mk">2</span></div>
+          <div style="display:flex;justify-content:center;margin:6px 0 10px"><span class="stepper" style="transform:scale(1.25)"><i>−</i><b>4</b><i>＋</i></span></div>
+          <div class="cbox">
+            <div class="rowsb"><span style="font-size:11.5px;color:#065f46">Semana quedaría: <b>9 de 15 · al día</b></span><span class="mk">3</span></div>
+          </div>
+          <div class="cta" style="background:var(--violet)">Registrar producción</div>
+          <div class="foot rowsb" style="justify-content:center;gap:6px">Este registro no toca la sábana <span class="mk">4</span></div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>Contexto mínimo.</b> Actividad, frente, unidad y la referencia del día ("debías 3"). Nada que seleccionar: se llegó aquí desde la tarjeta.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>Un número.</b> Stepper grande, apto para guantes y sol. La captura de producción completa toma menos de 10 segundos.</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Semáforo en vivo.</b> Antes de confirmar ya ve cómo queda la semana. Retroalimentación inmediata = el registro se siente útil, no burocrático.</p></div>
+        <div class="ann"><span class="n">4</span><p><b>Regla de oro visible.</b> El texto lo dice explícito: producción jamás escribe en la sábana. Los volúmenes contractuales se capturan en su plano (L-03), porque son otro dato con otro propósito.</p></div>
+      </div>
+    </div>
+
+    <!-- Lámina 7: Cierre de semana -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-07</span><h4>Cierre de semana</h4><em>PPC + causas de no cumplimiento</em></div>
+      <div class="phone">
+        <div class="p-hdr"><div style="flex:1;text-align:center"><div class="t">Cierre · Semana 29</div><div class="sub">mié 15 – mar 21 jul</div></div></div>
+        <div class="p-body">
+          <div class="card" style="background:#efedfa;border-color:#c9c3ee">
+            <div class="rowsb"><span style="font-size:12px;color:#374151">PPC del periodo</span><span class="mk">1</span></div>
+            <div style="font-size:22px;font-weight:600;color:#5b4fc0">67% <span style="font-size:12px;color:#6b7280;font-weight:400">· 2 de 3 compromisos · sem. 28: 71%</span></div>
+          </div>
+          <div class="card">
+            <div class="rowsb"><span style="font-size:12.5px;font-weight:600;color:#1f2937">✓ Excavación en cepas <span class="chip ch-ind">auto</span></span><span class="chip ch-green">Cumplida</span></div>
+            <div class="meta">21.5 de 20 m³ · leído de la sábana</div>
+          </div>
+          <div class="card">
+            <div class="rowsb"><span style="font-size:12.5px;font-weight:600;color:#1f2937">✓ Firme de concreto</span><span class="chip ch-green">Cumplida</span></div>
+            <div class="meta">31 de 30 m²</div>
+          </div>
+          <div class="card" style="border-left:3px solid #ef4444;border-top-left-radius:0;border-bottom-left-radius:0">
+            <div class="rowsb"><span style="font-size:12.5px;font-weight:600;color:#1f2937">✗ Salidas eléctricas</span>
+              <span style="display:flex;gap:5px;align-items:center"><span class="chip ch-red">11 de 15</span><span class="mk">2</span></span></div>
+            <div class="meta" style="margin:5px 0 6px">¿Causa de no cumplimiento?</div>
+            <div>
+              <span class="cause on">Falta de material</span><span class="cause">Clima</span><span class="cause">Cuadrilla incompleta</span><span class="cause">Frente no liberado</span><span class="cause">Otra</span>
+            </div>
+            <div class="rowsb" style="margin-top:6px"><span style="font-size:11px;color:#2563eb;font-weight:600">⚠ Ligar a incidencia del martes</span><span class="mk">3</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:11px"><div class="cta dark" style="flex:1">Cerrar semana (definitivo)</div><span class="mk">4</span></div>
+          <div class="foot">El cierre congela el periodo. La semana 30 ya está planeada.</div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>PPC automático.</b> Se calcula solo con los datos capturados: nada que declarar. Métrica personal del contratista desde el día uno; cuando llegue el inspector, ya será un dato normalizado.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>Causas estructuradas.</b> Catálogo cerrado (TextChoices) + "Otra" con texto libre — mismo patrón que motivo_salida en maquinaria. Es la materia prima del análisis de causa raíz con ML.</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Puente a incidencias.</b> Si hubo incidencia en el periodo, se ofrece ligarla como causa: los tres tipos de dato (compromiso, causa, incidencia) quedan conectados.</p></div>
+        <div class="ann"><span class="n">4</span><p><b>Cierre inmutable.</b> El periodo cerrado es un snapshot: el versionado del plan sale gratis y la historia queda íntegra para análisis.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════ ENTREGABLE ════════════════ -->
+  <section class="sec coral">
+    <div class="sec-head"><span class="code">EN</span><h3>Entregable</h3><p>Tab Reportes · el momento de valor</p></div>
+
+    <!-- Lámina 8: Reportes -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-08</span><h4>Reportes (tab)</h4><em>de FAB escondido a primer nivel</em></div>
+      <div class="phone">
+        <div class="p-hdr"><span style="width:22px"></span><span class="t">Reportes</span><span style="width:22px"></span></div>
+        <div class="p-body">
+          <div class="rep">
+            <div class="ic" style="background:#d1fae5;color:#065f46">⬇</div>
+            <div style="flex:1"><h5>Reporte del día</h5><p>Avances y fotos de hoy, listo en un tap</p></div>
+            <span class="mk" style="--acc:var(--coral)">1</span>
+          </div>
+          <div class="rep">
+            <div class="ic" style="background:#dbeafe;color:#1e40af">▥</div>
+            <div style="flex:1"><h5>Reporte por periodo</h5><p>Rango libre o cortes de la obra (mié–mar)</p></div>
+          </div>
+          <div class="rep">
+            <div class="ic" style="background:#fef3c7;color:#92400e">▦</div>
+            <div style="flex:1"><h5>Excel de datos</h5><p>Concepto, volumen del periodo, acumulado e importe — para pegar en el formato de tu cliente</p></div>
+            <span class="mk" style="--acc:var(--coral)">2</span>
+          </div>
+          <div class="rep dis">
+            <div class="ic" style="background:#f3f4f6;color:#6b7280">◫</div>
+            <div style="flex:1"><h5>Reporte integral</h5><p>Sábana + fotos + programa + incidencias · en desarrollo</p></div>
+          </div>
+          <div class="rowsb" style="margin:12px 0 6px"><span class="meta" style="font-weight:600">Recientes</span><span class="mk" style="--acc:var(--coral)">3</span></div>
+          <div class="card"><div class="rowsb"><div><div style="font-size:12px;font-weight:600;color:#1f2937">Avance 9 – 15 jul.xlsx</div><div class="meta">Generado ayer 17:41</div></div><span style="font-size:15px">↗</span></div></div>
+          <div class="card"><div class="rowsb"><div><div style="font-size:12px;font-weight:600;color:#1f2937">Avance 16 jul.xlsx</div><div class="meta">Generado hoy 14:30</div></div><span style="font-size:15px">↗</span></div></div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><div class="ic">▦</div>Sábana</div>
+          <div class="tab"><div class="ic">▤</div>Semana</div>
+          <div class="tab on"><div class="ic">▥</div>Reportes</div>
+          <div class="tab"><div class="ic">⛟</div>Maquinaria</div>
+          <div class="tab"><div class="ic">◉</div>Perfil</div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>Organizado por trabajo-a-hacer.</b> "Del día", "por periodo", "datos" — no por formato de archivo. El botón del encabezado Hoy en la sábana llega aquí con el rango de hoy precargado (con fecha local, no UTC: fix pendiente documentado).</p></div>
+        <div class="ann"><span class="n">2</span><p><b>Excel de datos = puente honesto.</b> Mientras el reporte integral no exista, convierte "recapturar la libreta en el machote del cliente" en "copiar tres columnas": ~80% menos trabajo nocturno, alcanzable ya. Es la pieza anti-abandono.</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Recientes para reenviar.</b> Compartir directo por WhatsApp o correo sin regenerar. El reporte entregado sin trabajo nocturno es lo que trae al usuario de vuelta mañana.</p></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

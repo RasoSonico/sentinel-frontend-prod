@@ -59,6 +59,8 @@ Si la variable no está definida, el SDK se inicializa con key vacía y descarta
 | `sync_triggered` | `PendingSyncScreen` — tap manual en botón sync | `pending_advances`, `pending_photos`, `trigger` |
 | `sync_completed` | `useAdvanceSyncWorker` — ciclo de sync terminado | `advances_synced`, `photos_synced`, `failures` |
 | `auth_session_expired` | `apiClient` — refresh fallido o segundo 401 | `endpoint`, `had_queued_advances` |
+| `hoy_counter_tapped` | `SabanaScreen` — tap en contador de la franja Hoy (ADR-003) | `counter` (`avances` \| `fotos` \| `incidencias`) |
+| `reporte_del_dia_tapped` | `SabanaScreen` — botón "Reporte del día" de la franja Hoy (ADR-003) | `obra_id` |
 
 ### Notas sobre el estado actual
 
