@@ -74,21 +74,51 @@ export function useTodaySummary(): UseTodaySummaryResult {
     ...failedItems,
   ].filter((item) => isTodayLocal(item.createdAt)).length;
 
-  // Fotos: photo_count de los avances sincronizados de hoy + cola de fotos de
-  // hoy sin subir (uploaded se excluye: ya cuenta —o contará— en photo_count)
-  const { pendingPhotos, waitingPhotos, syncingPhotos, failedPhotos } =
-    usePendingPhotoQueue();
-  const queuedPhotosTodayCount = [
+  // Fotos: por avance, máx(photo_count del servidor, fotos en cola) — la
+  // cola (incluyendo "done": subidas cuyo photo_count aún no refresca) cubre
+  // el desfase de subida y el máximo absorbe el traslape, así el contador no
+  // puede contar de menos ni de más durante la sincronización.
+  const {
+    pendingPhotos,
+    waitingPhotos,
+    syncingPhotos,
+    failedPhotos,
+    donePhotos,
+  } = usePendingPhotoQueue();
+  const queuePhotosToday = [
     ...pendingPhotos,
     ...waitingPhotos,
     ...syncingPhotos,
     ...failedPhotos,
-  ].filter((photo) => isTodayLocal(photo.createdAt)).length;
+    ...donePhotos,
+  ].filter((photo) => isTodayLocal(photo.createdAt));
 
-  const syncedPhotosTodayCount = todaysSynced.reduce(
-    (acc, a) => acc + (a.photo_count ?? 0),
-    0,
-  );
+  // Agrupar la cola por avance del servidor; las fotos cuyo avance aún no
+  // aparece en el cache (o no ha sincronizado) se cuentan directo
+  const queueBySyncedAdvance = new Map<number, number>();
+  let unlinkedQueuePhotosCount = 0;
+  for (const photo of queuePhotosToday) {
+    const remoteId = photo.physicalAdvanceId;
+    if (
+      remoteId != null &&
+      todaysSynced.some((a) => a.id === remoteId)
+    ) {
+      queueBySyncedAdvance.set(
+        remoteId,
+        (queueBySyncedAdvance.get(remoteId) ?? 0) + 1,
+      );
+    } else {
+      unlinkedQueuePhotosCount++;
+    }
+  }
+
+  const fotosHoyCount =
+    todaysSynced.reduce(
+      (acc, a) =>
+        acc +
+        Math.max(a.photo_count ?? 0, queueBySyncedAdvance.get(a.id) ?? 0),
+      0,
+    ) + unlinkedQueuePhotosCount;
 
   // Incidencias: solo servidor. El backend filtra date_after como fecha UTC,
   // así que se pide una ventana holgada y se afina con el rango local de hoy
@@ -122,7 +152,7 @@ export function useTodaySummary(): UseTodaySummaryResult {
     resumenObra,
     counts: {
       avances: todaysSynced.length + queuedTodayCount,
-      fotos: syncedPhotosTodayCount + queuedPhotosTodayCount,
+      fotos: fotosHoyCount,
       incidencias: incidenciasHoy,
     },
   };

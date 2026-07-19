@@ -67,10 +67,12 @@ const PendingSyncScreen: React.FC = () => {
   const isOnline = useNetworkStatus();
 
   // Get photos whose advance has synced (physicalAdvanceId is set)
-  // These are "orphaned" photos that need to be shown separately
+  // These are "orphaned" photos that need to be shown separately.
+  // "done" se excluye: ya subieron y confirmaron; solo esperan la limpieza
+  // post-refetch del worker — no son pendientes de envío.
   const syncedAdvancePhotos = useMemo(() => {
     const photosWithSyncedAdvance = [...allPhotos].filter(
-      (p) => p.physicalAdvanceId !== null,
+      (p) => p.physicalAdvanceId !== null && p.status !== "done",
     );
 
     // Group by physicalAdvanceId

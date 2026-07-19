@@ -5,7 +5,8 @@ export type PendingPhotoStatus =
   | "waiting"
   | "syncing"
   | "uploaded"
-  | "failed";
+  | "failed"
+  | "done";
 
 /**
  * Realm schema for pending photo submissions.
@@ -16,6 +17,10 @@ export type PendingPhotoStatus =
  * - "syncing": Currently uploading to Azure
  * - "uploaded": Uploaded to Azure, pending confirmation (retry will only confirm)
  * - "failed": Upload or confirmation failed after max retries
+ * - "done": Uploaded AND confirmed; se conserva en la cola solo hasta que el
+ *   refetch de avances refleje el nuevo photo_count, y entonces se elimina.
+ *   Evita que el contador Fotos del Hoy cuente hacia abajo mientras cada foto
+ *   sale de la cola antes de que el cache del servidor la refleje.
  */
 export class PendingPhotoSubmission extends Realm.Object<PendingPhotoSubmission> {
   _id!: string; // Photo UUID

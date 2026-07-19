@@ -26,6 +26,7 @@ export interface PhotoCounts {
   syncing: number;
   uploaded: number;
   failed: number;
+  done: number;
   total: number;
 }
 
@@ -64,6 +65,11 @@ export function usePendingPhotoQueue() {
     [allPhotos]
   );
 
+  const donePhotos = useMemo(
+    () => allPhotos.filtered('status == "done"'),
+    [allPhotos]
+  );
+
   // Counts
   const getPhotoCounts = useCallback((): PhotoCounts => {
     return {
@@ -72,6 +78,7 @@ export function usePendingPhotoQueue() {
       syncing: syncingPhotos.length,
       uploaded: uploadedPhotos.length,
       failed: failedPhotos.length,
+      done: donePhotos.length,
       total: allPhotos.length,
     };
   }, [
@@ -81,6 +88,7 @@ export function usePendingPhotoQueue() {
     syncingPhotos,
     uploadedPhotos,
     failedPhotos,
+    donePhotos,
   ]);
 
   /**
@@ -286,6 +294,61 @@ export function usePendingPhotoQueue() {
   /**
    * Mark a photo as waiting for retry
    */
+  /**
+   * Marca una foto como subida y confirmada, PERO la conserva en la cola.
+   * El worker la elimina (removeDonePhotos) después de que el refetch de
+   * avances refleje el nuevo photo_count — así el contador Fotos del Hoy
+   * nunca cuenta hacia abajo durante la ventana de desfase.
+   */
+  const markPhotoAsDone = useCallback(
+    (photoId: string): boolean => {
+      const photo = realm.objectForPrimaryKey(PendingPhotoSubmission, photoId);
+      if (!photo) return false;
+
+      realm.write(() => {
+        photo.status = "done";
+        photo.errorMessage = null;
+        photo.lastAttemptAt = new Date();
+      });
+
+      return true;
+    },
+    [realm]
+  );
+
+  /**
+   * Elimina de la cola todas las fotos "done" (y sus archivos locales).
+   * Llamar solo DESPUÉS de que el refetch de avances haya aterrizado, para
+   * que el conteo pase de la cola al photo_count del servidor sin hueco.
+   */
+  const removeDonePhotos = useCallback(async (): Promise<number> => {
+    const done = allPhotos.filtered('status == "done"');
+    const count = done.length;
+
+    if (count === 0) return 0;
+
+    // Collect URIs before deleting
+    const localUris = [...done].map((p) => p.localUri);
+
+    realm.write(() => {
+      realm.delete(done);
+    });
+
+    // Delete local files
+    for (const uri of localUris) {
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(uri);
+        if (fileInfo.exists) {
+          await FileSystem.deleteAsync(uri, { idempotent: true });
+        }
+      } catch (error) {
+        console.warn("[PhotoQueue] Error deleting local file:", error);
+      }
+    }
+
+    return count;
+  }, [realm, allPhotos]);
+
   const markPhotoAsWaiting = useCallback(
     (photoId: string): boolean => {
       const photo = realm.objectForPrimaryKey(PendingPhotoSubmission, photoId);
@@ -536,6 +599,7 @@ export function usePendingPhotoQueue() {
     syncingPhotos,
     uploadedPhotos,
     failedPhotos,
+    donePhotos,
 
     // Counts
     getPhotoCounts,
@@ -548,7 +612,9 @@ export function usePendingPhotoQueue() {
     markPhotoAsUploaded,
     markPhotoAsFailed,
     markPhotoAsWaiting,
+    markPhotoAsDone,
     removePhoto,
+    removeDonePhotos,
     removePhotosByAdvanceId,
     resetStuckSyncingPhotos,
     clearAllFailedPhotos,

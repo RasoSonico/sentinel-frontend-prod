@@ -33,11 +33,14 @@ export function usePhotoSyncWorker() {
   const {
     waitingPhotos,
     uploadedPhotos,
+    donePhotos,
     markPhotoAsSyncing,
     markPhotoAsUploaded,
     markPhotoAsFailed,
     markPhotoAsWaiting,
+    markPhotoAsDone,
     removePhoto,
+    removeDonePhotos,
     resetStuckSyncingPhotos,
     detectAndHandleOrphanedPhotos,
     getPhotoById,
@@ -75,6 +78,37 @@ export function usePhotoSyncWorker() {
       mountedRef.current = false;
     };
   }, []);
+
+  // Limpieza de arranque: fotos "done" que quedaron de una sesión que murió
+  // antes de la limpieza post-refetch. Se refresca el cache de avances
+  // PRIMERO para que el contador no caiga al eliminarlas; mientras no haya
+  // conexión, quedarse en la cola es inocuo (el conteo por máximo las cubre).
+  const doneCleanupRef = useRef(false);
+  useEffect(() => {
+    if (doneCleanupRef.current) return;
+    if (donePhotos.length === 0) return;
+    if (!isOnline || !isAuthenticated) return;
+    doneCleanupRef.current = true;
+
+    (async () => {
+      try {
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: [AVANCE_QUERY_KEYS.ADVANCES_BY_CATALOG],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: [AVANCE_QUERY_KEYS.PHOTOS_BY_DAY],
+          }),
+        ]);
+      } catch (error) {
+        console.warn(
+          "[PhotoSyncWorker] Error refreshing advances before done-cleanup:",
+          error,
+        );
+      }
+      await removeDonePhotos();
+    })();
+  }, [donePhotos, isOnline, isAuthenticated, queryClient, removeDonePhotos]);
 
   /**
    * Confirm a photo upload with the backend
@@ -313,7 +347,10 @@ export function usePhotoSyncWorker() {
         const result = await retryConfirmation(photo);
 
         if (result.success) {
-          await removePhoto(photo._id, true);
+          // "done": se conserva en la cola hasta que el refetch de avances
+          // refleje el photo_count nuevo (evita que el contador Fotos del
+          // Hoy cuente hacia abajo foto por foto)
+          markPhotoAsDone(photo._id);
           successCount++;
         } else {
           if (photo.retryCount + 1 >= photo.maxRetries) {
@@ -350,7 +387,10 @@ export function usePhotoSyncWorker() {
         const result = await uploadPhoto(photo);
 
         if (result.success) {
-          await removePhoto(photo._id, true);
+          // "done": se conserva en la cola hasta que el refetch de avances
+          // refleje el photo_count nuevo (evita que el contador Fotos del
+          // Hoy cuente hacia abajo foto por foto)
+          markPhotoAsDone(photo._id);
           successCount++;
         } else {
           // Check if photo was uploaded but confirmation failed
@@ -418,14 +458,24 @@ export function usePhotoSyncWorker() {
           "success",
         );
 
-        // El photo_count de los avances cambió en el servidor: refrescar la
-        // lista para que el contador Fotos del Hoy, el indicador 📷 de las
-        // cards y la franja de evidencia se actualicen solos. Sin esto, el
-        // dato queda viejo indefinidamente (refetchOnMount está en false y
-        // solo el worker de avances invalidaba).
-        await queryClient.invalidateQueries({
-          queryKey: [AVANCE_QUERY_KEYS.ADVANCES_BY_CATALOG],
-        });
+        // Las fotos nuevas ya existen en el servidor: refrescar (a) la lista
+        // de avances (photo_count → contador Fotos del Hoy, 📷 de las cards,
+        // franja de evidencia) y (b) la galería del día (PHOTOS_BY_DAY). Sin
+        // esto los datos quedan viejos indefinidamente: refetchOnMount está
+        // en false y estos observers viven montados — nadie más los refresca.
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: [AVANCE_QUERY_KEYS.ADVANCES_BY_CATALOG],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: [AVANCE_QUERY_KEYS.PHOTOS_BY_DAY],
+          }),
+        ]);
+
+        // Solo DESPUÉS de que el refetch aterrizó (invalidateQueries espera
+        // a las queries activas) se eliminan las fotos "done": el conteo
+        // pasa de la cola al photo_count del servidor sin hueco visible
+        await removeDonePhotos();
       }
     } finally {
       syncInProgressRef.current = false;
@@ -440,7 +490,8 @@ export function usePhotoSyncWorker() {
     markPhotoAsUploaded,
     markPhotoAsFailed,
     markPhotoAsWaiting,
-    removePhoto,
+    markPhotoAsDone,
+    removeDonePhotos,
     uploadPhoto,
     retryConfirmation,
     isAuthenticated,
