@@ -20,6 +20,19 @@ import { PhysicalAdvanceResponse } from "src/types/entities";
 import { DateUtils } from "src/utils/dateUtils";
 import { DesignTokens } from "src/styles/designTokens";
 
+// Pie de foto: hora local de TOMA (correlaciona visualmente con la hora del
+// avance; la de carga puede ser horas después si se trabajó offline), con
+// fallback a la de carga. Función estática de DateUtils — segura en un map.
+const photoTimeLabel = (photo: ConstructionPhoto): string => {
+  const source = photo.taken_at || photo.uploaded_at;
+  if (!source) return "";
+  try {
+    return DateUtils.formatUTCForDisplay(source, "HH:mm");
+  } catch {
+    return "";
+  }
+};
+
 const THUMBS_PER_ROW = 3;
 
 interface Props {
@@ -63,9 +76,9 @@ const FotosDelDiaSheet: React.FC<Props> = ({
     }
   }, [isVisible]);
 
-  const photosQuery = useTodayPhotos(
-    isVisible && constructionId !== null ? constructionId : undefined,
-  );
+  // Precarga: la query arranca al montar el sheet (aterrizaje en el home),
+  // no al abrirlo — cuando el usuario toca el contador la lista ya está lista
+  const photosQuery = useTodayPhotos(constructionId ?? undefined);
 
   // Avances del día (cache Realm compartido) para el join foto → contexto
   const { data: avanceBase } = useAvanceBase();
@@ -198,6 +211,9 @@ const FotosDelDiaSheet: React.FC<Props> = ({
                   style={sheetStyles.thumb}
                   resizeMode="cover"
                 />
+                <Text style={sheetStyles.thumbCaption}>
+                  {photoTimeLabel(photo)}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -265,6 +281,13 @@ const sheetStyles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: DesignTokens.borderRadius.base,
     backgroundColor: DesignTokens.colors.neutral[100],
+  },
+  thumbCaption: {
+    textAlign: "center",
+    fontSize: 10.5,
+    color: DesignTokens.colors.neutral[500],
+    marginTop: 2,
+    fontVariant: ["tabular-nums"],
   },
   foot: {
     textAlign: "center",
