@@ -1,9 +1,11 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import * as FileSystem from "expo-file-system";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePendingPhotoQueue } from "./usePendingPhotoQueue";
 import { useNetworkStatus } from "../utils/useNetworkStatus";
 import { useAppSelector } from "src/redux/hooks";
 import { useSnackbar } from "../useSnackbar";
+import { AVANCE_QUERY_KEYS } from "../data/query/avanceQueries.const";
 import {
   requestSingleUpload,
   uploadToAzureBlob,
@@ -23,6 +25,7 @@ const RETRY_DELAY_BASE_MS = 1000;
 const DEBOUNCE_MS = 500;
 
 export function usePhotoSyncWorker() {
+  const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
   const isOnline = useNetworkStatus();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
@@ -414,6 +417,15 @@ export function usePhotoSyncWorker() {
           `${successCount} foto${successCount > 1 ? "s" : ""} sincronizada${successCount > 1 ? "s" : ""}`,
           "success",
         );
+
+        // El photo_count de los avances cambió en el servidor: refrescar la
+        // lista para que el contador Fotos del Hoy, el indicador 📷 de las
+        // cards y la franja de evidencia se actualicen solos. Sin esto, el
+        // dato queda viejo indefinidamente (refetchOnMount está en false y
+        // solo el worker de avances invalidaba).
+        await queryClient.invalidateQueries({
+          queryKey: [AVANCE_QUERY_KEYS.ADVANCES_BY_CATALOG],
+        });
       }
     } finally {
       syncInProgressRef.current = false;
@@ -433,6 +445,7 @@ export function usePhotoSyncWorker() {
     retryConfirmation,
     isAuthenticated,
     showSnackbar,
+    queryClient,
   ]);
 
   // Debounced effect to trigger sync when conditions are met
