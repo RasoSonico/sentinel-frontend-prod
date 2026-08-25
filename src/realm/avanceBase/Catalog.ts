@@ -1,4 +1,5 @@
 import { AvanceBaseWorkItem } from "./WorkItem";
+import { Programa } from "./Programa";
 
 export class AvanceBaseCatalog extends Realm.Object<AvanceBaseCatalog> {
   id!: number;
@@ -6,6 +7,10 @@ export class AvanceBaseCatalog extends Realm.Object<AvanceBaseCatalog> {
   construction_id!: number;
   construction_name!: string;
   work_items!: Realm.List<AvanceBaseWorkItem>;
+  // Programa contractual vigente. OPCIONAL a propósito: la ausencia de programa
+  // es un estado normal y frecuente —toda obra antes de su primer import— y no
+  // un error. El cliente rige por D11: sin dato, el indicador no se renderiza.
+  programa!: Programa | null;
 
   static schema: Realm.ObjectSchema = {
     name: "AvanceBaseCatalog",
@@ -19,6 +24,7 @@ export class AvanceBaseCatalog extends Realm.Object<AvanceBaseCatalog> {
         type: "list",
         objectType: "AvanceBaseWorkItem",
       },
+      programa: "Programa?",
     },
   };
 }

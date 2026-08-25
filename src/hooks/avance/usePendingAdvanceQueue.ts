@@ -46,11 +46,95 @@ export function usePendingAdvanceQueue() {
     [allItems]
   );
 
-  // Counts
+  // Ya sincronizados pero todavía NO reflejados en el cache del servidor (E8).
+  // No cuentan como pendientes en ningún indicador de cola —el avance ya
+  // llegó— pero siguen aportando su volumen al ejecutado hasta que el snapshot
+  // los incluya.
+  const doneItems = useMemo(
+    () => allItems.filtered('status == "done"'),
+    [allItems]
+  );
+
+  /**
+   * Lo que de verdad sigue pendiente de llegar al servidor.
+   *
+   * Es lo que deben mostrar y reintentar las pantallas de sincronización.
+   * `allItems` incluye además los `done` —que se conservan por la marca de
+   * agua— y usarlo para listar mostraría avances ya sincronizados como
+   * pendientes, o peor, los reenviaría en un "reintentar todos".
+   *
+   * `allItems` conserva su significado para lo que sí necesita ver la cola
+   * completa, como detectar fotos huérfanas: las fotos de un avance `done`
+   * NO son huérfanas.
+   */
+  const itemsEnCola = useMemo(
+    () => allItems.filtered('status != "done"'),
+    [allItems]
+  );
+
+  // Counts — `done` queda fuera a propósito: la cola pendiente es lo que
+  // todavía no llega al servidor, y estos ya llegaron.
   const pendingCount = pendingItems.length;
   const failedCount = failedItems.length;
   const syncingCount = syncingItems.length;
-  const totalCount = allItems.length;
+  const totalCount = pendingCount + failedCount + syncingCount;
+
+  /**
+   * Volumen en cola por concepto que el snapshot del servidor TODAVÍA no
+   * incluye — la marca de agua de E8.
+   *
+   * `cacheActualizadoEn` es el `updatedAt` de AvanceBaseResponse. La regla:
+   *
+   *   aporta si nunca sincronizó (syncedAt null), o si sincronizó DESPUÉS de
+   *   la última escritura del cache
+   *
+   * Así el número mostrado es el mismo antes y después del refetch: el
+   * refresco se vuelve visualmente invisible, que es el objetivo — no solo
+   * evitar el doble conteo.
+   */
+  const volumenEnColaPorConcepto = useCallback(
+    (cacheActualizadoEn: Date | null | undefined): Map<number, number> => {
+      const porConcepto = new Map<number, number>();
+      for (const item of allItems) {
+        const yaReflejado =
+          item.syncedAt != null &&
+          cacheActualizadoEn != null &&
+          item.syncedAt <= cacheActualizadoEn;
+        if (yaReflejado) continue;
+
+        const volumen = parseFloat(item.volume) || 0;
+        if (volumen === 0) continue;
+        porConcepto.set(
+          item.conceptId,
+          (porConcepto.get(item.conceptId) ?? 0) + volumen
+        );
+      }
+      return porConcepto;
+    },
+    [allItems]
+  );
+
+  /**
+   * Borra los `done` que el cache ya alcanzó. Se llama justo después de
+   * escribir AvanceBaseResponse: en ese instante el servidor ya los incluye y
+   * dejarlos los duplicaría.
+   */
+  const purgarSincronizados = useCallback(
+    (cacheActualizadoEn: Date): number => {
+      const alcanzados = allItems.filtered(
+        'status == "done" AND syncedAt != null AND syncedAt <= $0',
+        cacheActualizadoEn
+      );
+      const cuantos = alcanzados.length;
+      if (cuantos === 0) return 0;
+      realm.write(() => {
+        realm.delete(alcanzados);
+      });
+      console.log(`[AdvanceQueue] Purgados ${cuantos} avances ya reflejados`);
+      return cuantos;
+    },
+    [realm, allItems]
+  );
 
   /**
    * Add a new submission to the queue
@@ -137,8 +221,19 @@ export function usePendingAdvanceQueue() {
           }
         });
 
-        // Step 3: Remove advance from queue
-        realm.delete(advance);
+        // Step 3: sellar el avance como sincronizado — NO borrarlo (E8).
+        //
+        // Borrarlo aquí es lo que producía el bajón: el servidor ya lo tiene,
+        // pero `avance/base/` todavía trae el cumulative_volume viejo, así que
+        // el total mostrado caía y el usuario veía DESAPARECER su captura hasta
+        // el siguiente refetch. Conservándolo con su marca de agua, sigue
+        // aportando su volumen justo hasta que el snapshot lo incluya.
+        //
+        // Lo purga `purgarSincronizados` cuando el cache del servidor alcanza
+        // esta marca. Las fotos no se tocan: ya llevan su physicalAdvanceId y
+        // suben por su propia cola, independientes de este renglón.
+        advance.status = "done";
+        advance.syncedAt = new Date();
       });
 
       console.log(
@@ -361,15 +456,21 @@ export function usePendingAdvanceQueue() {
   return {
     // Reactive queries
     allItems,
+    itemsEnCola,
     pendingItems,
     syncingItems,
     failedItems,
+    doneItems,
 
     // Counts
     pendingCount,
     failedCount,
     syncingCount,
     totalCount,
+
+    // Marca de agua (E8)
+    volumenEnColaPorConcepto,
+    purgarSincronizados,
 
     // Write operations
     addToQueue,

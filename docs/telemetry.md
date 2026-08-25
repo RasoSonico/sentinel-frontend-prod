@@ -61,6 +61,10 @@ Si la variable no está definida, el SDK se inicializa con key vacía y descarta
 | `auth_session_expired` | `apiClient` — refresh fallido o segundo 401 | `endpoint`, `had_queued_advances` |
 | `hoy_counter_tapped` | `SabanaScreen` — tap en contador de la franja Hoy (ADR-003) | `counter` (`avances` \| `fotos` \| `incidencias`) |
 | `reporte_del_dia_tapped` | `SabanaScreen` — botón "Reporte del día" de la franja Hoy (ADR-003) | `obra_id` |
+| `ficha_concepto_opened` | `ConceptoSheet` mount (ADR-004 D12) | `obra_id` |
+| `captura_rapida_opened` | `CapturaRapidaSheet` mount (ADR-004 D13) | `obra_id`, `origen` (`fila` \| `ficha`) |
+| `cache_wiped_identity_change` | `cacheOwner` — entró un usuario distinto al dueño del cache | `pending_advances`, `pending_photos` |
+| `cache_owner_identity_unknown` | `cacheOwner` — token ilegible; no se toca el cache | — |
 
 ### Notas sobre el estado actual
 
@@ -68,6 +72,7 @@ Si la variable no está definida, el SDK se inicializa con key vacía y descarta
 - **`incident_submitted`** no incluye `obra_id` todavía — el hook no tiene ese contexto disponible.
 - **`sync_completed`** tiene `photos_synced: 0` fijo — la sincronización de fotos aún no está instrumentada.
 - **`auth_session_expired`** tiene `had_queued_advances: false` fijo — la consulta a Realm para conteo de pendientes no está conectada.
+- **`captura_rapida_opened`** genera su propio `form_session_id` y lo pasa a `submitToQueue`, que lo propaga en `advance_submission_queued`. Eso habilita el mismo join de abandono que ya existe para el formulario clásico, pero sobre la ruta rápida — y comparar ambas proporciones es la medición directa de la hipótesis de la fase.
 
 ---
 

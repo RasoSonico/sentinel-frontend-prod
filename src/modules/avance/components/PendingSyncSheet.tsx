@@ -34,6 +34,7 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
 
   const {
     allItems,
+    itemsEnCola,
     pendingCount,
     failedCount,
     syncingCount,
@@ -352,7 +353,7 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
 
   // Check if there's any content to show
   const hasContent =
-    allItems.length > 0 ||
+    itemsEnCola.length > 0 ||
     orphanedFailedPhotos.length > 0 ||
     photoCounts.waiting > 0 ||
     photoCounts.syncing > 0 ||
@@ -442,10 +443,10 @@ const PendingSyncSheet: React.FC<PendingSyncSheetProps> = ({
         ) : (
           <View style={styles.listContent}>
             {/* Advances Section */}
-            {allItems.length > 0 && (
+            {itemsEnCola.length > 0 && (
               <View>
                 <Text style={styles.sectionTitle}>Avances Pendientes</Text>
-                {[...allItems]
+                {[...itemsEnCola]
                   .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
                   .map((item) => (
                     <View key={item._id}>{renderAdvanceItem({ item })}</View>

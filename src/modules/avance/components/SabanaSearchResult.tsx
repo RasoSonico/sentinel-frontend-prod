@@ -1,6 +1,16 @@
 import React, { memo } from "react";
-import { View, Text } from "react-native";
-import { SearchResultItem } from "src/hooks/data/query/useAvance/utils/sabanaTreeBuilder";
+import { View, Text, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  SabanaConceptNode,
+  SearchResultItem,
+} from "src/hooks/data/query/useAvance/utils/sabanaTreeBuilder";
+import ChipPrograma from "./ChipPrograma";
+import {
+  colorBarra,
+  colorPorcentaje,
+  estaSobreEjecutado,
+} from "../utils/coloresAvance";
 import styles from "../styles/SabanaScreen.styles";
 import { DesignTokens } from "src/styles/designTokens";
 
@@ -25,32 +35,25 @@ const CRUMB_COLORS: Record<
   },
 };
 
-function pctBarColor(pct: number): string {
-  if (pct === 0) return DesignTokens.colors.neutral[300];
-  if (pct >= 60) return DesignTokens.colors.success[500];
-  if (pct >= 30) return DesignTokens.colors.warning[500];
-  return DesignTokens.colors.error[500];
-}
-
-function pctTextColor(pct: number): string {
-  if (pct === 0) return DesignTokens.colors.neutral[400];
-  if (pct >= 60) return DesignTokens.colors.success[600];
-  if (pct >= 30) return DesignTokens.colors.warning[700];
-  return DesignTokens.colors.error[700];
-}
-
 interface Props {
   item: SearchResultItem;
+  /** Memoizado desde la pantalla: este componente está envuelto en `memo`. */
+  onOpenFicha: (concept: SabanaConceptNode) => void;
 }
 
-const SabanaSearchResult: React.FC<Props> = ({ item }) => {
+const SabanaSearchResult: React.FC<Props> = ({ item, onOpenFicha }) => {
   const { concept, ancestors } = item;
   const pct = Math.round(concept.pct);
-  const clr = pctTextColor(pct);
-  const barClr = pctBarColor(pct);
+  const clr = colorPorcentaje(pct);
+  const barClr = colorBarra(pct);
 
   return (
-    <View style={styles.searchResult}>
+    // Mismo gesto que las filas del árbol (enmienda E9): un solo destino.
+    <TouchableOpacity
+      style={styles.searchResult}
+      onPress={() => onOpenFicha(concept)}
+      activeOpacity={0.6}
+    >
       {/* Breadcrumb path */}
       <View style={styles.crumbs}>
         {ancestors.map((ancestor, idx) => {
@@ -88,23 +91,51 @@ const SabanaSearchResult: React.FC<Props> = ({ item }) => {
         {concept.description}
       </Text>
 
-      {/* Quantities + pct */}
+      {/* Quantities + pct. Mismo lenguaje que ConceptRow (D11): el resultado de
+          búsqueda es una fila más, y una fila que dijera algo distinto de la
+          del árbol sobre el mismo concepto sería una contradicción a la vista. */}
       <View style={styles.searchResultMetaRow}>
         <View style={styles.searchResultNums}>
-          <Text style={styles.searchResultNum}>
-            Cont:{" "}
-            <Text style={styles.searchResultNumValue}>
-              {concept.quantity.toLocaleString("es-MX")} {concept.unit}
+          {concept.programa ? (
+            // Vocabulario canónico de D14 para espacio corto.
+            <Text style={styles.searchResultNum}>
+              Prog. a hoy{" "}
+              <Text style={styles.searchResultNumValue}>
+                {concept.programa.programado.toLocaleString("es-MX", {
+                  maximumFractionDigits: 1,
+                })}
+              </Text>
+              {" · ejec. "}
+              <Text style={styles.searchResultNumValue}>
+                {concept.cumulative_volume.toLocaleString("es-MX", {
+                  maximumFractionDigits: 1,
+                })}{" "}
+                {concept.unit}
+              </Text>
             </Text>
-          </Text>
-          <Text style={styles.searchResultNum}>
-            Ejec:{" "}
-            <Text style={styles.searchResultNumValue}>
-              {concept.cumulative_volume.toLocaleString("es-MX")} {concept.unit}
-            </Text>
-          </Text>
+          ) : (
+            <>
+              <Text style={styles.searchResultNum}>
+                Cont:{" "}
+                <Text style={styles.searchResultNumValue}>
+                  {concept.quantity.toLocaleString("es-MX")} {concept.unit}
+                </Text>
+              </Text>
+              <Text style={styles.searchResultNum}>
+                Ejec:{" "}
+                <Text style={styles.searchResultNumValue}>
+                  {concept.cumulative_volume.toLocaleString("es-MX")}{" "}
+                  {concept.unit}
+                </Text>
+              </Text>
+            </>
+          )}
         </View>
         <View style={styles.searchResultPct}>
+          <ChipPrograma
+            programa={concept.programa}
+            sobreEjecutado={estaSobreEjecutado(pct)}
+          />
           <View style={[styles.statusDot, { backgroundColor: barClr }]} />
           <Text style={[styles.rowPct, { color: clr, fontSize: 13 }]}>
             {pct}%
@@ -112,16 +143,47 @@ const SabanaSearchResult: React.FC<Props> = ({ item }) => {
         </View>
       </View>
 
-      {/* Progress bar */}
-      <View style={[styles.conceptBarBg, { marginTop: 6 }]}>
-        <View
-          style={[
-            styles.conceptBarFill,
-            { width: `${Math.min(100, pct)}%`, backgroundColor: barClr },
-          ]}
-        />
+      {/* Progress bar. La marca vive en el CONTENEDOR, no dentro de la barra:
+          conceptBarBg recorta (overflow hidden) y ahí no podría sobresalir. */}
+      <View style={[styles.barWrap, { marginTop: 6 }]}>
+        <View style={styles.conceptBarBg}>
+          <View
+            style={[
+              styles.conceptBarFill,
+              { width: `${Math.min(100, pct)}%`, backgroundColor: barClr },
+            ]}
+          />
+        </View>
+        {concept.programa && concept.quantity > 0 ? (
+          <View
+            style={[
+              styles.marcaProgramaFila,
+              {
+                left: `${Math.min(
+                  100,
+                  (concept.programa.programado / concept.quantity) * 100,
+                )}%`,
+              },
+            ]}
+          />
+        ) : null}
       </View>
-    </View>
+      {estaSobreEjecutado(pct) ? (
+        // Único aviso que la fila puede dar sin conocer el programa: el volumen
+        // rebasó lo CONTRATADO, y eso es cierto sin referencia temporal. Texto
+        // imperativo y corto —el % ya dice el hecho, aquí va la acción— y
+        // distinto del "Solicita una reprogramación" del programa vencido: allá
+        // falta volumen, aquí sobra, y no se arreglan igual.
+        <View style={styles.avisoSobre}>
+          <Ionicons
+            name="warning-outline"
+            size={12}
+            style={styles.avisoSobreIcono}
+          />
+          <Text style={styles.avisoSobreTexto}>Regularizar volumen</Text>
+        </View>
+      ) : null}
+    </TouchableOpacity>
   );
 };
 

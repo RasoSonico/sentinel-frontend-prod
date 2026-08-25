@@ -1,10 +1,12 @@
 import React, { useEffect } from "react";
 import { useDispatch } from "react-redux";
+import { useRealm } from "@realm/react";
 import {
   clearCredentials,
   setIsAuthenticated,
 } from "src/redux/slices/authSlice";
 import { getTokenResponse, maybeRefreshToken } from "src/utils/auth";
+import { ensureCacheOwner } from "src/services/auth/cacheOwner";
 import { Surface, ActivityIndicator, Text, useTheme } from "react-native-paper";
 import styles from "./AuthLoading.styles";
 
@@ -15,6 +17,7 @@ interface AuthLoadingProps {
 const AuthLoading = ({ onAuthChecked }: AuthLoadingProps) => {
   const dispatch = useDispatch();
   const theme = useTheme();
+  const realm = useRealm();
 
   useEffect(() => {
     (async () => {
@@ -23,13 +26,22 @@ const AuthLoading = ({ onAuthChecked }: AuthLoadingProps) => {
       const token = await getTokenResponse();
 
       if (!token) {
-        // No token in SecureStore at all — user must log in
+        // No token in SecureStore at all — user must log in.
+        // No se toca el cache aquí: el marcador de dueño sobrevive al logout a
+        // propósito, para que el mismo usuario recupere sus datos offline al
+        // volver. Si entra alguien distinto, useAuth.login() hace el wipe.
         console.log("No token found — user must log in");
         dispatch(clearCredentials());
         onAuthChecked();
         console.groupEnd();
         return;
       }
+
+      // Sesión que se reanuda: comparar la identidad del token contra el dueño
+      // registrado del cache y borrar si cambió. Corre aquí porque
+      // RootNavigator renderiza AuthLoading en exclusiva hasta onAuthChecked():
+      // ningún componente sostiene todavía un objeto Realm vivo.
+      await ensureCacheOwner(realm, token.accessToken);
 
       if (!token.shouldRefresh()) {
         // Token is still valid — no network call needed
@@ -66,7 +78,7 @@ const AuthLoading = ({ onAuthChecked }: AuthLoadingProps) => {
       onAuthChecked();
       console.groupEnd();
     })();
-  }, [dispatch]);
+  }, [dispatch, realm]);
 
   return (
     <Surface style={styles.surface}>

@@ -25,7 +25,6 @@ export const advanceFormSchema = z.object({
       message: "El volumen no puede tener más de 2 decimales",
     }),
   notes: z.string().optional(),
-  isCompleted: z.boolean().optional(),
 });
 
 export const advanceFormDefaultValues = {
@@ -34,7 +33,6 @@ export const advanceFormDefaultValues = {
   concept: 0,
   quantity: "",
   notes: "",
-  isCompleted: false,
 };
 
 export type AdvanceFormFieldsZod = z.infer<typeof advanceFormSchema>;

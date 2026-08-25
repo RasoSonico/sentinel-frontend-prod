@@ -8,6 +8,7 @@ import {
   FlatList,
   ListRenderItem,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -16,10 +17,10 @@ import {
 } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
-import { format } from "date-fns";
 
 import { useSabanaData } from "../hooks/useSabanaData";
 import { useTodaySummary } from "../hooks/useTodaySummary";
+import { useProgramaObra } from "../hooks/useProgramaObra";
 import {
   buildFlatTree,
   getSearchResults,
@@ -38,10 +39,13 @@ import { telemetry } from "src/services/telemetry";
 import SabanaCatalogSelector from "../components/SabanaCatalogSelector";
 import SabanaCatalogMetrics from "../components/SabanaCatalogMetrics";
 import SabanaTreeItem from "../components/SabanaTreeItem";
+import { SabanaConceptNode } from "src/hooks/data/query/useAvance/utils/sabanaTreeBuilder";
 import SabanaSearchResult from "../components/SabanaSearchResult";
 import HoyResumenHeader from "../components/HoyResumenHeader";
 import QueueHeaderButton from "../components/QueueHeaderButton";
 import FotosDelDiaSheet from "../components/FotosDelDiaSheet";
+import ConceptoSheet from "../components/ConceptoSheet";
+import CapturaRapidaSheet from "../components/CapturaRapidaSheet";
 
 import styles from "../styles/SabanaScreen.styles";
 import { DesignTokens } from "src/styles/designTokens";
@@ -71,11 +75,39 @@ const SabanaScreen: React.FC = () => {
   const [mode, setMode] = useState<Mode>("tree");
   const [query, setQuery] = useState("");
   const [fotosSheetVisible, setFotosSheetVisible] = useState(false);
+  // Copia plana del nodo (no un objeto Realm vivo): el árbol se reconstruye en
+  // cada refetch y sostener la referencia original crashearía con
+  // "Accessing object which has been invalidated" con el sheet abierto.
+  const [conceptoSeleccionado, setConceptoSeleccionado] =
+    useState<SabanaConceptNode | null>(null);
+  const [fichaVisible, setFichaVisible] = useState(false);
+  const [capturaVisible, setCapturaVisible] = useState(false);
+  const [origenCaptura, setOrigenCaptura] = useState<"fila" | "ficha">("fila");
 
-  const { catalogs, effectiveCatalogId, tree, globalStats, isLoading } =
-    useSabanaData(selectedCatalogId);
+  const {
+    catalogs,
+    effectiveCatalogId,
+    tree,
+    globalStats,
+    isLoading,
+    hoy,
+    refetch,
+  } = useSabanaData(selectedCatalogId);
+  const [refrescando, setRefrescando] = useState(false);
 
   const { constructionId, obraNombre, resumenObra, counts } = useTodaySummary();
+
+  // PROG. de la franja: se calcula en cliente sobre la misma serie que las
+  // filas, así franja y sábana no pueden discrepar (ver useProgramaObra).
+  const programaObra = useProgramaObra();
+
+  // Nombre del catálogo vigente, para la cejilla de contexto de los sheets.
+  // Se usa effectiveCatalogId y no selectedCatalogId: el segundo es null hasta
+  // que el usuario elige, mientras el primero ya trae el resuelto por defecto.
+  const catalogName = useMemo(
+    () => catalogs.find((c) => c.id === effectiveCatalogId)?.name ?? "",
+    [catalogs, effectiveCatalogId],
+  );
 
   // Ícono de nube con badge en el header de navegación → cola de sync
   const { pendingCount, failedCount, syncingCount } = usePendingAdvanceQueue();
@@ -126,7 +158,10 @@ const SabanaScreen: React.FC = () => {
     telemetry.trackEvent("reporte_del_dia_tapped", {
       obra_id: constructionId,
     });
-    const hoy = format(new Date(), "yyyy-MM-dd");
+    // La misma fecha operativa que usa el árbol, no un `new Date()` propio:
+    // eran el mismo día por coincidencia, y al cruzar la medianoche con la app
+    // abierta el reporte habría pedido un día distinto del que muestra la
+    // sábana.
     navigation.navigate("Reportes", {
       screen: "AdvanceReport",
       params: {
@@ -136,7 +171,7 @@ const SabanaScreen: React.FC = () => {
         dateTo: hoy,
       },
     });
-  }, [navigation, constructionId, obraNombre]);
+  }, [navigation, constructionId, obraNombre, hoy]);
 
   const handleIncidenciaPress = useCallback(() => {
     navigation.navigate("IncidentRegistration");
@@ -160,6 +195,18 @@ const SabanaScreen: React.FC = () => {
     // expandedIds don't need resetting — stale keys are simply ignored by
     // buildFlatTree when the tree changes to a different catalog's nodes.
   }, []);
+
+  // El programa lo escribe el escritorio: NINGUN worker lo invalida, y el
+  // paquete solo se refresca en login, reconexion o aqui. Este gesto es la via
+  // por la que el usuario trae un programa recien activado sin reiniciar sesion.
+  const handleRefresh = useCallback(async () => {
+    setRefrescando(true);
+    try {
+      await refetch();
+    } finally {
+      setRefrescando(false);
+    }
+  }, [refetch]);
 
   const handleModeChange = useCallback((m: Mode) => {
     setMode(m);
@@ -188,14 +235,45 @@ const SabanaScreen: React.FC = () => {
     return `sr-${item.item.concept.id}`;
   }, []);
 
+  // Gramática de gesto (ADR-004 D12). Los callbacks van memoizados a propósito:
+  // las filas están envueltas en `memo` y una sábana grande renderiza cientos.
+  const handleOpenFicha = useCallback((concept: SabanaConceptNode) => {
+    setConceptoSeleccionado(concept);
+    setOrigenCaptura("fila");
+    setFichaVisible(true);
+  }, []);
+
+
+  // El camino exploratorio y el rápido convergen: desde la ficha se pasa a la
+  // captura con el concepto ya cargado, y el origen queda marcado como "ficha"
+  // para poder comparar ambas rutas en telemetría.
+  const handleRegistrarDesdeFicha = useCallback((concept: SabanaConceptNode) => {
+    setFichaVisible(false);
+    setConceptoSeleccionado(concept);
+    setOrigenCaptura("ficha");
+    setCapturaVisible(true);
+  }, []);
+
+
   const renderItem: ListRenderItem<ListItem> = useCallback(
     ({ item }) => {
       if (item.kind === "tree") {
-        return <SabanaTreeItem item={item.item} onToggle={handleToggle} />;
+        return (
+          <SabanaTreeItem
+            item={item.item}
+            onToggle={handleToggle}
+            onOpenFicha={handleOpenFicha}
+          />
+        );
       }
-      return <SabanaSearchResult item={item.item} />;
+      return (
+        <SabanaSearchResult
+          item={item.item}
+          onOpenFicha={handleOpenFicha}
+        />
+      );
     },
-    [handleToggle],
+    [handleToggle, handleOpenFicha],
   );
 
   const resultsLabel = useMemo(() => {
@@ -215,6 +293,7 @@ const SabanaScreen: React.FC = () => {
         <HoyResumenHeader
           obraNombre={obraNombre}
           resumenObra={resumenObra}
+          programaObra={programaObra}
           counts={counts}
           onPressAvances={handleAvancesPress}
           onPressFotos={handleFotosPress}
@@ -326,6 +405,7 @@ const SabanaScreen: React.FC = () => {
       </>
     ),
     [
+      programaObra,
       catalogs,
       effectiveCatalogId,
       handleCatalogSelect,
@@ -382,6 +462,14 @@ const SabanaScreen: React.FC = () => {
         }
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        refreshControl={
+          <RefreshControl
+            refreshing={refrescando}
+            onRefresh={handleRefresh}
+            colors={[DesignTokens.colors.primary[600]]}
+            tintColor={DesignTokens.colors.primary[600]}
+          />
+        }
         removeClippedSubviews
         initialNumToRender={20}
         maxToRenderPerBatch={15}
@@ -394,6 +482,28 @@ const SabanaScreen: React.FC = () => {
         onClose={() => setFotosSheetVisible(false)}
         constructionId={constructionId}
         onOpenAdvance={handleOpenAdvanceFromFoto}
+      />
+
+      {/* Ficha del concepto (L-02) — destino del tap en la fila */}
+      <ConceptoSheet
+        isVisible={fichaVisible}
+        onClose={() => setFichaVisible(false)}
+        concept={conceptoSeleccionado}
+        catalogName={catalogName}
+        constructionId={constructionId}
+        hoy={hoy}
+        onRegistrarAvance={handleRegistrarDesdeFicha}
+      />
+
+      {/* Captura rápida (L-03) — destino del botón "+" y del CTA de la ficha */}
+      <CapturaRapidaSheet
+        isVisible={capturaVisible}
+        onClose={() => setCapturaVisible(false)}
+        concept={conceptoSeleccionado}
+        catalogId={effectiveCatalogId}
+        catalogName={catalogName}
+        constructionId={constructionId}
+        origen={origenCaptura}
       />
     </SafeAreaView>
   );

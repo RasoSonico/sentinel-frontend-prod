@@ -190,6 +190,13 @@ export function useAdvanceSyncWorker() {
         await queryClient.invalidateQueries({
           queryKey: [AVANCE_QUERY_KEYS.ADVANCES_BY_CATALOG],
         });
+        // El agregado de obra se recalcula en el servidor en cada GET, pero
+        // NADIE lo invalidaba: capturar un avance no movía el AVANCE% de la
+        // franja, y solo se corregía de rebote (reconexión, login o
+        // pull-to-refresh). Brecha de Fase 1, no del programa.
+        await queryClient.invalidateQueries({
+          queryKey: [AVANCE_QUERY_KEYS.CONSTRUCTION_SUMMARY],
+        });
       }
 
       // Show batch completion message if multiple items processed

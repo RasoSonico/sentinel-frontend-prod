@@ -189,8 +189,8 @@
       </div>
     </div>
     <div class="cj-meta">
-      <div class="cj-cell"><b>Documento</b><span>UX-SPEC-01 · Rev D</span></div>
-      <div class="cj-cell"><b>Fecha</b><span>15 · jul · 2026</span></div>
+      <div class="cj-cell"><b>Documento</b><span>UX-SPEC-01 · Rev G</span></div>
+      <div class="cj-cell"><b>Fecha</b><span>27 · jul · 2026</span></div>
       <div class="cj-cell"><b>Rol</b><span>Contratista</span></div>
       <div class="cj-cell"><b>Alcance</b><span>Fases 1 – 3</span></div>
     </div>
@@ -208,7 +208,7 @@
 
     <!-- Lámina 1: Sábana home -->
     <div class="lamina">
-      <div class="lam-id"><span class="tag">L-01 · Rev D</span><h4>Sábana (home)</h4><em>zona oscura ejecutiva · zona blanca del catálogo</em></div>
+      <div class="lam-id"><span class="tag">L-01 · Rev G</span><h4>Sábana (home)</h4><em>zona oscura ejecutiva · zona blanca del catálogo</em></div>
       <div class="phone">
         <div class="p-hdr"><span style="width:22px"></span><span class="t">Sábana de Avance</span>
           <span style="position:relative">☁<span style="position:absolute;top:-6px;right:-8px;background:#f59e0b;color:#1e293b;font-size:10px;font-weight:600;border-radius:8px;padding:0 4px">2</span></span>
@@ -221,7 +221,7 @@
             </div>
             <div style="text-align:right">
               <div style="font-size:12.5px;color:#e8f0fb"><span style="color:#94a3b8;font-size:10px;letter-spacing:.06em">AVANCE</span> <b>38.4%</b></div>
-              <div style="font-size:12.5px;margin-top:1px"><span style="color:#94a3b8;font-size:10px;letter-spacing:.06em">PROG.</span> <b style="color:#6fa3d8">44.0%</b> <span class="mk" style="--acc:var(--teal)">2</span></div>
+              <div style="font-size:12.5px;margin-top:1px"><span style="color:#94a3b8;font-size:10px;letter-spacing:.06em">PROG.</span> <b style="color:#6fa3d8">44.0%</b> <span style="color:#64748b">›</span> <span class="mk" style="--acc:var(--teal)">2</span></div>
             </div>
           </div>
           <div class="gbarbg" style="margin-top:6px;height:5px"><div class="gbarfill" style="width:38.4%;height:5px"></div><div class="gmark" style="left:44%;height:11px"></div></div>
@@ -247,7 +247,7 @@
               <span style="display:flex;gap:5px;align-items:center"><span class="chip ch-red">Atrasado</span><span class="mk" style="--acc:var(--teal)">3</span></span></div>
             <div class="desc">Excavación en cepas a máquina en material tipo II…</div>
             <div style="display:flex;align-items:center;gap:8px">
-              <div style="flex:1"><div class="meta">Debía <b style="color:#991b1b">180.0</b> · lleva <b style="color:#1f2937">145.5 m³</b></div>
+              <div style="flex:1"><div class="meta">Prog. a hoy <b style="color:#991b1b">180.0</b> · ejec. <b style="color:#1f2937">145.5 m³</b></div>
                 <div class="bar"><div class="fill r" style="width:73%"></div><div class="markpt" style="left:90%"></div></div></div>
               <div class="plus">+</div>
             </div>
@@ -274,7 +274,7 @@
       <div class="notes">
         <div class="ann"><span class="n">1</span><p><b>Hoy: viaja con el scroll, no es fijo.</b> Primer elemento de la lista: al bajar desaparece y la sábana toma el 100%; el tercio se paga solo en el aterrizaje. <b>Rev C:</b> se retiró el contador "Por sync" — duplicaba al ícono de la nube del header, que ya navega a la cola de sincronización. Tres contadores, franja más ligera.</p></div>
         <div class="ann"><span class="n">2</span><p><b>Obra vive en la franja oscura.</b> Rev D: la card grande se retira de verdad; Avance y Prog. apilados en la esquina superior derecha a la altura de "Hoy" (punto de lectura fijo), barra delgada con marca de programado e importes debajo (~30px vs ~90px de la card). La división de color queda semántica: zona oscura = resumen ejecutivo (día + obra); zona blanca = dominio del catálogo. Recursos RN de costo cero: barras View, tabular-nums, cejillas; anillo SVG o contador Reanimated solo si el piloto pide más jerarquía. Fórmula reutilizada de rollupPct; agregado servido por backend (deuda técnica en ADR). SabanaGlobalCard se retira o se recicla para una futura ficha de obra.</p></div>
-        <div class="ann"><span class="n">3</span><p><b>Atraso por concepto.</b> La lectura cultural directa: "debía 180, lleva 145.5", acumulado a la fecha de corte. Solo aparece si el programa existe a este nivel — jamás se prorratea. <b>Rev B:</b> se retiró el badge "hoy"; su función vive en el contador Avances (filtra al día), en la trazabilidad de la ficha y en el aviso anti-duplicado del sheet de captura ("ya registraste 12.5 m³ hoy"). Si el piloto pide la señal en fila, regresa como punto discreto junto al WBS.</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Atraso por concepto.</b> La lectura cultural directa: "prog. a hoy 180.0 · ejec. 145.5", acumulado a la fecha de corte. Solo aparece si el programa existe a este nivel — jamás se prorratea. <b>Rev B:</b> se retiró el badge "hoy"; su función vive en el contador Avances (filtra al día), en la trazabilidad de la ficha y en el aviso anti-duplicado del sheet de captura ("ya registraste 12.5 m³ hoy"). Si el piloto pide la señal en fila, regresa como punto discreto junto al WBS.</p></div>
         <div class="ann"><span class="n">4</span><p><b>"Inicia S31" con versionado.</b> El chip lee siempre el programa <i>vigente</i>. Pateo formal (reprogramación, convenio) = versión nueva cargada en escritorio con fecha, origen y motivo — historia inmutable: "inicio S28 → S30 → S31, dos reprogramaciones". Pateo informal: sin control especial — al llegar S31 con volumen exigido y cero ejecución, el chip se vuelve "Atrasado" solo. El sistema no persigue el pateo, lo exhibe. Futuro documentado: "original vs vigente" en la ficha.</p></div>
         <div class="ann"><span class="n">5</span><p><b>Cinco tabs, cinco significados.</b> Contrato · producción · entregable · equipo · yo. Regla de gesto en toda la app: fila = ver, "+" = capturar.</p></div>
       </div>
@@ -402,9 +402,73 @@
       </div>
     </div>
 
+    <!-- Lámina 1d: Ficha de Obra (propuesta Fase 2) -->
+    <div class="lamina">
+      <div class="lam-id"><span class="tag">L-01d · Propuesta (Fase 2)</span><h4>Ficha de Obra</h4><em>la radiografía general: curva S valorizada del proyecto</em></div>
+      <div class="phone dim">
+        <div class="p-hdr"><span class="t">Sábana de Avance</span></div>
+        <div class="ghost" style="height:26px"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <div class="rowsb" style="margin-bottom:8px">
+            <div><div class="eyebrow">Obra</div><div style="font-size:15px;font-weight:600;color:#1f2937">GDL – Jalisco</div></div>
+            <span class="mk" style="--acc:var(--teal)">1</span>
+          </div>
+          <div class="gcard" style="margin-bottom:11px">
+            <div class="rowsb">
+              <div><div class="gpct">38.4%</div><div class="glab">avance físico global de la obra</div></div>
+              <span class="mk" style="--acc:var(--teal)">2</span>
+            </div>
+            <div class="gbarbg"><div class="gbarfill" style="width:38.4%"></div><div class="gmark" style="left:44%"></div></div>
+            <div class="gmetas"><span>Contratado: $32.8M</span><span>Ejecutado: $12.6M</span></div>
+          </div>
+          <div class="lbl">Programado contractual vs ejecutado · $M <span class="mk" style="--acc:var(--teal)">3</span></div>
+          <div class="chart">
+            <svg viewBox="0 0 300 112" style="width:100%;height:112px;display:block">
+              <rect x="220" y="6" width="72" height="86" rx="6" fill="#f8fafc"/>
+              <rect x="172" y="6" width="48" height="86" fill="#f0fdf4"/>
+              <line x1="34" y1="92" x2="292" y2="92" stroke="#e5e7eb" stroke-width="1"/>
+              <line x1="34" y1="68" x2="292" y2="68" stroke="#f3f4f6" stroke-width="1"/>
+              <line x1="34" y1="44" x2="292" y2="44" stroke="#f3f4f6" stroke-width="1"/>
+              <line x1="34" y1="20" x2="292" y2="20" stroke="#f3f4f6" stroke-width="1"/>
+              <text x="30" y="95" font-size="8" fill="#9ca3af" text-anchor="end">0</text>
+              <text x="30" y="71" font-size="8" fill="#9ca3af" text-anchor="end">10</text>
+              <text x="30" y="47" font-size="8" fill="#9ca3af" text-anchor="end">20</text>
+              <text x="30" y="23" font-size="8" fill="#9ca3af" text-anchor="end">30</text>
+              <polyline points="52,72.8 100,67 148,61.8 196,57.4 244,52.4 284,47.4" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5,4"/>
+              <polyline points="52,74.7 100,70.4 148,65.8 196,61.8" fill="none" stroke="#10b981" stroke-width="2.5"/>
+              <circle cx="196" cy="57.4" r="2.5" fill="#94a3b8"/><circle cx="244" cy="52.4" r="2.5" fill="#94a3b8"/><circle cx="284" cy="47.4" r="2.5" fill="#94a3b8"/>
+              <circle cx="196" cy="61.8" r="3" fill="#10b981"/>
+              <text x="201" y="54" font-size="8.5" fill="#64748b">14.4</text>
+              <text x="201" y="72" font-size="8.5" font-weight="600" fill="#059669">12.6</text>
+              <text x="244" y="46" font-size="8.5" fill="#94a3b8" text-anchor="middle">16.5</text>
+              <text x="284" y="41" font-size="8.5" fill="#94a3b8" text-anchor="middle">18.6</text>
+              <text x="52" y="106" font-size="8.5" fill="#9ca3af" text-anchor="middle">S26</text>
+              <text x="100" y="106" font-size="8.5" fill="#9ca3af" text-anchor="middle">S27</text>
+              <text x="148" y="106" font-size="8.5" fill="#9ca3af" text-anchor="middle">S28</text>
+              <text x="196" y="106" font-size="8.5" font-weight="600" fill="#065f46" text-anchor="middle">S29</text>
+              <text x="244" y="106" font-size="8.5" fill="#9ca3af" text-anchor="middle">S30</text>
+              <text x="284" y="106" font-size="8.5" fill="#9ca3af" text-anchor="middle">S31</text>
+            </svg>
+            <div class="leg"><span><i style="background:#94a3b8"></i>Prog. contractual</span><span><i style="background:#10b981"></i>Ejecutado</span></div>
+            <div style="text-align:center;font-size:10.5px;font-weight:600;color:#dc2626;margin-top:3px">Desviación: −$1.8M</div>
+          </div>
+          <div class="rowsb" style="margin:10px 0 6px"><span style="font-size:12px;color:#374151;font-weight:600">Mayores desviaciones · por partida</span><span class="mk" style="--acc:var(--teal)">4</span></div>
+          <div class="card" style="margin-bottom:5px"><div class="rowsb"><span style="font-size:12px;color:#1f2937">Cimentaciones</span><span style="font-size:12px;color:#dc2626;font-weight:600">−$0.9M</span></div></div>
+          <div class="card"><div class="rowsb"><span style="font-size:12px;color:#1f2937">Estructura</span><span style="font-size:12px;color:#dc2626;font-weight:600">−$0.6M</span></div></div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="ann"><span class="n">1</span><p><b>Acceso: la esquina de métricas del Hoy.</b> El porcentaje es la pregunta; tocarlo abre su historia. Target = bloque AVANCE/PROG. completo con hitSlop generoso y chevron "›" como pista; el nombre de obra no es tocable — un solo destino en la franja, cero ambigüedad. Gramática extendida: tocar un resumen abre su ficha.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>SabanaGlobalCard reciclada.</b> La card retirada del home en Rev C encuentra su destino como corazón de la ficha (cierra la deuda #5 del ADR-003): mismo componente, mismos datos del agregado de obra, ahora con la marca de programado.</p></div>
+        <div class="ann"><span class="n">3</span><p><b>Curva S valorizada del proyecto.</b> El mismo componente CurvaChart de la ficha del concepto, con eje en importes ($M) — programado y ejecutado del proyecto completo, desviación bajo la leyenda, dos cortes futuros. Reuso total: una gráfica, dos fichas. Evolución registrada: agrupar por mes si los cortes semanales saturan en obras largas.</p></div>
+        <div class="ann"><span class="n">4</span><p><b>Sección candidata — validar antes de construir.</b> "Mayores desviaciones por partida" responde el siguiente "¿y dónde está el problema?", pero es alcance adicional: se propone, no se compromete. Si no convence, la ficha lanza solo con card + curva.</p></div>
+      </div>
+    </div>
+
     <!-- Lámina 2: Ficha del concepto -->
     <div class="lamina">
-      <div class="lam-id"><span class="tag">L-02</span><h4>Ficha del concepto</h4><em>sheet · se abre al tocar la fila</em></div>
+      <div class="lam-id"><span class="tag">L-02 · Rev G</span><h4>Ficha del concepto</h4><em>sheet · curva contractual + trazabilidad</em></div>
       <div class="phone dim">
         <div class="p-hdr"><span class="t">Sábana de Avance</span></div>
         <div class="ghost"></div>
@@ -416,19 +480,54 @@
             <div style="font-size:11.5px;color:#059669;margin-top:3px">Acumulado: 145.5 / 200.0 m³ · 72.8%</div>
           </div>
           <div class="cbox warn">
-            <div class="rowsb"><span style="font-size:11.5px;color:#991b1b">Acumulado: debía 180.0 · lleva 145.5 <b>(−34.5)</b></span><span class="mk" style="--acc:var(--teal)">1</span></div>
-            <div style="font-size:12.5px;color:#065f46;font-weight:600;margin-top:3px">Este periodo: debías 36.0 · llevas 40.5 (+4.5) — recuperando</div>
+            <div class="rowsb"><span style="font-size:10px;color:#b91c1c;letter-spacing:.06em">HOY · 14 DE AGOSTO</span><span class="mk" style="--acc:var(--teal)">1</span></div>
+            <div style="font-size:17px;font-weight:600;color:#991b1b;margin-top:2px">−34.5 m³ de atraso</div>
+            <div style="font-size:11.5px;color:#7f1d1d;margin-top:1px">programado 180.0 · ejecutado 145.5 m³</div>
           </div>
-          <div class="lbl">Programado vs ejecutado por periodo <span class="mk" style="--acc:var(--teal)">2</span></div>
-          <div class="chart">
-            <div class="bars">
-              <div class="bg"><div class="bcol b-p" style="height:45%"></div><div class="bcol b-e" style="height:42%"></div></div>
-              <div class="bg"><div class="bcol b-p" style="height:60%"></div><div class="bcol b-er" style="height:36%"></div></div>
-              <div class="bg"><div class="bcol b-p" style="height:55%"></div><div class="bcol b-e" style="height:64%"></div></div>
-              <div class="bg cur"><div class="bcol b-p" style="height:72%"></div><div class="bcol b-e" style="height:81%"></div></div>
+          <div style="display:flex;gap:8px;margin-bottom:11px">
+            <div style="flex:1;background:#f8fafc;border-radius:9px;padding:8px 10px">
+              <div style="font-size:10px;color:#64748b;letter-spacing:.05em">CORTE 19 AGO</div>
+              <div style="font-size:13px;font-weight:600;color:#334155;margin-top:2px">193.9 m³</div>
+              <div style="font-size:10.5px;color:#64748b">faltan 48.4</div>
             </div>
-            <div class="xlab"><span>S26</span><span>S27</span><span>S28</span><span class="cur">S29</span></div>
-            <div class="leg"><span><i style="background:#cbd5e1"></i>Programado</span><span><i style="background:#10b981"></i>Ejecutado</span></div>
+            <div style="flex:1;background:#fffbeb;border-radius:9px;padding:8px 10px">
+              <div style="font-size:10px;color:#92400e;letter-spacing:.05em">RENDIMIENTO REQ.</div>
+              <div style="font-size:13px;font-weight:600;color:#92400e;margin-top:2px">9.7 m³/día</div>
+              <div style="font-size:10.5px;color:#a16207">vs 5.6 programado</div>
+            </div>
+          </div>
+          <div class="lbl">Programado contractual vs ejecutado <span class="mk" style="--acc:var(--teal)">2</span></div>
+          <div class="chart">
+            <svg viewBox="0 0 300 118" style="width:100%;height:118px;display:block">
+              <rect x="220" y="8" width="72" height="88" rx="6" fill="#f8fafc"/>
+              <rect x="172" y="8" width="48" height="88" fill="#f0fdf4"/>
+              <line x1="34" y1="96" x2="292" y2="96" stroke="#e5e7eb" stroke-width="1"/>
+              <line x1="34" y1="76" x2="292" y2="76" stroke="#f3f4f6" stroke-width="1"/>
+              <line x1="34" y1="56" x2="292" y2="56" stroke="#f3f4f6" stroke-width="1"/>
+              <line x1="34" y1="36" x2="292" y2="36" stroke="#f3f4f6" stroke-width="1"/>
+              <line x1="34" y1="16" x2="292" y2="16" stroke="#f3f4f6" stroke-width="1"/>
+              <text x="30" y="99" font-size="8" fill="#9ca3af" text-anchor="end">0</text>
+              <text x="30" y="79" font-size="8" fill="#9ca3af" text-anchor="end">50</text>
+              <text x="30" y="59" font-size="8" fill="#9ca3af" text-anchor="end">100</text>
+              <text x="30" y="39" font-size="8" fill="#9ca3af" text-anchor="end">150</text>
+              <text x="30" y="19" font-size="8" fill="#9ca3af" text-anchor="end">200</text>
+              <polyline points="52,67.2 100,52.8 148,38.4 196,24 244,19.2 284,16" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5,4"/>
+              <polyline points="52,65.2 100,54 148,54 196,37.8" fill="none" stroke="#10b981" stroke-width="2.5"/>
+              <circle cx="52" cy="67.2" r="2.5" fill="#94a3b8"/><circle cx="100" cy="52.8" r="2.5" fill="#94a3b8"/><circle cx="148" cy="38.4" r="2.5" fill="#94a3b8"/><circle cx="196" cy="24" r="2.5" fill="#94a3b8"/><circle cx="244" cy="19.2" r="2.5" fill="#94a3b8"/><circle cx="284" cy="16" r="2.5" fill="#94a3b8"/>
+              <circle cx="52" cy="65.2" r="3" fill="#10b981"/><circle cx="100" cy="54" r="3" fill="#10b981"/><circle cx="148" cy="54" r="3" fill="#10b981"/><circle cx="196" cy="37.8" r="3" fill="#10b981"/>
+              <text x="201" y="21" font-size="8.5" fill="#64748b">180.0</text>
+              <text x="201" y="49" font-size="8.5" font-weight="600" fill="#059669">145.5</text>
+              <text x="244" y="13" font-size="8.5" fill="#94a3b8" text-anchor="middle">192.0</text>
+              <text x="284" y="10" font-size="8.5" fill="#94a3b8" text-anchor="middle">200.0</text>
+              <text x="52" y="110" font-size="8.5" fill="#9ca3af" text-anchor="middle">S26</text>
+              <text x="100" y="110" font-size="8.5" fill="#9ca3af" text-anchor="middle">S27</text>
+              <text x="148" y="110" font-size="8.5" fill="#9ca3af" text-anchor="middle">S28</text>
+              <text x="196" y="110" font-size="8.5" font-weight="600" fill="#065f46" text-anchor="middle">S29</text>
+              <text x="244" y="110" font-size="8.5" fill="#9ca3af" text-anchor="middle">S30</text>
+              <text x="284" y="110" font-size="8.5" fill="#9ca3af" text-anchor="middle">S31</text>
+            </svg>
+            <div class="leg"><span><i style="background:#94a3b8"></i>Prog. contractual</span><span><i style="background:#10b981"></i>Ejecutado</span></div>
+            <div style="text-align:center;font-size:10.5px;font-weight:600;color:#dc2626;margin-top:3px">Desviación: −34.5 m³</div>
           </div>
           <div class="lbl">Trazabilidad de cargas <span class="mk" style="--acc:var(--teal)">3</span></div>
           <div class="trz">
@@ -441,16 +540,17 @@
         </div>
       </div>
       <div class="notes">
-        <div class="ann"><span class="n">1</span><p><b>Doble lectura.</b> Acumulado (atrasado −34.5) y periodo (+4.5 arriba del plan) conviven: el concepto va tarde pero se está recuperando. Una sola métrica ocultaría exactamente esta historia.</p></div>
-        <div class="ann"><span class="n">2</span><p><b>Barras por periodo.</b> Volumen del corte, no acumulado: se ve al instante qué semana se cayó (S27 en rojo) y cuál recuperó. Corte configurable por obra (dia_corte).</p></div>
+        <div class="ann"><span class="n">1</span><p><b>Tres capas con jerarquía.</b> (a) <b>Estado de hoy</b>, protagonista: interpolación al día dentro del tramo vigente del programa — responde "¿cuál es el atraso a hoy?" que el cliente pregunta cualquier día. (b) <b>Meta del corte</b>: la cifra contractualmente exigible, firme. (c) <b>Rendimiento requerido</b> vs programado: la capa preventiva — cuando el requerido duplica al programado, la alerta llega semanas antes de que el corte lo confirme. La fila de la sábana lleva solo (a); el diagnóstico completo vive aquí.</p></div>
+        <div class="ann"><span class="n">2</span><p><b>Curva del concepto — programa contractual (Fase 2), no producción.</b> Líneas acumuladas con rejilla y eje en ticks redondeados (potencia de 10 o su mitad). Etiquetas en el corte actual (180.0 / 145.5) y en los dos cortes futuros del programa (192.0 / 200.0) — sin texto "próximas": los valores mismos son la vista de lo que viene. La <b>desviación sale del lienzo</b> y vive bajo la leyenda con signo y color (negativa roja, positiva verde): fuerza sin saturación. Cualquier otro punto se consulta con tap (tooltip). <b>Semántica de acumulados:</b> semana sin ejecución = <i>meseta</i> (S28), nunca caída; una caída solo ocurre por re-medición y verse es correcto. Implementación RN: componente propio CurvaChart con react-native-svg (~100 líneas, sin librería de charts; ver ADR-004 D8) — verificar la dependencia nativa y, si falta, agendarla con el rebuild de la deuda #13. Regla del sistema: teal + líneas = contrato; morado + barras = producción.</p></div>
         <div class="ann"><span class="n">3</span><p><b>Trazabilidad.</b> Últimas cargas con fecha, volumen y evidencia. "Ver historial completo" navega a la lista de avances filtrada por concepto — la pantalla actual baja de home a consulta.</p></div>
-        <div class="ann"><span class="n">4</span><p><b>Registrar sin salir.</b> Transiciona al sheet de captura (L-03) con el concepto ya cargado. El "+" de la fila en la sábana es el atajo que se salta esta ficha.</p></div>
+        <div class="ann"><span class="n">4</span><p><b>Registrar sin salir.</b> Transiciona al sheet de captura (L-03) con el concepto ya cargado. <b>Única vía de acceso a la captura rápida desde la sábana</b> (enmienda E9 del ADR-004): el "+" por card se retiró — cientos de filas con un botón de acción cada una competían con la información que la sábana existe para mostrar. Tocar la fila abre esta ficha; capturar cuesta un toque más, y ese es el costo aceptado.</p></div>
+        <div class="ann"><span class="n">★</span><p><b>Radiografía de obra → Ficha de Obra (lámina L-01d).</b> Se abre tocando el <b>bloque de métricas (AVANCE/PROG.)</b> de la esquina del Hoy — el porcentaje <i>es</i> la pregunta; tocarlo la expande. Target = bloque completo con hitSlop y chevron sutil; la zona del nombre de obra no es tocable (un solo destino en la franja). Recicla SabanaGlobalCard (cierra deuda #5 del ADR-003). Superficie de Fase 2: requiere programa.</p></div>
       </div>
     </div>
 
     <!-- Lámina 3: Captura rápida -->
     <div class="lamina">
-      <div class="lam-id"><span class="tag">L-03</span><h4>Captura rápida de avance</h4><em>sheet · el momento que le gana a la libreta</em></div>
+      <div class="lam-id"><span class="tag">L-03 · Rev E</span><h4>Captura rápida de avance</h4><em>sheet · estado normal y estado de sobre-ejecución</em></div>
       <div class="phone dim">
         <div class="p-hdr"><span class="t">Sábana de Avance</span></div>
         <div class="ghost" style="height:40px"></div>
@@ -459,10 +559,10 @@
           <div class="cbox">
             <div class="rowsb"><span class="wbs">1.2.03 · Cimentaciones</span><span class="mk" style="--acc:var(--teal)">1</span></div>
             <div style="font-size:12.5px;font-weight:600;color:#1f2937;line-height:1.3">Excavación en cepas a máquina en material tipo II</div>
-            <div style="font-size:11.5px;color:#059669;margin-top:3px">Acumulado: 145.5 / 200.0 m³ · restan 54.5</div>
+            <div style="font-size:11.5px;color:#059669;margin-top:3px">Acumulado: 145.5 / 200.0 m³ · <span style="color:#334155;font-weight:600">restan 54.5 m³</span></div>
           </div>
           <div class="lbl">Cantidad ejecutada hoy <span class="mk" style="--acc:var(--teal)">2</span></div>
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:5px"><div class="input" style="flex:1">12.5</div><b style="color:#6b7280;font-size:14px">m³</b></div>
+          <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:5px"><div class="input" style="flex:1">12.5</div><span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;padding:10px 16px;font-size:16px;font-weight:600;color:#374151;display:flex;align-items:center">m³</span></div>
           <div class="meta" style="margin-bottom:11px">Nuevo acumulado: <b style="color:#059669">158.0 m³ (79.0%)</b> · vs programa: <b style="color:#991b1b">−22.0</b></div>
           <div class="lbl">Evidencia fotográfica <span class="mk" style="--acc:var(--teal)">3</span></div>
           <div class="photos" style="margin-bottom:11px"><div class="ph">📷</div><div class="ph add">＋<span>Cámara</span></div></div>
@@ -474,11 +574,36 @@
           <div class="foot">⇅ Sin conexión: se guarda y sincroniza solo</div>
         </div>
       </div>
+      <div class="phone dim">
+        <div class="p-hdr"><span class="t">Sábana de Avance</span></div>
+        <div class="ghost" style="height:40px"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <div class="cbox">
+            <span class="wbs">1.2.03 · Cimentaciones</span>
+            <div style="font-size:12.5px;font-weight:600;color:#1f2937;line-height:1.3">Excavación en cepas a máquina en material tipo II</div>
+            <div style="font-size:11.5px;color:#059669;margin-top:3px">Acumulado: 145.5 / 200.0 m³ · <span style="color:#334155;font-weight:600">restan 54.5 m³</span></div>
+          </div>
+          <div class="lbl">Cantidad ejecutada hoy</div>
+          <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:5px"><div class="input" style="flex:1;border-color:#f59e0b">125</div><span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;padding:10px 16px;font-size:16px;font-weight:600;color:#374151;display:flex;align-items:center">m³</span></div>
+          <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:10px 12px;margin-bottom:12px">
+            <div class="rowsb">
+              <span style="font-size:12px;color:#92400e;font-weight:600">⚠ Sobre-ejecución del contratado</span>
+              <span class="mk" style="--acc:var(--teal)">5</span>
+            </div>
+            <div style="font-size:11.5px;color:#92400e;margin-top:3px">Nuevo acumulado: <b>270.5 / 200.0 m³ (135.3%)</b></div>
+            <div style="font-size:11px;color:#a16207;margin-top:3px">El registro no se bloquea — confirma que el volumen es correcto</div>
+          </div>
+          <div style="background:#f59e0b;border-radius:10px;padding:12px 0;text-align:center;color:#fff;font-size:14px;font-weight:600">Confirmar y registrar 125 m³</div>
+          <div class="foot">La sobre-ejecución es información real de obra (E2) — se registra, no se recorta</div>
+        </div>
+      </div>
       <div class="notes">
         <div class="ann"><span class="n">1</span><p><b>Concepto precargado.</b> Viene de la fila o de la ficha. Muere la cascada catálogo → partida → concepto; el formulario completo actual queda como ruta alternativa de búsqueda.</p></div>
         <div class="ann"><span class="n">2</span><p><b>Acumulado y programa en vivo.</b> Al teclear ve el nuevo total, el % y su posición contra programa — información que la libreta jamás le dio, en el momento exacto de captura.</p></div>
         <div class="ann"><span class="n">3</span><p><b>Foto en el mismo paso.</b> Directo a cámara sin salir del sheet. La evidencia se captura donde ocurre; alimenta el reporte integral futuro.</p></div>
         <div class="ann"><span class="n">4</span><p><b>Incidencia contextual.</b> Nace ligada al concepto y frente — datos conectados para el análisis de causa, no registros huérfanos. La tab de Incidencias desaparece; esto la sustituye.</p></div>
+        <div class="ann"><span class="n">5</span><p><b>Tres capas contra el error de dedo (sustituyen al modal universal del formulario clásico).</b> (a) Vista previa de consecuencia siempre visible: el nuevo acumulado se calcula en vivo — un 125 mal tecleado grita antes de tocar nada. (b) Confirmación <i>condicionada por anomalía</i> (teléfono derecho): si el volumen supera lo restante o excede la carga típica del concepto (dato de la trazabilidad), aparece alerta ámbar y el CTA exige confirmación explícita — <b>sin bloquear</b>: la sobre-ejecución es información real (E2). El caso normal fluye directo; el raro paga la fricción, donde sí protege. (c) Snackbar "Deshacer" post-registro: antes del sync es sacar el item de la cola Realm (gratis); después, edición inline del detalle. Racional: los modales universales mueren por habituación y cobran +1 tap a cada captura contra el presupuesto de &lt;30 s.</p></div>
       </div>
     </div>
   </section>
@@ -506,7 +631,7 @@
           </div>
           <div class="card" style="border-left:3px solid #ef4444;border-top-left-radius:0;border-bottom-left-radius:0">
             <div class="rowst"><span style="font-size:12.5px;font-weight:600;color:#1f2937">Salidas eléctricas · Nivel 2</span><span class="mk">2</span></div>
-            <div class="meta">Semana: debías <b style="color:#991b1b">6</b> · llevas <b style="color:#1f2937">5 de 15 pza</b></div>
+            <div class="meta">Comprometido <b style="color:#991b1b">6</b> a hoy · llevas <b style="color:#1f2937">5 de 15 pza</b></div>
             <div style="display:flex;align-items:center;gap:8px">
               <div class="bar" style="flex:1"><div class="fill r" style="width:33%"></div><div class="markpt" style="left:40%"></div></div>
               <div class="plus" style="width:30px;height:30px;font-size:16px">+</div>
@@ -515,12 +640,12 @@
           <div class="card" style="border-left:3px solid #10b981;border-top-left-radius:0;border-bottom-left-radius:0">
             <div class="rowst"><span style="font-size:12.5px;font-weight:600;color:#1f2937">Excavación en cepas <span class="wbs">· 1.2.03</span></span>
               <span style="display:flex;gap:5px;align-items:center"><span class="chip ch-ind">auto</span><span class="mk">3</span></span></div>
-            <div class="meta">Semana: debías <b style="color:#1f2937">10</b> · llevas <b style="color:#065f46">12.5 de 20 m³</b></div>
+            <div class="meta">Comprometido <b style="color:#1f2937">10</b> a hoy · llevas <b style="color:#065f46">12.5 de 20 m³</b></div>
             <div class="bar"><div class="fill" style="width:62%"></div><div class="markpt" style="left:50%"></div></div>
           </div>
           <div class="card" style="border-left:3px solid #3b82f6;border-top-left-radius:0;border-bottom-left-radius:0">
             <div class="rowst"><span style="font-size:12.5px;font-weight:600;color:#1f2937">Firme de concreto · Nivel 1</span><span style="font-size:10.5px;color:#1e40af;font-weight:600">Adelantada</span></div>
-            <div class="meta">Semana: debías <b style="color:#1f2937">12</b> · llevas <b style="color:#1e40af">18 de 30 m²</b></div>
+            <div class="meta">Comprometido <b style="color:#1f2937">12</b> a hoy · llevas <b style="color:#1e40af">18 de 30 m²</b></div>
             <div style="display:flex;align-items:center;gap:8px">
               <div class="bar" style="flex:1"><div class="fill b" style="width:60%"></div><div class="markpt" style="left:40%"></div></div>
               <div class="plus" style="width:30px;height:30px;font-size:16px">+</div>
@@ -598,7 +723,7 @@
           <div class="cbox" style="background:#efedfa;border-color:#c9c3ee">
             <div class="rowsb"><span class="wbs">Nivel 2 · pza</span><span class="mk">1</span></div>
             <div style="font-size:13px;font-weight:600;color:#1f2937">Salidas eléctricas</div>
-            <div style="font-size:11.5px;color:#5b4fc0;margin-top:3px">Hoy debías 3 · semana: 5 de 15</div>
+            <div style="font-size:11.5px;color:#5b4fc0;margin-top:3px">Comprometido hoy: 3 · semana 5 de 15</div>
           </div>
           <div class="lbl">¿Cuántas terminaron hoy? <span class="mk">2</span></div>
           <div style="display:flex;justify-content:center;margin:6px 0 10px"><span class="stepper" style="transform:scale(1.25)"><i>−</i><b>4</b><i>＋</i></span></div>

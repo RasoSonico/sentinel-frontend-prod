@@ -138,6 +138,41 @@ export const getAdvancesByCatalog = async ({
 };
 
 /**
+ * Historial completo de un concepto, BAJO DEMANDA.
+ *
+ * Las 4 cargas más recientes ya viajan en `avance/base/` y están disponibles
+ * offline; esta llamada es solo para cuando el usuario pide explícitamente
+ * "ver historial completo" — momento en que él la pidió y sí hay red. El
+ * endpoint ya filtraba por concepto y ordena `-date, -id`: no hizo falta tocar
+ * el backend.
+ */
+export const getAdvancesByConcept = async ({
+  conceptId,
+  pageSize = 50,
+}: {
+  conceptId: number;
+  pageSize?: number;
+}): Promise<{ advances: PhysicalAdvanceResponse[]; count: number }> => {
+  const params = new URLSearchParams({
+    concept: conceptId.toString(),
+    page_size: String(pageSize),
+    detailed: "true",
+  });
+
+  const endpoint = `${API_CONFIG.endpoints.advances.list}?${params.toString()}`;
+
+  const response = await apiRequest<{
+    results: PhysicalAdvanceResponse[];
+    count: number;
+  }>("get", endpoint, "Error al obtener el historial del concepto");
+
+  return {
+    advances: response.results || [],
+    count: response.count || 0,
+  };
+};
+
+/**
  * Agregado global de avance físico por obra (ADR-002 backend)
  */
 export const getConstructionSummary = async (

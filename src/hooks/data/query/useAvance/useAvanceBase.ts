@@ -24,8 +24,15 @@ export const avanceBaseOptions = (realm: Realm, isOnline: boolean | null) =>
   queryOptions({
     queryKey: [AVANCE_QUERY_KEYS.BASE],
     enabled: isOnline === true,
-    // Static key shared across all users — must refetch on mount so User 2 never
-    // sees User 1's stale data that PersistQueryClientProvider rehydrated from AsyncStorage.
+    // El aislamiento entre usuarios ya NO depende de esta línea: lo garantiza el
+    // wipe por cambio de identidad (src/services/auth/cacheOwner.ts), que corre
+    // antes de que monte el árbol autenticado y cubre también el caso offline,
+    // donde un refetch no ocurre.
+    //
+    // Se conserva porque tiene un segundo trabajo: es el mecanismo por el que se
+    // refresca el programa contractual, cuyo escritor es el escritorio y por
+    // tanto ningún worker del dispositivo puede invalidar (ADR-004 D6 y patrón 9
+    // de su guía de implementación). No quitar.
     refetchOnMount: true,
     queryFn: async () => {
       logApiFetchStart("Avance Base");

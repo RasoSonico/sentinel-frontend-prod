@@ -13,7 +13,6 @@ import {
   ConceptField,
   QuantityField,
   NotesField,
-  CompletionField,
 } from "./fields";
 import { AdvanceFormProvider } from "./context/AdvanceFormContext";
 import { useFormContext, useWatch } from "react-hook-form";
@@ -76,7 +75,6 @@ function AdvanceFormContent() {
           <PartidaField />
           <ConceptField />
           <QuantityField />
-          <CompletionField />
           <NotesField />
           <AdvancePhotoSection
             photos={photos}

@@ -20,7 +20,6 @@ export type AppTabParamList = {
   Home: NavigatorScreenParams<SabanaStackParamList> | undefined;
   Obras: undefined;
   Catalogos: undefined;
-  Cronogramas: undefined;
   Reportes: NavigatorScreenParams<ReportesStackParamList> | undefined;
   Maquinaria: undefined;
   Perfil: undefined;
@@ -49,19 +48,6 @@ export type CatalogoStackParamList = {
   ConceptoDetail: { conceptoId: string; title: string };
   ConceptoCreate: { catalogoId: string };
   ConceptoEdit: { conceptoId: string };
-};
-
-// Parámetros para el navegador de Cronogramas
-export type CronogramaStackParamList = {
-  CronogramasList: undefined;
-  CronogramaDetail: { cronogramaId: string; title: string };
-  CronogramaCreate: undefined;
-  CronogramaEdit: { cronogramaId: string };
-  ActividadesList: { cronogramaId: string; title: string };
-  ActividadDetail: { actividadId: string; title: string };
-  ActividadCreate: { cronogramaId: string };
-  ActividadEdit: { actividadId: string };
-  GanttView: { cronogramaId: string; title: string };
 };
 
 // Parámetros para el navegador de Maquinaria
@@ -137,8 +123,6 @@ export type AppNavigationProp = StackNavigationProp<AppTabParamList>;
 export type ObraNavigationProp = StackNavigationProp<ObraStackParamList>;
 export type CatalogoNavigationProp =
   StackNavigationProp<CatalogoStackParamList>;
-export type CronogramaNavigationProp =
-  StackNavigationProp<CronogramaStackParamList>;
 export type ReportesNavigationProp =
   StackNavigationProp<ReportesStackParamList>;
 export type RootNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -151,10 +135,6 @@ export type ObraRouteProps = RouteProp<
 export type CatalogoRouteProps = RouteProp<
   CatalogoStackParamList,
   keyof CatalogoStackParamList
->;
-export type CronogramaRouteProps = RouteProp<
-  CronogramaStackParamList,
-  keyof CronogramaStackParamList
 >;
 export type ReportesRouteProps = RouteProp<
   ReportesStackParamList,

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Sentinel",
-    "slug": "Sentinel",
+    "slug": "sentinel",
     "version": "1.0.0",
     "scheme": "sentinel",
     "orientation": "portrait",
@@ -36,7 +36,9 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.urbaingenieria.sentinel",
@@ -60,7 +62,10 @@
               "scheme": "sentinel"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "edgeToEdgeEnabled": true
@@ -69,7 +74,7 @@
       "bundler": "metro"
     },
     "extra": {
-      "apiUrl": "http://192.168.1.X:8000/api/",
+      "apiUrl": "http://10.0.2.2:8000/api/",
       "environment": "development",
       "eas": {
         "projectId": "1ae1353b-4774-4c57-a67a-e6791bff07c3"

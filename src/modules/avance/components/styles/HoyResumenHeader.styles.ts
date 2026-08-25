@@ -56,6 +56,41 @@ export default StyleSheet.create({
     fontWeight: DesignTokens.typography.fontWeight.bold,
     fontVariant: ["tabular-nums"],
   },
+  // Esquina PROG.: mismo tamaño de etiqueta que AVANCE pero valor más
+  // discreto — el ejecutado es el protagonista; el programado es la vara.
+  progBlock: {
+    alignItems: "flex-end",
+    marginLeft: sp(14),
+  },
+  progValue: {
+    color: "#7FD1C1",
+    // MISMO tamaño que pctValue: el código decía 18 contra 16 mientras el
+    // comentario prometía un valor "más discreto", así que el programado salía
+    // más grande que el avance y le robaba el protagonismo.
+    fontSize: 16,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+  // Marca de programado sobre la barra. Teal = plano contractual (el morado
+  // queda reservado a producción, Fase 3).
+  // La marca vive en un CONTENEDOR sobre la barra, no dentro: barBg tiene
+  // overflow:"hidden" para recortar el radio del relleno, y cualquier cosa
+  // dentro se recortaría. Así la marca sobresale sin ensanchar la barra.
+  barWrap: {
+    position: "relative",
+    justifyContent: "center",
+  },
+  marcaPrograma: {
+    position: "absolute",
+    top: sp(8) - 4, // barBg tiene marginTop sp(8); la marca sube 4px sobre ella
+    marginLeft: -2, // centra la marca de 4px sobre el valor exacto
+    width: 4,
+    height: 13,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.45)",
+    backgroundColor: "#5EEAD4", // teal claro: la barra de la franja es oscura
+    borderRadius: 2,
+    zIndex: 2,
+  },
   barBg: {
     height: 5,
     borderRadius: 3,
@@ -77,6 +112,15 @@ export default StyleSheet.create({
     color: DesignTokens.colors.primary[300],
     fontSize: 10.5,
     fontVariant: ["tabular-nums"],
+  },
+  // Teal apagado: pertenece al plano contractual —califica al PROGRAMA, no al
+  // avance— pero es una advertencia de alcance, no una cifra que deba competir
+  // con las de arriba.
+  alcancePrograma: {
+    color: "#7FD1C1",
+    opacity: 0.75,
+    fontSize: 10,
+    marginTop: 3,
   },
   statsRow: {
     flexDirection: "row",

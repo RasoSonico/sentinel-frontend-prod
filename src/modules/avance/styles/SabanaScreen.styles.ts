@@ -81,21 +81,49 @@ export default StyleSheet.create({
     color: DesignTokens.colors.neutral[500],
     fontVariant: ["tabular-nums"],
   },
+  // El color lo inyecta el componente con colorPorcentaje(), igual que las
+  // filas: aquí solo vive el peso. Antes traía un verde fijo que sobrevivió al
+  // retiro del semáforo y dejaba la línea de catálogo contradiciendo al árbol.
   catMetricsPct: {
-    color: DesignTokens.colors.success[700],
     fontWeight: "700",
   },
+  // Mismo color que el relleno de la barra: el número y la barra son el mismo
+  // plano de lectura. Antes era teal —que ataba el texto a su marca— pero junto
+  // al verde de "Físico" se leían como dos verdes distintos sin razón aparente.
+  catMetricsProg: {
+    color: DesignTokens.colors.executive.light,
+    fontWeight: "700",
+  },
+  // Sin negrita y en gris: es una ausencia que hay que declarar, no una cifra
+  // que deba pesar lo mismo que las dos que la rodean.
+  catMetricsSinPrograma: {
+    color: DesignTokens.colors.neutral[400],
+    fontStyle: "italic",
+  },
+  marcaProgramaCatalogo: {
+    position: "absolute",
+    top: 1, // catMetricsBarBg lleva marginTop 5; esto la deja 4px por encima
+    marginLeft: -2,
+    width: 4,
+    height: 12,
+    backgroundColor: "#0F766E",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.95)",
+    borderRadius: 2,
+    zIndex: 2,
+  },
   catMetricsBarBg: {
+    position: "relative",
     height: 4,
     borderRadius: 2,
     backgroundColor: DesignTokens.colors.neutral[200],
     marginTop: 5,
     overflow: "hidden",
   },
+  // backgroundColor lo inyecta el componente con colorBarra().
   catMetricsBarFill: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: DesignTokens.colors.success[500],
   },
   catalogSelectorStatic: {
     paddingVertical: 6,
@@ -260,6 +288,53 @@ export default StyleSheet.create({
     fontSize: 11,
     color: DesignTokens.colors.neutral[400],
   },
+  conceptPctWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  // Marca del programado sobre la barra de la fila. Teal = plano contractual.
+  // Contenedor de la barra: la marca se posiciona AQUÍ, no dentro de la barra,
+  // porque ésta recorta (overflow hidden) para el radio del relleno.
+  barWrap: {
+    position: "relative",
+    justifyContent: "center",
+  },
+  // Teal oscuro con halo blanco: tiene que leerse tanto sobre la pista gris
+  // como sobre el relleno slate o el ámbar de sobre-ejecución, sin ensanchar
+  // la barra.
+  marcaProgramaFila: {
+    position: "absolute",
+    top: -4,
+    marginLeft: -2,
+    width: 4,
+    height: 12,
+    backgroundColor: "#0F766E",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.95)",
+    borderRadius: 2,
+    zIndex: 2,
+  },
+
+  // Aviso de sobre-ejecución. Sin fondo ni caja: en una sábana de cientos de
+  // filas, un bloque de color por fila afectada competiría con la información
+  // que la sábana existe para mostrar. El ámbar del texto basta, porque tras
+  // retirar el semáforo es el único ámbar que puede aparecer en la fila.
+  avisoSobre: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
+  },
+  avisoSobreIcono: {
+    color: "#B45309",
+    marginRight: 4,
+  },
+  avisoSobreTexto: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#B45309",
+  },
+
   conceptPct: {
     fontSize: 13,
     fontWeight: "600",
@@ -285,6 +360,7 @@ export default StyleSheet.create({
     fontWeight: "500",
   },
   conceptBarBg: {
+    position: "relative",
     height: 4,
     backgroundColor: DesignTokens.colors.neutral[200],
     borderRadius: 2,

@@ -14,8 +14,6 @@ export function getTabBarIconName(
       return focused ? "business" : "business-outline";
     case "Catalogos":
       return focused ? "list" : "list-outline";
-    case "Cronogramas":
-      return focused ? "calendar" : "calendar-outline";
     case "Reportes":
       return focused ? "document-text" : "document-text-outline";
     case "Perfil":

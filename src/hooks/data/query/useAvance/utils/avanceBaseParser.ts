@@ -41,8 +41,41 @@ export const parseAvanceBaseForRealm = (
             section_id:
               concept.section_id != null ? Number(concept.section_id) : null,
             wbs_code: concept.wbs_code ?? null,
+            // Lista vacía —nunca undefined— si el backend no manda el campo:
+            // Realm exige la propiedad presente y la ficha itera sin guardas.
+            ultimas_cargas: (concept.ultimas_cargas ?? []).map((carga) => ({
+              fecha: carga.fecha || "",
+              volumen: String(carga.volumen ?? "0"),
+              tiene_foto: Boolean(carga.tiene_foto),
+            })),
           })),
         })),
+        // `null` explícito cuando el catálogo no tiene versión vigente. NO se
+        // fabrica un objeto vacío: el cliente distingue "no hay programa" de
+        // "el programa exige cero", que son estados distintos (D11).
+        programa: catalog.programa
+          ? {
+              version_id: Number(catalog.programa.version_id) || 0,
+              numero_version: Number(catalog.programa.numero_version) || 0,
+              fecha_carga: catalog.programa.fecha_carga || "",
+              conceptos: (catalog.programa.conceptos ?? []).map((fila) => ({
+                concept_id:
+                  fila.concept_id != null ? Number(fila.concept_id) : null,
+                work_item_id:
+                  fila.work_item_id != null ? Number(fila.work_item_id) : null,
+                fecha_inicio: fila.fecha_inicio || "",
+                fecha_fin: fila.fecha_fin || "",
+                // Decimales SIEMPRE como string: Realm no tiene decimal nativo
+                // y pasarlos por Number perdería la precisión de 4 que el
+                // backend garantiza.
+                volumen_total: String(fila.volumen_total ?? "0"),
+                cortes: (fila.cortes ?? []).map((corte) => ({
+                  fecha_corte: corte.fecha_corte || "",
+                  volumen_acumulado: String(corte.volumen_acumulado ?? "0"),
+                })),
+              })),
+            }
+          : null,
       })),
       meta: {
         total_catalogs: Number(data.meta.total_catalogs) || 0,

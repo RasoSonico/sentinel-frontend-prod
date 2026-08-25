@@ -59,6 +59,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     favicon: "./src/assets/SENTINEL_LOGO.png",
   },
   extra: {
+    // El spread NO es opcional: `extra` de app.json trae `eas.projectId`, y
+    // redefinir este objeto sin él lo borraba de la config resuelta. EAS lee
+    // ahí el enlace del proyecto, así que sin el spread `eas build` responde
+    // "EAS project not configured" y `eas env:create` truena al intentar
+    // escribir el id de vuelta ("Cannot read properties of undefined").
+    ...config.extra,
     apiUrl: getApiUrl(),
     environment: process.env.NODE_ENV || "development",
   },

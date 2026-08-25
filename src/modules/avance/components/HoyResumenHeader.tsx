@@ -4,11 +4,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
 import { formatCurrency } from "../utils/formatCurrency";
 import { TodayCounts, TodayObraResumen } from "../hooks/useTodaySummary";
+import { ProgramaObra } from "../hooks/useProgramaObra";
 import styles from "./styles/HoyResumenHeader.styles";
 
 interface Props {
   obraNombre: string | null;
   resumenObra: TodayObraResumen | null;
+  /** `null` = la obra no tiene programa vigente. D11: no se renderiza nada. */
+  programaObra: ProgramaObra | null;
   counts: TodayCounts;
   onPressAvances: () => void;
   onPressFotos: () => void;
@@ -22,12 +25,17 @@ interface Props {
  * Primer elemento del ListHeader de la sábana: viaja con el scroll, no es
  * sticky. Presentacional puro; los datos vienen de useTodaySummary.
  *
- * Anclajes de fases futuras (no construidos): PROG.% y marca en barra
- * (Fase 2), chip eco de Semana (Fase 3).
+ * Fase 2 activa: esquina PROG. y marca de programado sobre la barra de obra,
+ * ambas condicionadas por D11 (sin programa, no se renderizan). El PROG. se
+ * calcula EN CLIENTE (useProgramaObra): depende del reloj y ninguna
+ * invalidación de caché puede mantenerlo fresco.
+ *
+ * Anclaje de fase futura (no construido): chip eco de Semana (Fase 3).
  */
 const HoyResumenHeader: React.FC<Props> = ({
   obraNombre,
   resumenObra,
+  programaObra,
   counts,
   onPressAvances,
   onPressFotos,
@@ -45,7 +53,11 @@ const HoyResumenHeader: React.FC<Props> = ({
   });
 
   const stats = [
-    { label: "Avances", value: String(counts.avances), onPress: onPressAvances },
+    {
+      label: "Avances",
+      value: String(counts.avances),
+      onPress: onPressAvances,
+    },
     { label: "Fotos", value: String(counts.fotos), onPress: onPressFotos },
     {
       label: "Incidencias",
@@ -72,20 +84,43 @@ const HoyResumenHeader: React.FC<Props> = ({
         {resumenObra ? (
           <View style={styles.pctBlock}>
             <Text style={styles.pctLabel}>AVANCE</Text>
-            <Text style={styles.pctValue}>{resumenObra.pct.toFixed(1)}%</Text>
+            <Text style={styles.pctValue}>{resumenObra.pct.toFixed(2)}%</Text>
+          </View>
+        ) : null}
+        {/* D11: sin programa cargado este bloque NO se renderiza. Un 0% aquí se
+            leería como atraso total, que es información falsa — no un neutro. */}
+        {programaObra ? (
+          <View style={styles.progBlock}>
+            <Text style={styles.pctLabel}>PROGRAMA</Text>
+            <Text style={styles.pctValue}>{programaObra.pct.toFixed(2)}%</Text>
           </View>
         ) : null}
       </View>
 
       {resumenObra ? (
         <>
-          <View style={styles.barBg}>
-            <View
-              style={[
-                styles.barFill,
-                { width: `${Math.min(100, resumenObra.pct)}%` },
-              ]}
-            />
+          {/* La marca va en el CONTENEDOR, no dentro de la barra: barBg
+              recorta (overflow hidden) y ahí la marca no podría sobresalir.
+              Así se ve grande sin ensanchar la barra. */}
+          <View style={styles.barWrap}>
+            <View style={styles.barBg}>
+              <View
+                style={[
+                  styles.barFill,
+                  { width: `${Math.min(100, resumenObra.pct)}%` },
+                ]}
+              />
+            </View>
+            {/* La distancia entre el relleno y la marca ES el atraso, sin
+                necesidad de leer un solo número. */}
+            {programaObra ? (
+              <View
+                style={[
+                  styles.marcaPrograma,
+                  { left: `${Math.min(100, programaObra.pct)}%` },
+                ]}
+              />
+            ) : null}
           </View>
           <View style={styles.importesRow}>
             <Text style={styles.importeText}>
@@ -95,6 +130,21 @@ const HoyResumenHeader: React.FC<Props> = ({
               Contratado {formatCurrency(resumenObra.contratado)}
             </Text>
           </View>
+
+          {/* ALCANCE del programa, solo cuando es parcial.
+              El denominador del PROG% es el contratado COMPLETO de la obra, así
+              que un catálogo sin programa lo arrastra hacia abajo sin decir por
+              qué — y al revés engaña más: si el catálogo programado va bien, el
+              número puede sugerir que la obra va bien cuando una parte ni
+              siquiera está planeada. Esto es el alcance de la cifra, no una
+              nota al pie. */}
+          {programaObra &&
+          programaObra.catalogosConPrograma < programaObra.catalogosTotal ? (
+            <Text style={styles.alcancePrograma}>
+              Programa cargado en {programaObra.catalogosConPrograma} de{" "}
+              {programaObra.catalogosTotal} catálogos
+            </Text>
+          ) : null}
         </>
       ) : null}
 

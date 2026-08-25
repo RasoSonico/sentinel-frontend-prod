@@ -58,32 +58,6 @@ export interface Concept {
   updated_at: string;
 }
 
-// Cronograma
-export interface Schedule {
-  id: string;
-  name: string;
-  description: string;
-  construction: string;
-  start_date: string;
-  end_date: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-// Actividad
-export interface Activity {
-  id: string;
-  name: string;
-  description: string;
-  schedule: string;
-  start_date: string;
-  end_date: string;
-  progress: number;
-  created_at: string;
-  updated_at: string;
-}
-
 // Avance Físico
 export interface Physical {
   id: string;
@@ -93,30 +67,6 @@ export interface Physical {
   progress_percentage: number;
   notes: string;
   photos: string[];
-  created_at: string;
-  updated_at: string;
-}
-
-// Estimación
-export interface Estimation {
-  id: string;
-  construction: string;
-  number: number;
-  date: string;
-  status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
-  total_amount: number;
-  created_at: string;
-  updated_at: string;
-}
-
-// Detalle de Estimación
-export interface EstimationDetail {
-  id: string;
-  estimation: string;
-  concept: string;
-  quantity: number;
-  unit_price: number;
-  amount: number;
   created_at: string;
   updated_at: string;
 }
@@ -245,6 +195,41 @@ export interface AvanceBaseSection {
   work_item_id: number;
 }
 
+// Una de las últimas cargas del concepto (trazabilidad de la ficha L-02).
+// Viaja en el paquete offline porque la lista de avances se pagina a 100 y las
+// cargas de un concepto concreto podían quedar fuera del corte.
+export interface UltimaCarga {
+  fecha: string;
+  volumen: string;
+  tiene_foto: boolean;
+}
+
+// ── Programa contractual (ADR-003 §8.1) ──────────────────────────────────────
+// Todos los decimales llegan como string y se convierten con parseNum.
+
+export interface ProgramaCorteApi {
+  fecha_corte: string;
+  volumen_acumulado: string;
+}
+
+export interface ProgramaConceptoApi {
+  // XOR: uno de los dos, nunca ambos. El indicador se pinta solo en el nivel
+  // donde el programa existe; la app jamás prorratea hacia abajo (D4).
+  concept_id: number | null;
+  work_item_id: number | null;
+  fecha_inicio: string;
+  fecha_fin: string;
+  volumen_total: string;
+  cortes: ProgramaCorteApi[];
+}
+
+export interface ProgramaApi {
+  version_id: number;
+  numero_version: number;
+  fecha_carga: string;
+  conceptos: ProgramaConceptoApi[];
+}
+
 // Avance Base Concept
 export interface AvanceBaseConcept {
   id: number;
@@ -257,6 +242,9 @@ export interface AvanceBaseConcept {
   quantity_left: string;
   section_id: number | null;
   wbs_code: string | null;
+  // Opcional para tolerar backend viejo — misma disciplina que la enmienda E1
+  // de Fase 1. Sin el campo, la ficha simplemente no muestra trazabilidad.
+  ultimas_cargas?: UltimaCarga[];
 }
 
 // Avance Base Work Item
@@ -274,6 +262,10 @@ export interface AvanceBaseCatalog {
   construction_id: number;
   construction_name: string;
   work_items: AvanceBaseWorkItem[];
+  // `null` cuando el catálogo no tiene versión vigente — el backend nunca omite
+  // la clave. Opcional además para tolerar backend viejo. D11: sin dato de
+  // programa el elemento no se renderiza; jamás un 0 fabricado.
+  programa?: ProgramaApi | null;
 }
 
 // Avance Base Meta

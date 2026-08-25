@@ -23,9 +23,11 @@ import { DesignTokens } from "../../styles/designTokens";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useAssignedConstruction } from "src/hooks/data/query/useAvance";
+import { usePendingAdvanceQueue } from "src/hooks/avance/usePendingAdvanceQueue";
 
 const PerfilScreen = () => {
   const auth = useAuth();
+  const { pendingCount, failedCount, syncingCount } = usePendingAdvanceQueue();
   const user = useAppSelector(selectUser);
   const userName = useAppSelector(selectUserName) || "Usuario";
   const userEmail = useAppSelector(selectUserEmail) || "usuario@ejemplo.com";
@@ -66,29 +68,53 @@ const PerfilScreen = () => {
     };
   }, []);
 
+  // Capturas que aún no llegaron al servidor. Cerrar sesión NO las borra —
+  // el cache se limpia por cambio de identidad, no por logout — pero si otra
+  // persona inicia sesión en este dispositivo se pierden. El aviso va aquí
+  // porque es el único momento en que quien puede resolverlo (conectarse y
+  // sincronizar) todavía puede actuar.
+  const unsyncedCount = pendingCount + failedCount + syncingCount;
+
   const handleLogout = async () => {
+    const doLogout = async () => {
+      try {
+        // auth.logout() calls forceLogout() which clears:
+        // SecureStore token, Redux auth state, and React Query cache.
+        // redux-persist writes the cleared state to AsyncStorage automatically.
+        await auth.logout();
+      } catch (error) {
+        console.error("Error al cerrar sesión:", error);
+        Alert.alert("Error", "No se pudo cerrar sesión correctamente");
+      }
+    };
+
+    if (unsyncedCount > 0) {
+      Alert.alert(
+        "Tienes capturas sin sincronizar",
+        `${unsyncedCount} ${
+          unsyncedCount === 1 ? "captura no ha llegado" : "capturas no han llegado"
+        } al servidor. Si otra persona inicia sesión en este dispositivo, se ${
+          unsyncedCount === 1 ? "perderá" : "perderán"
+        }.\n\nConéctate y espera a que sincronicen antes de salir.`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Cerrar sesión de todos modos",
+            style: "destructive",
+            onPress: doLogout,
+          },
+        ],
+        { cancelable: true },
+      );
+      return;
+    }
+
     Alert.alert(
       "Cerrar Sesión",
       "¿Está seguro que desea cerrar sesión?",
       [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-        {
-          text: "Sí, Cerrar Sesión",
-          onPress: async () => {
-            try {
-              // auth.logout() calls forceLogout() which clears:
-              // SecureStore token, Redux auth state, and React Query cache.
-              // redux-persist writes the cleared state to AsyncStorage automatically.
-              await auth.logout();
-            } catch (error) {
-              console.error("Error al cerrar sesión:", error);
-              Alert.alert("Error", "No se pudo cerrar sesión correctamente");
-            }
-          },
-        },
+        { text: "Cancelar", style: "cancel" },
+        { text: "Sí, Cerrar Sesión", onPress: doLogout },
       ],
       { cancelable: true },
     );

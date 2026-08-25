@@ -1,15 +1,18 @@
 import { useDispatch, useSelector } from "react-redux";
 import { useAuthMeQuery } from "./data/query/useAuthQueries";
 import { useEffect } from "react";
+import { useRealm } from "@realm/react";
 import authConfig from "../config/authConfig.json";
 import { useAzureAuth } from "./providers/useAzureAuth";
 import { selectAuthInfo } from "src/redux/selectors/authSelectors";
 import { setCredentials, setIsAuthenticated } from "src/redux/slices/authSlice";
 import { AuthConfig, AuthProvider } from "src/types/auth";
 import { saveTokenResponse, forceLogout } from "src/utils/auth";
+import { ensureCacheOwner } from "src/services/auth/cacheOwner";
 
 export const useAuth = () => {
   const dispatch = useDispatch();
+  const realm = useRealm();
   const { token, role, user, isAuthenticated } = useSelector(selectAuthInfo);
   const {
     data: authUser,
@@ -43,7 +46,14 @@ export const useAuth = () => {
 
     if (tokenResponse) {
       console.log("[useAuth] login() successful");
-      saveTokenResponse(tokenResponse);
+      await saveTokenResponse(tokenResponse);
+
+      // Si entra un usuario distinto al dueño del cache, se borra Realm y el
+      // cache persistido ANTES de dispatchar setIsAuthenticated(true) — que es
+      // lo que monta AppNavigator. Así el usuario nuevo nunca ve datos del
+      // anterior, ni por un frame, y no espera a que un refetch los reemplace.
+      await ensureCacheOwner(realm, tokenResponse.accessToken);
+
       dispatch(setIsAuthenticated(true));
     }
   };

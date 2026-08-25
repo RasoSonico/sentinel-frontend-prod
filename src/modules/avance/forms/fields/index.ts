@@ -3,4 +3,3 @@ export { PartidaField } from "./PartidaField";
 export { ConceptField } from "./ConceptField";
 export { QuantityField } from "./QuantityField";
 export { NotesField } from "./NotesField";
-export { CompletionField } from "./CompletionField";

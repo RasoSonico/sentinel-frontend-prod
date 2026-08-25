@@ -10,6 +10,12 @@ import { AvanceBaseMeta } from "src/realm/avanceBase/Meta";
 import { AvanceBaseResponse } from "src/realm/avanceBase/Response";
 import { AvanceBaseSection } from "src/realm/avanceBase/Section";
 import { AvanceBaseWorkItem } from "src/realm/avanceBase/WorkItem";
+import { UltimaCarga } from "src/realm/avanceBase/UltimaCarga";
+import {
+  Programa,
+  ProgramaConceptoRealm,
+  ProgramaCorte,
+} from "src/realm/avanceBase/Programa";
 import { PhysicalAdvanceResponse } from "src/realm/avanceByCatalog/PhysicalAdvanceResponse";
 import { AdvancePhoto } from "src/realm/avanceByCatalog/Photo";
 import { AvancesByCatalogResponse } from "src/realm/avanceByCatalog/Response";
@@ -84,6 +90,11 @@ const SENTINEL_SCHEMA = [
   AvanceBaseConcept,
   AvanceBaseMeta,
   AvanceBaseFiltersApplied,
+  // Fase 2 (schemaVersion 12): programa contractual y trazabilidad de cargas
+  UltimaCarga,
+  ProgramaCorte,
+  ProgramaConceptoRealm,
+  Programa,
   // Advances By Catalog schemas
   AvancesByCatalogResponse,
   PhysicalAdvanceResponse,
@@ -132,6 +143,18 @@ const handleMigration = (oldRealm: Realm, newRealm: Realm) => {
   if (oldRealm.schemaVersion < 11) {
     newRealm.delete(newRealm.objects("AvancesByCatalogResponse"));
   }
+  // schemaVersion 12 (ADR-004 Fase 2): bloque `programa` y `ultimas_cargas` en
+  // AvanceBaseResponse, más `syncedAt` en la cola (enmienda E8).
+  //
+  // Se borra SOLO AvanceBaseResponse —donde viven los campos nuevos— y se
+  // repuebla con el siguiente prefetch. NO se tocan las colas
+  // (PendingAdvanceSubmission / PendingPhotoSubmission): borrarlas destruiría
+  // capturas de campo sin sincronizar. `syncedAt` es nullable, así que los
+  // items existentes quedan en null, que es exactamente "aún no sincronizó" —
+  // el valor correcto para todo lo que siga en cola al migrar.
+  if (oldRealm.schemaVersion < 12) {
+    newRealm.delete(newRealm.objects("AvanceBaseResponse"));
+  }
 };
 
 export default function RealmProviderWrapper({
@@ -142,7 +165,7 @@ export default function RealmProviderWrapper({
   return (
     <RealmProvider
       schema={SENTINEL_SCHEMA}
-      schemaVersion={11}
+      schemaVersion={12}
       onMigration={handleMigration}
     >
       {children}

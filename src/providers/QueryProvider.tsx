@@ -14,7 +14,10 @@ export const queryClient = new QueryClient({
   },
 });
 
-const asyncStoragePersister = createAsyncStoragePersister({
+// Exportado para que la limpieza por cambio de identidad pueda llamar
+// removeClient() (ver src/services/auth/cacheOwner.ts). queryClient.clear()
+// solo vacía memoria: el blob persistido se rehidrata al siguiente montaje.
+export const asyncStoragePersister = createAsyncStoragePersister({
   storage: AsyncStorage,
 });
 

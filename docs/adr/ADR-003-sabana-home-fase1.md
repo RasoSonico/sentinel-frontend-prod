@@ -331,4 +331,5 @@ Enmiendas del 2026-07-17 (ajustes surgidos en pruebas de campo del autor):
 - ADR-001/ADR-002 de telemetría — fuente de los datos de adopción que motivan esta fase
 - `docs/telemetry.md` — eventos existentes y queries KQL
 - `docs/maquinaria-register_module.md` — patrones reutilizados (HubResumenHeader, sheets, setState-during-render)
-- ADRs futuros: Fase 2 (programa contractual y versionado), Fase 3 (tab Semana / Last Planner)
+- `ADR-004-sabana-home-fase2-programa.md` + `docs/sabana-home-fase2-programa.md` — **Fase 2, ya implementada**: cierra las láminas L-02/L-03 que la enmienda E4 difirió y enciende las capas de programa que D8 dejó ancladas
+- ADR futuro: Fase 3 (tab Semana / Last Planner — plano de producción)

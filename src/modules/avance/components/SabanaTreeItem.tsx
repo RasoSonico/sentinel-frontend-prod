@@ -6,26 +6,20 @@ import {
   FlatTreeItemConcept,
   FlatTreeItemSection,
   FlatTreeItemWorkItem,
+  SabanaConceptNode,
 } from "src/hooks/data/query/useAvance/utils/sabanaTreeBuilder";
+import ChipPrograma from "./ChipPrograma";
+import {
+  colorBarra,
+  colorPorcentaje,
+  estaSobreEjecutado,
+} from "../utils/coloresAvance";
+import { fechaCorta } from "../utils/fechaPrograma";
 import styles, {
   DEPTH_BORDER_COLOR,
   DEPTH_INDENT,
 } from "../styles/SabanaScreen.styles";
 import { DesignTokens } from "src/styles/designTokens";
-
-function pctColor(pct: number): string {
-  if (pct === 0) return DesignTokens.colors.neutral[400];
-  if (pct >= 60) return DesignTokens.colors.success[600];
-  if (pct >= 30) return DesignTokens.colors.warning[700];
-  return DesignTokens.colors.error[700];
-}
-
-function barColor(pct: number): string {
-  if (pct === 0) return DesignTokens.colors.neutral[300];
-  if (pct >= 60) return DesignTokens.colors.success[500];
-  if (pct >= 30) return DesignTokens.colors.warning[500];
-  return DesignTokens.colors.error[500];
-}
 
 // ── WorkItem row (N1) ─────────────────────────────────────────────────────────
 
@@ -63,7 +57,7 @@ const WorkItemRow: React.FC<{
           <Text
             style={[
               styles.rowPct,
-              { color: pctColor(pct), fontSize: 15, fontWeight: "700" },
+              { color: colorPorcentaje(pct), fontSize: 15, fontWeight: "700" },
             ]}
           >
             {pct}%
@@ -72,7 +66,7 @@ const WorkItemRow: React.FC<{
             <View
               style={[
                 styles.rowMiniBarFill,
-                { width: `${Math.min(100, pct)}%`, backgroundColor: barColor(pct) },
+                { width: `${Math.min(100, pct)}%`, backgroundColor: colorBarra(pct) },
               ]}
             />
           </View>
@@ -123,7 +117,7 @@ const SectionRow: React.FC<{
           <Text
             style={[
               styles.rowPct,
-              { color: pctColor(pct), fontSize: item.level === 2 ? 14 : 13 },
+              { color: colorPorcentaje(pct), fontSize: item.level === 2 ? 14 : 13 },
             ]}
           >
             {pct}%
@@ -132,7 +126,7 @@ const SectionRow: React.FC<{
             <View
               style={[
                 styles.rowMiniBarFill,
-                { width: `${Math.min(100, pct)}%`, backgroundColor: barColor(pct) },
+                { width: `${Math.min(100, pct)}%`, backgroundColor: colorBarra(pct) },
               ]}
             />
           </View>
@@ -144,13 +138,20 @@ const SectionRow: React.FC<{
 
 // ── Concept row (leaf) ────────────────────────────────────────────────────────
 
-const ConceptRow: React.FC<{ item: FlatTreeItemConcept }> = memo(({ item }) => {
+const ConceptRow: React.FC<{
+  item: FlatTreeItemConcept;
+  onOpenFicha: (concept: SabanaConceptNode) => void;
+}> = memo(({ item, onOpenFicha }) => {
   const { concept, depth } = item;
   const pct = Math.round(concept.pct);
-  const clr = pctColor(pct);
+  const clr = colorPorcentaje(pct);
 
   return (
-    <View
+    // Un solo destino por fila (enmienda E9): tocarla abre la ficha, y la
+    // captura se alcanza desde el CTA de esa ficha. El "+" por card se retiró
+    // por carga cognitiva: cientos de filas con un botón cada una compiten con
+    // la información que la sábana existe para mostrar.
+    <TouchableOpacity
       style={[
         styles.conceptRow,
         {
@@ -159,6 +160,8 @@ const ConceptRow: React.FC<{ item: FlatTreeItemConcept }> = memo(({ item }) => {
           borderLeftColor: DEPTH_BORDER_COLOR[depth],
         },
       ]}
+      onPress={() => onOpenFicha(concept)}
+      activeOpacity={0.6}
     >
       <View style={styles.conceptTop}>
         {concept.wbs_code ? (
@@ -166,34 +169,121 @@ const ConceptRow: React.FC<{ item: FlatTreeItemConcept }> = memo(({ item }) => {
         ) : (
           <View />
         )}
-        <Text style={[styles.conceptPct, { color: clr }]}>{pct}%</Text>
+        <View style={styles.conceptPctWrap}>
+          <ChipPrograma
+            programa={concept.programa}
+            sobreEjecutado={estaSobreEjecutado(pct)}
+          />
+          <Text style={[styles.conceptPct, { color: clr }]}>{pct}%</Text>
+        </View>
       </View>
       <Text style={styles.conceptDesc} numberOfLines={2}>
         {concept.description}
       </Text>
-      <View style={styles.conceptNums}>
-        <Text style={styles.conceptNum}>
-          Cont:{" "}
-          <Text style={styles.conceptNumValue}>
-            {concept.quantity.toLocaleString("es-MX")} {concept.unit}
+      {concept.programa?.vencido ? (
+        // "Prog. a hoy" deja de significar algo cuando el programa ya cerró: a
+        // esa altura siempre es el volumen total, y llamarlo "a hoy" sugiere una
+        // vara que se sigue moviendo cuando ya se detuvo. Lo accionable es
+        // cuándo venció y cuánto quedó debiendo.
+        <View style={styles.conceptNums}>
+          <Text style={styles.conceptNum}>
+            Venció{" "}
+            <Text style={styles.conceptNumValue}>
+              {fechaCorta(concept.programa.vencido.fechaFin)}
+            </Text>
+            {" · faltan "}
+            <Text style={styles.conceptNumValue}>
+              {concept.programa.vencido.faltante.toLocaleString("es-MX", {
+                maximumFractionDigits: 1,
+              })}
+            </Text>
+            {/* `ejec.` va SIEMPRE al final, igual que en la línea normal: al
+                recorrer la sábana unas filas están vencidas y otras no, y si el
+                ejecutado cambiara de posición habría que releer cada una para
+                encontrarlo. */}
+            {" · ejec. "}
+            <Text style={styles.conceptNumValue}>
+              {concept.cumulative_volume.toLocaleString("es-MX", {
+                maximumFractionDigits: 1,
+              })}{" "}
+              {concept.unit}
+            </Text>
           </Text>
-        </Text>
-        <Text style={styles.conceptNum}>
-          Ejec:{" "}
-          <Text style={styles.conceptNumValue}>
-            {concept.cumulative_volume.toLocaleString("es-MX")} {concept.unit}
+        </View>
+      ) : concept.programa ? (
+        // Vocabulario canónico de D14 para espacio corto.
+        <View style={styles.conceptNums}>
+          <Text style={styles.conceptNum}>
+            Prog. a hoy{" "}
+            <Text style={styles.conceptNumValue}>
+              {concept.programa.programado.toLocaleString("es-MX", {
+                maximumFractionDigits: 1,
+              })}
+            </Text>
+            {" · ejec. "}
+            <Text style={styles.conceptNumValue}>
+              {concept.cumulative_volume.toLocaleString("es-MX", {
+                maximumFractionDigits: 1,
+              })}{" "}
+              {concept.unit}
+            </Text>
           </Text>
-        </Text>
+        </View>
+      ) : (
+        <View style={styles.conceptNums}>
+          <Text style={styles.conceptNum}>
+            Cont:{" "}
+            <Text style={styles.conceptNumValue}>
+              {concept.quantity.toLocaleString("es-MX")} {concept.unit}
+            </Text>
+          </Text>
+          <Text style={styles.conceptNum}>
+            Ejec:{" "}
+            <Text style={styles.conceptNumValue}>
+              {concept.cumulative_volume.toLocaleString("es-MX")} {concept.unit}
+            </Text>
+          </Text>
+        </View>
+      )}
+      <View style={styles.barWrap}>
+        <View style={styles.conceptBarBg}>
+          <View
+            style={[
+              styles.conceptBarFill,
+              { width: `${Math.min(100, pct)}%`, backgroundColor: colorBarra(pct) },
+            ]}
+          />
+        </View>
+        {concept.programa && concept.quantity > 0 ? (
+          <View
+            style={[
+              styles.marcaProgramaFila,
+              {
+                left: `${Math.min(
+                  100,
+                  (concept.programa.programado / concept.quantity) * 100,
+                )}%`,
+              },
+            ]}
+          />
+        ) : null}
       </View>
-      <View style={styles.conceptBarBg}>
-        <View
-          style={[
-            styles.conceptBarFill,
-            { width: `${Math.min(100, pct)}%`, backgroundColor: barColor(pct) },
-          ]}
-        />
-      </View>
-    </View>
+      {estaSobreEjecutado(pct) ? (
+        // Único aviso que la fila puede dar sin conocer el programa: el volumen
+        // rebasó lo CONTRATADO, y eso es cierto sin referencia temporal. Texto
+        // imperativo y corto —el % ya dice el hecho, aquí va la acción— y
+        // distinto del "Solicita una reprogramación" del programa vencido: allá
+        // falta volumen, aquí sobra, y no se arreglan igual.
+        <View style={styles.avisoSobre}>
+          <Ionicons
+            name="warning-outline"
+            size={12}
+            style={styles.avisoSobreIcono}
+          />
+          <Text style={styles.avisoSobreTexto}>Regularizar volumen</Text>
+        </View>
+      ) : null}
+    </TouchableOpacity>
   );
 });
 
@@ -202,16 +292,22 @@ const ConceptRow: React.FC<{ item: FlatTreeItemConcept }> = memo(({ item }) => {
 interface Props {
   item: FlatTreeItem;
   onToggle: (nodeKey: string) => void;
+  /**
+   * DEBE venir memoizado desde la pantalla: estas filas están envueltas en
+   * `memo` y una sábana grande renderiza cientos. Una función nueva en cada
+   * render del padre anularía la memoización por completo.
+   */
+  onOpenFicha: (concept: SabanaConceptNode) => void;
 }
 
-const SabanaTreeItem: React.FC<Props> = ({ item, onToggle }) => {
+const SabanaTreeItem: React.FC<Props> = ({ item, onToggle, onOpenFicha }) => {
   if (item.type === "workitem") {
     return <WorkItemRow item={item} onToggle={onToggle} />;
   }
   if (item.type === "section") {
     return <SectionRow item={item} onToggle={onToggle} />;
   }
-  return <ConceptRow item={item} />;
+  return <ConceptRow item={item} onOpenFicha={onOpenFicha} />;
 };
 
 export default memo(SabanaTreeItem);

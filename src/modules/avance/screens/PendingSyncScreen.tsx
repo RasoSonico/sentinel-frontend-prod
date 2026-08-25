@@ -43,7 +43,7 @@ interface Section {
 
 const PendingSyncScreen: React.FC = () => {
   const {
-    allItems,
+    itemsEnCola,
     pendingCount,
     failedCount,
     syncingCount,
@@ -126,8 +126,8 @@ const PendingSyncScreen: React.FC = () => {
     const result: Section[] = [];
 
     // Section 1: Pending advances
-    if (allItems.length > 0) {
-      const sortedItems = [...allItems].sort(
+    if (itemsEnCola.length > 0) {
+      const sortedItems = [...itemsEnCola].sort(
         (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
       );
       result.push({
@@ -153,7 +153,7 @@ const PendingSyncScreen: React.FC = () => {
     }
 
     return result;
-  }, [allItems, syncedAdvancePhotos]);
+  }, [itemsEnCola, syncedAdvancePhotos]);
 
   const handleRetry = useCallback(
     (id: string) => {
@@ -194,13 +194,13 @@ const PendingSyncScreen: React.FC = () => {
   }, [failedPhotos, markPhotoAsWaiting, syncPhotosNow]);
 
   const handleRetryAll = useCallback(() => {
-    allItems.forEach((item) => {
+    itemsEnCola.forEach((item) => {
       if (item.status === "failed") {
         markAsPending(item._id);
       }
     });
     syncNow();
-  }, [allItems, markAsPending, syncNow]);
+  }, [itemsEnCola, markAsPending, syncNow]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -709,7 +709,7 @@ const PendingSyncScreen: React.FC = () => {
     </View>
   );
 
-  const hasContent = allItems.length > 0 || syncedAdvancePhotos.length > 0;
+  const hasContent = itemsEnCola.length > 0 || syncedAdvancePhotos.length > 0;
   const hasFailedItems = failedCount > 0 || syncedPhotosCounts.failed > 0;
 
   return (
