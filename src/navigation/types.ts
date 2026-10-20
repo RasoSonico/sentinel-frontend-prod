@@ -82,6 +82,24 @@ export type ReportesStackParamList = {
     dateFrom?: string;
     dateTo?: string;
   };
+  /** Wizard de captura del reporte de actividades (ADR-006). Ruta modal. */
+  ReporteWizard: {
+    constructionId: number;
+    constructionName: string;
+  };
+  /**
+   * Detalle de consulta de un reporte.
+   *
+   * `reporteId` presente = ya está en el servidor. `localId` presente =
+   * todavía en la cola de su autor, y entonces no hay archivo que generar.
+   */
+  ReporteDetalle: {
+    reporteId?: number;
+    localId?: string;
+    constructionName: string;
+    fechaReporte: string;
+    esAutor?: boolean;
+  };
 };
 
 // Tipos para props de navegación específicas

@@ -20,7 +20,7 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import BottomSheetBackdrop from "src/components/ui/BottomSheetBackdrop";
 import { DesignTokens } from "src/styles/designTokens";
-import { MaquinariaHubItemRealm } from "src/realm/maquinariaHub/MaquinariaHubItemRealm";
+import type { FilaMaquinaria } from "../filaMaquinaria";
 import { useCloseEstancia } from "src/hooks/data/query/useMaquinaria";
 import DateInput from "src/components/ui/DateInput";
 import { TipoSalida, MotivoSalida } from "src/types/maquinaria";
@@ -29,7 +29,7 @@ import { DateUtils } from "src/utils/dateUtils";
 interface Props {
   isVisible: boolean;
   onClose: () => void;
-  item: MaquinariaHubItemRealm | null;
+  item: FilaMaquinaria | null;
 }
 
 const MOTIVOS_SALIDA: { value: MotivoSalida; label: string }[] = [

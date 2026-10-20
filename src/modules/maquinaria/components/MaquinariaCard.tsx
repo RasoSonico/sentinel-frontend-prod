@@ -2,15 +2,34 @@ import React, { memo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { DesignTokens } from "src/styles/designTokens";
-import { MaquinariaHubItemRealm } from "src/realm/maquinariaHub/MaquinariaHubItemRealm";
+import type { FilaMaquinaria } from "../filaMaquinaria";
+import { PendingJornadaSubmission } from "src/realm/pendingJornada/PendingJornadaSubmission";
 import styles from "./styles/MaquinariaCard.styles";
 
 interface Props {
-  item: MaquinariaHubItemRealm;
-  onReportar: (item: MaquinariaHubItemRealm) => void;
-  onSinOperar: (item: MaquinariaHubItemRealm) => void;
-  onSalida: (item: MaquinariaHubItemRealm) => void;
-  onReconciliar: (item: MaquinariaHubItemRealm) => void;
+  item: FilaMaquinaria;
+  /**
+   * Jornada capturada que todavía no confirma el servidor.
+   *
+   * El hub viene del servidor, así que sin esto una jornada reportada sin
+   * señal no aparecería y la tarjeta seguiría diciendo "Sin reportar hoy" —
+   * invitando al usuario a capturarla otra vez.
+   */
+  enCola?: PendingJornadaSubmission;
+  /** Leído UNA vez en la pantalla: N tarjetas no deben suscribirse a NetInfo. */
+  sinSenal: boolean;
+  onReportar: (item: FilaMaquinaria) => void;
+  onSinOperar: (item: FilaMaquinaria) => void;
+  onSalida: (item: FilaMaquinaria) => void;
+  onReconciliar: (item: FilaMaquinaria) => void;
+  /**
+   * Rescate de una jornada que no pudo enviarse.
+   *
+   * Sin esto la tarjeta sería un callejón sin salida: una encolada cuenta como
+   * reportada —así que los botones se esconden— y una fallida se quedaría ahí
+   * para siempre, visible y sin manera de resolverla.
+   */
+  onResolverCola: (enCola: PendingJornadaSubmission) => void;
 }
 
 const PROPIETARIO_LABELS: Record<string, string> = {
@@ -27,8 +46,37 @@ const MOTIVO_LABELS: Record<string, string> = {
   OTRO: "Otro",
 };
 
-const getBorderColor = (item: MaquinariaHubItemRealm): string => {
+/**
+ * La cola manda sobre el servidor mientras no haya confirmación.
+ *
+ * Mismo vocabulario que el chip de Reportes: "Por enviar" sin señal,
+ * "Enviando" con ella, "No se envió" cuando se agotaron los intentos. Dos
+ * módulos que dicen lo mismo con palabras distintas se aprenden dos veces.
+ */
+const estadoDeCola = (
+  item: FilaMaquinaria,
+  enCola: PendingJornadaSubmission | undefined,
+) => {
+  if (!enCola) return null;
+  // **El servidor gana en cuanto tiene la jornada.** La copia en cola sigue en
+  // Realm hasta que la purga corra, pero deja de mandar en el momento en que
+  // el hub ya la trae: así no se pisan dos verdades sobre el mismo hecho.
+  if (item.jornada_id) return null;
+  if (enCola.status === "failed") {
+    return enCola.retryCount >= enCola.maxRetries ? "fallida" : "reintentando";
+  }
+  // `done` sin jornada en el hub = ya salió, el hub todavía no se entera.
+  if (enCola.status === "done") return "enviada";
+  return "porEnviar";
+};
+
+const getBorderColor = (
+  item: FilaMaquinaria,
+  cola: ReturnType<typeof estadoDeCola>,
+): string => {
+  if (cola === "fallida") return DesignTokens.colors.error[500];
   if (item.requiere_reconciliacion) return DesignTokens.colors.error[500];
+  if (cola) return DesignTokens.colors.primary[500];
   if (!item.jornada_id) return DesignTokens.colors.warning[400];
   if (item.jornada_estado === "TRABAJANDO")
     return DesignTokens.colors.success[500];
@@ -37,37 +85,64 @@ const getBorderColor = (item: MaquinariaHubItemRealm): string => {
   return DesignTokens.colors.neutral[200];
 };
 
-const getStatusDot = (item: MaquinariaHubItemRealm) => {
+const getStatusDot = (
+  item: FilaMaquinaria,
+  cola: ReturnType<typeof estadoDeCola>,
+) => {
+  if (cola === "fallida") return DesignTokens.colors.error[500];
+  if (cola) return DesignTokens.colors.primary[500];
   if (!item.jornada_id) return DesignTokens.colors.warning[400];
   if (item.jornada_estado === "TRABAJANDO")
     return DesignTokens.colors.success[500];
   return DesignTokens.colors.warning[500];
 };
 
-const getStatusLabel = (item: MaquinariaHubItemRealm): string => {
-  if (!item.jornada_id) return "Sin reportar hoy";
-  if (item.jornada_estado === "TRABAJANDO") return "Trabajando";
-  if (item.jornada_estado === "SIN_OPERAR") {
-    const motivo = item.jornada_motivo_inactividad
-      ? (MOTIVO_LABELS[item.jornada_motivo_inactividad] ??
-        item.jornada_motivo_inactividad)
-      : "";
-    return `Sin operar${motivo ? ` · ${motivo}` : ""}`;
+const etiquetaDeEstado = (estado: string | null, motivo: string | null) => {
+  if (estado === "TRABAJANDO") return "Trabajando";
+  if (estado === "SIN_OPERAR") {
+    const texto = motivo ? (MOTIVO_LABELS[motivo] ?? motivo) : "";
+    return `Sin operar${texto ? ` · ${texto}` : ""}`;
   }
   return "";
 };
 
+const getStatusLabel = (
+  item: FilaMaquinaria,
+  enCola: PendingJornadaSubmission | undefined,
+  cola: ReturnType<typeof estadoDeCola>,
+  sinSenal: boolean,
+): string => {
+  if (cola && enCola) {
+    const que = etiquetaDeEstado(enCola.estado, enCola.motivoInactividad);
+    if (cola === "fallida") return `No se envió · ${que}`;
+    if (cola === "reintentando") return `Reintentando · ${que}`;
+    if (cola === "enviada") return `Enviando · ${que}`;
+    return `${sinSenal ? "Por enviar" : "Enviando"} · ${que}`;
+  }
+  if (!item.jornada_id) return "Sin reportar hoy";
+  return etiquetaDeEstado(item.jornada_estado, item.jornada_motivo_inactividad);
+};
+
 const MaquinariaCard: React.FC<Props> = ({
   item,
+  enCola,
+  sinSenal,
   onReportar,
   onSinOperar,
   onSalida,
   onReconciliar,
+  onResolverCola,
 }) => {
-  const hasJornada = !!item.jornada_id;
+  const cola = estadoDeCola(item, enCola);
+  // Una jornada encolada cuenta como reportada para efectos de la interfaz:
+  // volver a capturarla chocaría contra `unique(estancia, fecha)` del servidor
+  // y le diría al usuario "ya existe una jornada" sin que él vea ninguna.
+  const hasJornada = !!item.jornada_id || !!cola;
 
   return (
-    <View style={[styles.card, { borderLeftColor: getBorderColor(item) }]}>
+    <View
+      style={[styles.card, { borderLeftColor: getBorderColor(item, cola) }]}
+    >
       <View style={styles.cardContent}>
         <View style={styles.header}>
           <View style={styles.titleBlock}>
@@ -105,9 +180,14 @@ const MaquinariaCard: React.FC<Props> = ({
 
         <View style={styles.statusRow}>
           <View
-            style={[styles.statusDot, { backgroundColor: getStatusDot(item) }]}
+            style={[
+              styles.statusDot,
+              { backgroundColor: getStatusDot(item, cola) },
+            ]}
           />
-          <Text style={styles.statusText}>{getStatusLabel(item)}</Text>
+          <Text style={styles.statusText}>
+            {getStatusLabel(item, enCola, cola, sinSenal)}
+          </Text>
           {item.dias_sin_reporte > 0 && !hasJornada && (
             <Text
               style={{ fontSize: 11, color: DesignTokens.colors.warning[600] }}
@@ -116,6 +196,28 @@ const MaquinariaCard: React.FC<Props> = ({
             </Text>
           )}
         </View>
+
+        {cola === "fallida" && enCola && (
+          <TouchableOpacity
+            style={styles.reconciliacionBanner}
+            onPress={() => onResolverCola(enCola)}
+            activeOpacity={0.75}
+          >
+            <Ionicons
+              name="cloud-offline"
+              size={16}
+              color={DesignTokens.colors.error[500]}
+            />
+            <Text style={styles.reconciliacionText} numberOfLines={2}>
+              {enCola.errorMessage ?? "No se pudo enviar"} · Toca para resolver
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={14}
+              color={DesignTokens.colors.error[500]}
+            />
+          </TouchableOpacity>
+        )}
 
         {item.requiere_reconciliacion && (
           <TouchableOpacity

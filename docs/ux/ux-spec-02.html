@@ -1,0 +1,1993 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      SENTINEL · UX-SPEC-02 FINAL — Reporte de actividades diario
+      (UIN-TOP-F-002)
+    </title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #1c2430;
+        --ink-2: #4b5563;
+        --ink-3: #8b95a3;
+        --paper: #fafaf8;
+        --line: #d8dce2;
+        --line-soft: #eceff3;
+        --navy: #1e293b;
+        --slate-2: #334155;
+        --cyan: #0891b2;
+        --cyan-soft: #e0f2fe;
+        --green: #10b981;
+        --green-d: #065f46;
+        --amber-t: #92400e;
+        --red: #b91c1c;
+        --acc: var(--cyan);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "IBM Plex Sans", system-ui, sans-serif;
+        font-size: 15px;
+        line-height: 1.55;
+      }
+      .wrap {
+        max-width: 1220px;
+        margin: 0 auto;
+        padding: 32px 20px 100px;
+      }
+
+      .cajetin {
+        border: 1.5px solid var(--ink);
+        background: #fff;
+      }
+      .cj-top {
+        display: flex;
+        border-bottom: 1.5px solid var(--ink);
+      }
+      .cj-brand {
+        padding: 18px 22px;
+        border-right: 1.5px solid var(--ink);
+      }
+      .cj-brand h1 {
+        font-family: "Archivo", sans-serif;
+        font-weight: 700;
+        font-size: 26px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .cj-brand small {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: var(--ink-2);
+        letter-spacing: 0.08em;
+      }
+      .cj-title {
+        padding: 18px 22px;
+        flex: 1;
+      }
+      .cj-title h2 {
+        font-family: "Archivo", sans-serif;
+        font-weight: 600;
+        font-size: 17px;
+      }
+      .cj-title p {
+        font-size: 13px;
+        color: var(--ink-2);
+        margin-top: 4px;
+      }
+      .cj-meta {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .cj-cell {
+        padding: 10px 22px;
+        border-right: 1px solid var(--line);
+      }
+      .cj-cell:last-child {
+        border-right: none;
+      }
+      .cj-cell b {
+        display: block;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10px;
+        color: var(--ink-3);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 2px;
+      }
+      .cj-cell span {
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .sec {
+        margin-top: 48px;
+      }
+      .sec-head {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        border-bottom: 2px solid var(--acc);
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+      }
+      .sec-head .code {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        color: #fff;
+        background: var(--acc);
+        padding: 3px 9px;
+        letter-spacing: 0.08em;
+      }
+      .sec-head h3 {
+        font-family: "Archivo", sans-serif;
+        font-weight: 600;
+        font-size: 19px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--acc);
+      }
+      .sec-head p {
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .lamina {
+        display: flex;
+        gap: 22px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        padding: 14px 0 6px;
+      }
+      .flownote {
+        font-size: 13px;
+        color: var(--ink-2);
+        line-height: 1.6;
+        margin-top: 8px;
+        max-width: 980px;
+      }
+      .flownote b {
+        color: var(--ink);
+      }
+      .flownote ul {
+        margin: 6px 0 0 18px;
+      }
+      .flownote li {
+        padding: 2px 0;
+      }
+      code {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11.5px;
+        background: #f1f5f9;
+        padding: 1px 4px;
+      }
+
+      /* flujo */
+      .flow {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 12px;
+      }
+      .fstep {
+        border: 1.5px solid var(--navy);
+        background: #fff;
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .fstep small {
+        display: block;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 9px;
+        color: var(--ink-3);
+        font-weight: 400;
+        letter-spacing: 0.06em;
+      }
+      .fstep.cy {
+        border-color: var(--cyan);
+        color: var(--cyan);
+      }
+      .farr {
+        color: var(--ink-3);
+        font-size: 14px;
+      }
+
+      /* registro */
+      .reg {
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        background: #fff;
+      }
+      .reg table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .reg th {
+        text-align: left;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 9.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #fff;
+        background: var(--navy);
+        padding: 8px 14px;
+      }
+      .reg td {
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--line-soft);
+        color: var(--ink-2);
+        vertical-align: top;
+        line-height: 1.5;
+      }
+      .reg td:first-child {
+        font-weight: 600;
+        color: var(--ink);
+        width: 16%;
+        white-space: nowrap;
+      }
+      .reg td b {
+        color: var(--ink);
+      }
+
+      /* teléfono */
+      .phone {
+        width: 340px;
+        max-width: 100%;
+        background: #f8fafc;
+        border-radius: 22px;
+        border: 1px solid #c8cdd5;
+        overflow: hidden;
+        flex-shrink: 0;
+        box-shadow: 0 1px 3px rgba(20, 26, 34, 0.08);
+        font-size: 13px;
+        display: flex;
+        flex-direction: column;
+      }
+      .p-cap {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10px;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        text-align: center;
+        padding: 5px 0 0;
+      }
+      .p-hdr {
+        background: var(--navy);
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        color: #fff;
+      }
+      .p-hdr .x {
+        font-size: 16px;
+        width: 22px;
+      }
+      .p-hdr .t {
+        font-size: 15px;
+        font-weight: 500;
+        flex: 1;
+        text-align: center;
+      }
+      .p-hdr .act {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #7dd3fc;
+        width: auto;
+      }
+      .subhdr {
+        background: var(--slate-2);
+        padding: 8px 14px 10px;
+        color: #fff;
+      }
+      .subhdr .eyebrow {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 9.5px;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+      .subhdr .o {
+        font-size: 12px;
+      }
+      .subhdr .f {
+        font-size: 11px;
+        color: #cbd5e1;
+        margin-top: 2px;
+      }
+      .subhdr .f b {
+        color: #fff;
+        font-weight: 600;
+      }
+      .stepper {
+        display: flex;
+        justify-content: space-between;
+        background: #fff;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 9px 26px 7px;
+      }
+      .sdot {
+        text-align: center;
+        position: relative;
+        flex: 1;
+      }
+      .sdot .d {
+        width: 17px;
+        height: 17px;
+        border-radius: 9px;
+        border: 2px solid #cbd5e1;
+        background: #fff;
+        margin: 0 auto;
+        font-size: 9.5px;
+        line-height: 14px;
+        color: #fff;
+      }
+      .sdot.done .d {
+        background: var(--cyan);
+        border-color: var(--cyan);
+      }
+      .sdot.on .d {
+        border-color: var(--navy);
+        background: var(--navy);
+      }
+      .sdot small {
+        display: block;
+        font-size: 8.5px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        margin-top: 3px;
+      }
+      .sdot.on small {
+        color: var(--navy);
+        font-weight: 700;
+      }
+      .p-body {
+        padding: 12px;
+        flex: 1;
+      }
+      .p-foot {
+        background: #fff;
+        border-top: 1px solid #e5e7eb;
+        padding: 10px 12px 12px;
+        display: flex;
+        gap: 8px;
+      }
+      .btn {
+        border-radius: 9px;
+        text-align: center;
+        font-weight: 600;
+        padding: 12px 0;
+      }
+      .btn-navy {
+        background: var(--navy);
+        color: #fff;
+        font-size: 13.5px;
+        flex: 1.6;
+      }
+      .btn-ghost {
+        border: 1.5px solid #cbd5e1;
+        color: #64748b;
+        font-size: 13px;
+        flex: 1;
+        background: #fff;
+      }
+      .btn-green {
+        background: var(--green);
+        color: #fff;
+        font-size: 13.5px;
+        flex: 1.6;
+      }
+      .btn.off {
+        background: #e2e8f0;
+        color: #a8b3c0;
+      }
+
+      .lbl {
+        font-size: 11px;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 12px 0 7px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .lbl:first-child {
+        margin-top: 0;
+      }
+      .lbl .c {
+        font-weight: 400;
+        letter-spacing: 0;
+        text-transform: none;
+        color: #94a3b8;
+      }
+      .intro {
+        font-size: 12px;
+        color: #64748b;
+        line-height: 1.45;
+        margin-bottom: 11px;
+      }
+
+      /* selección proveedores */
+      .prov {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 7px;
+      }
+      .prov h6 {
+        font-size: 13px;
+        font-weight: 600;
+        color: #111827;
+        flex: 1;
+      }
+      .prov .chk {
+        width: 22px;
+        height: 22px;
+        border-radius: 11px;
+        border: 2px solid #cbd5e1;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .prov.on {
+        border-color: rgba(8, 145, 178, 0.45);
+      }
+      .prov.on .chk {
+        background: var(--cyan);
+        border-color: var(--cyan);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .prov.fixed {
+        background: #f8fafc;
+      }
+      .prov.fixed h6 {
+        color: #475569;
+      }
+      .prov .fija {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 9px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 2px 7px;
+      }
+      .foot-hint {
+        font-size: 10.5px;
+        color: #94a3b8;
+        text-align: center;
+      }
+
+      /* actividades */
+      .actrow {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 11px 12px;
+        margin-bottom: 7px;
+      }
+      .actrow .n {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: #94a3b8;
+        font-weight: 500;
+        padding-top: 1px;
+      }
+      .actrow p {
+        flex: 1;
+        font-size: 12px;
+        color: #374151;
+        line-height: 1.4;
+      }
+      .actrow .ch {
+        color: #cbd5e1;
+        font-size: 15px;
+      }
+      .dashed {
+        border: 1.5px dashed #94c9d8;
+        border-radius: 10px;
+        background: #f7fbfd;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+      }
+      .dashed .pill {
+        background: var(--cyan);
+        color: #fff;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 8px;
+        padding: 3px 8px;
+      }
+      .dashed p {
+        flex: 1;
+        font-size: 12px;
+        color: #0e7490;
+        font-weight: 600;
+      }
+      .dashed .plus {
+        color: var(--cyan);
+        font-size: 17px;
+        font-weight: 700;
+      }
+      .field {
+        background: #fff;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 11px 12px;
+        font-size: 13px;
+        color: #111827;
+        line-height: 1.45;
+      }
+      .field.focus {
+        border-color: var(--cyan);
+      }
+      .fmeta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10.5px;
+        color: #94a3b8;
+        margin-top: 5px;
+      }
+
+      /* fotos */
+      .fotorow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 8px;
+        margin-bottom: 7px;
+      }
+      .fotorow .th {
+        width: 62px;
+        height: 46px;
+        border-radius: 6px;
+        flex-shrink: 0;
+      }
+      .fotorow p {
+        flex: 1;
+        font-size: 11.5px;
+        color: #374151;
+        line-height: 1.35;
+      }
+      .fotorow .ch {
+        color: #cbd5e1;
+        font-size: 15px;
+      }
+      .img {
+        background: linear-gradient(135deg, #c9d4de, #e7edf2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #8fa0af;
+      }
+      .img.b {
+        background: linear-gradient(135deg, #d6cfc4, #efeae2);
+      }
+      .img.c {
+        background: linear-gradient(135deg, #c5d3c9, #e6efe8);
+      }
+      .srcgrid {
+        display: flex;
+        gap: 8px;
+      }
+      .srcgrid .dashed {
+        flex: 1;
+        flex-direction: column;
+        gap: 4px;
+        padding: 13px 8px;
+      }
+      .srcgrid .dashed p {
+        text-align: center;
+      }
+      .batchbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 9px;
+      }
+      .batchbar .l {
+        font-size: 11px;
+        color: #64748b;
+      }
+      .batchbar .l b {
+        color: var(--red);
+        font-weight: 600;
+      }
+      .chips {
+        display: flex;
+        gap: 5px;
+      }
+      .chip-n {
+        width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #e5e7eb;
+        color: #6b7280;
+      }
+      .chip-n.ok {
+        background: var(--cyan);
+        color: #fff;
+      }
+      .chip-n.cur {
+        box-shadow: 0 0 0 2px var(--navy);
+      }
+      .bigph {
+        height: 150px;
+        border-radius: 10px;
+        margin-bottom: 9px;
+      }
+      .estado-chip {
+        font-size: 10px;
+        font-weight: 700;
+        border-radius: 8px;
+        padding: 2px 8px;
+        white-space: nowrap;
+      }
+      .ch-green {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .ch-gray {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+
+      /* doc miniatura */
+      .doc-mini {
+        background: #fff;
+        border: 1px solid #d8dce2;
+        border-radius: 6px;
+        padding: 12px 13px;
+        box-shadow: 0 1px 2px rgba(20, 26, 34, 0.06);
+      }
+      .doc-mini .dh {
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1.5px solid #1c2430;
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+      }
+      .doc-mini .dh b {
+        font-size: 11px;
+      }
+      .doc-mini .dh span {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 9px;
+        color: #64748b;
+      }
+      .doc-mini .st {
+        font-size: 10.5px;
+        font-weight: 700;
+        color: #1c2430;
+        margin: 8px 0 3px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .doc-mini .st .ed {
+        color: var(--cyan);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .doc-mini ol {
+        margin-left: 16px;
+      }
+      .doc-mini li {
+        font-size: 10.5px;
+        color: #374151;
+        line-height: 1.45;
+        padding: 1px 0;
+      }
+      .doc-mini p.body,
+      .doc-mini .roster {
+        font-size: 10.5px;
+        color: #374151;
+        line-height: 1.5;
+      }
+      .doc-mini .roster b {
+        font-weight: 700;
+      }
+      .doc-mini .grid {
+        display: flex;
+        gap: 6px;
+        margin-top: 5px;
+      }
+      .doc-mini .grid > div {
+        flex: 1;
+      }
+      .doc-mini .grid .im {
+        height: 60px;
+        border-radius: 3px;
+      }
+      .doc-mini .grid .pf {
+        font-size: 9px;
+        color: #374151;
+        text-align: center;
+        margin-top: 3px;
+        font-weight: 600;
+      }
+      .ordbar {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 7px;
+      }
+      .ordbar span {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--navy);
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 4px 10px;
+        background: #fff;
+      }
+
+      /* zona */
+      .mk-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 13px 12px;
+        margin-bottom: 8px;
+        box-shadow: 0 1px 2px rgba(20, 26, 34, 0.05);
+      }
+      .mk-card .tile {
+        width: 46px;
+        height: 46px;
+        border-radius: 11px;
+        background: rgba(8, 145, 178, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+      .mk-card h5 {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #111827;
+      }
+      .mk-card p {
+        font-size: 11.5px;
+        color: #6b7280;
+        line-height: 1.35;
+        margin-top: 1px;
+      }
+      .mk-card .ch {
+        color: #cbd5e1;
+        font-size: 16px;
+      }
+      .rep {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 7px;
+      }
+      .rep .doc {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        background: rgba(8, 145, 178, 0.1);
+        color: var(--cyan);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        flex-shrink: 0;
+      }
+      .rep .mid {
+        flex: 1;
+        min-width: 0;
+      }
+      .rep h6 {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #111827;
+      }
+      .rep p {
+        font-size: 10.5px;
+        color: #6b7280;
+        margin-top: 1px;
+      }
+      .rep .ch {
+        color: #cbd5e1;
+        font-size: 15px;
+      }
+      .tabs {
+        background: #fff;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        padding: 7px 0 9px;
+      }
+      .tab {
+        flex: 1;
+        text-align: center;
+        font-size: 9.5px;
+        color: #9ca3af;
+      }
+      .tab .ic {
+        font-size: 15px;
+        line-height: 1.2;
+      }
+      .tab.on {
+        color: var(--slate-2);
+        font-weight: 600;
+      }
+      .genrow {
+        display: flex;
+        gap: 8px;
+        margin-top: 11px;
+      }
+      .btn-out {
+        border: 1.5px solid var(--navy);
+        color: var(--navy);
+        font-size: 13px;
+        padding: 11px 0;
+        background: #fff;
+        border-radius: 9px;
+        text-align: center;
+        font-weight: 600;
+        flex: 1;
+      }
+      .btn-out.off {
+        border-color: #e2e8f0;
+        color: #c3cad3;
+      }
+      .offbar {
+        display: flex;
+        gap: 7px;
+        align-items: flex-start;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 9px;
+        padding: 8px 10px;
+        font-size: 10.5px;
+        color: #92400e;
+        line-height: 1.4;
+        margin-top: 11px;
+      }
+
+      /* rejilla documento */
+      .pairblk {
+        border: 1px solid var(--line);
+        background: #fff;
+        padding: 10px;
+        width: 320px;
+      }
+      .pairblk .cols9 {
+        display: flex;
+        margin-bottom: 3px;
+      }
+      .pairblk .cols9 div {
+        flex: 1;
+        border-right: 1px dashed #e5eaf0;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 8px;
+        color: #b6bec9;
+        text-align: center;
+      }
+      .pairblk .cols9 div:last-child {
+        border-right: none;
+      }
+      .pairblk .duo {
+        display: flex;
+      }
+      .pairblk .ph {
+        background: linear-gradient(135deg, #c9d4de, #e7edf2);
+        height: 88px;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #8fa0af;
+        font-size: 15px;
+      }
+      .pairblk .ph.vert {
+        background: #eef2f6;
+      }
+      .pairblk .ph.vert .inner {
+        background: linear-gradient(135deg, #c5d3c9, #e6efe8);
+        width: 58%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .pairblk .pie {
+        font-size: 8.5px;
+        font-weight: 700;
+        text-align: center;
+        color: #374151;
+        padding: 3px 0 0;
+      }
+      .pairblk .meta {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 8.5px;
+        color: var(--ink-3);
+        text-align: center;
+        margin-top: 7px;
+        line-height: 1.5;
+      }
+
+      .reflist {
+        font-size: 13px;
+        color: var(--ink-2);
+        line-height: 1.9;
+        margin-top: 8px;
+      }
+      .reflist code {
+        font-size: 12px;
+      }
+      @media print {
+        .wrap {
+          padding: 0;
+        }
+        .sec,
+        .lamina {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="cajetin">
+        <div class="cj-top">
+          <div class="cj-brand">
+            <h1>Sentinel</h1>
+            <small>CONTROL DE OBRA · MX</small>
+          </div>
+          <div class="cj-title">
+            <h2>
+              UX-SPEC-02 FINAL — Reporte de actividades diario (UIN-TOP-F-002)
+            </h2>
+            <p>
+              Especificación cerrada de referencia para construcción. Solo este
+              módulo; sábana, programa y producción viven en ux-spec-01.
+            </p>
+          </div>
+        </div>
+        <div class="cj-meta">
+          <div class="cj-cell"><b>Estado</b><span>CERRADO · Final</span></div>
+          <div class="cj-cell">
+            <b>ADRs</b><span>ADR-006 (front) · ADR-004 (back)</span>
+          </div>
+          <div class="cj-cell">
+            <b>Ingeniería doc.</b><span>be-spec-01</span>
+          </div>
+          <div class="cj-cell">
+            <b>Plataformas</b><span>Android + iOS</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═════ 0 · FLUJO ═════ -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="code">0</span>
+          <h3>Mapa del flujo</h3>
+          <p>de la entrada al entregable</p>
+        </div>
+        <div class="flow">
+          <div class="fstep">Reportes<small>entrada · card CREAR</small></div>
+          <span class="farr">→</span>
+          <div class="fstep cy">
+            P-00 Proveedores<small>selección previa</small>
+          </div>
+          <span class="farr">→</span>
+          <div class="fstep">1 · Actividades</div>
+          <span class="farr">→</span>
+          <div class="fstep">2 · Fotos</div>
+          <span class="farr">→</span>
+          <div class="fstep">3 · Conclusión</div>
+          <span class="farr">→</span>
+          <div class="fstep">
+            4 · Revisión<small>Documento en Miniatura</small>
+          </div>
+          <span class="farr">→</span>
+          <div
+            class="fstep"
+            style="border-color: var(--green); color: var(--green-d)"
+          >
+            Guardar<small>modal + online/offline</small>
+          </div>
+          <span class="farr">→</span>
+          <div class="fstep">
+            Reportes de la obra<small>consulta + Generar ×N</small>
+          </div>
+        </div>
+        <div class="flownote">
+          "Atrás" en el paso 1 regresa a P-00 conservando la selección. ✕ en
+          cualquier punto confirma y descarta el borrador. Editar desde Revisión
+          (✎ por bloque, incluido PARTICIPANTES → P-00) regresa directo a
+          Revisión sin recorrer pasos.
+        </div>
+      </section>
+
+      <!-- ═════ 1 · REGISTRO ═════ -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="code">1</span>
+          <h3>Registro de decisiones</h3>
+          <p>la letra del spec — el detalle visual está en las láminas</p>
+        </div>
+        <div class="reg">
+          <table>
+            <tr>
+              <th style="width: 16%">Ámbito</th>
+              <th>Decisión cerrada</th>
+            </tr>
+            <tr>
+              <td>P-00 · Proveedores</td>
+              <td>
+                Pantalla previa al wizard, una sola con dos grupos. CONTRATISTAS
+                en filas de selección múltiple,
+                <b>ninguna preseleccionada</b> (el usuario piensa en quiénes
+                participaron y los marca — no audita una lista llena) y
+                <b>check a la derecha</b> de la fila. SUPERVISIÓN
+                <b>fija: URBA Ingeniería</b> (fila no interactiva).
+                <b>Mínimo 1 contratista</b>; el botón "Comenzar a llenar el
+                reporte" se apaga en cero. Contador por grupo. Armazón del
+                wizard (✕ navy, subheader obra + fecha).
+              </td>
+            </tr>
+            <tr>
+              <td>Armazón wizard</td>
+              <td>
+                Lineal de 4 pasos. Header navy con ✕ (confirma si hay trabajo a
+                medias). Subheader oscuro: obra +
+                <b>fecha de solo lectura</b> (el reporte se fecha el día de
+                captura). Stepper de 4 puntos etiquetados, palomita cyan al
+                completar, activo navy. Pie: paso 1 <b>Atrás (→ P-00)</b> +
+                Siguiente; pasos 2–4 Atrás + Siguiente.
+              </td>
+            </tr>
+            <tr>
+              <td>Color</td>
+              <td>
+                Cyan <code>primary[500]</code> = acento del módulo. Navy =
+                navegación/ejecutivo. <b>Verde solo "Guardar reporte"</b>. Rojo
+                solo eliminar/alerta. Ámbar solo avisos bloqueantes.
+              </td>
+            </tr>
+            <tr>
+              <td>Paso 1 · Actividades</td>
+              <td>
+                Lista blanca agrupada (numeral + texto + chevron; la fila
+                edita). Creación = bloque punteado T3 (pastilla cyan con el
+                número que tomará). Composición en pantalla propia: Guardar en
+                header, <b>"Guardar y escribir la siguiente"</b> solo al crear;
+                eliminar dentro, rojo, confirmación nativa.
+                <b
+                  >El numeral es posición calculada; se guarda
+                  <code>orden</code>, jamás el número.</b
+                >
+                Mínimo 1 para avanzar.
+              </td>
+            </tr>
+            <tr>
+              <td>Paso 2 · Fotos</td>
+              <td>
+                <b
+                  >0–6 fotos opcionales; pie obligatorio, 50 caracteres tope
+                  duro</b
+                >
+                + contador (límite derivado del ancho impreso de 312 pt medido
+                con Carlito). Lista compacta 62 px. "AGREGAR FOTOS": dos bloques
+                punteados permanentes [Cámara][Galería]; a 6 se apagan. Carrusel
+                de tanda: contador + "Descartar esta foto" izq.;
+                <b>chips numerados tocables</b> der. (cyan=con pie, gris=sin,
+                anillo navy=actual); ← Anterior / Siguiente foto →; en la última
+                "＋ Agregar otra" abre el <b>menú anclado</b> (componente
+                propio, hacia arriba, ancho del botón, cupo cuando ≤2). Guardar
+                del header solo con tanda completa; aviso ámbar "Falta el pie de
+                la foto N · Ir ›". Nada se descarta por falta de pie.
+              </td>
+            </tr>
+            <tr>
+              <td>Paso 3 · Conclusión</td>
+              <td>
+                El paso es el campo: sin límite, obligatoria, auto-expandible
+                (~6 renglones + scroll interno).
+                <b>El teclado cubre el pie</b> (Android
+                <code>softwareKeyboardLayoutMode: "pan"</code>).
+              </td>
+            </tr>
+            <tr>
+              <td>Paso 4 · Revisión</td>
+              <td>
+                <b>Documento en Miniatura</b> (componente único, modos
+                edit/read). Bloques: cajetín con <b>PARTICIPANTES</b>,
+                actividades, conclusión, evidencia. ✎ por bloque regresa directo
+                a Revisión; ⇅ Ordenar = modo con asas ≡ y "Listo" (único lugar
+                de reorden de fotos; el pie viaja con su foto).
+              </td>
+            </tr>
+            <tr>
+              <td>Cierre</td>
+              <td>
+                "Guardar reporte" <b>verde</b> + modal de finalidad (no editable
+                en app post-guardado; "El Excel se genera después de guardar").
+                Online: "Guardado y enviado" + Generar Excel primaria. Offline:
+                "Guardado en el teléfono" + chip "Por enviar" + Ir a mis
+                reportes. Cola Realm espejo de avances (<code>client_id</code>
+                UUID en el body, idempotente); el borrador local muere al 201.
+              </td>
+            </tr>
+            <tr>
+              <td>Zona Reportes</td>
+              <td>
+                Secciones <b>CREAR</b> (card Actividades sustituye a "Reporte
+                Fotográfico"; Tabla de avances intacta, tile navy) y
+                <b>REPORTES DE LA OBRA</b> (merge cola local "Por enviar" +
+                servidor por React Query; autor visible). Detalle = Miniatura en
+                modo lectura, subheader "Reportado por";
+                <b
+                  >Generar Excel navy sólido / Generar PDF contorno, repetibles,
+                  para todos</b
+                >. Por-enviar: botones apagados + franja ámbar. Sin Realm para
+                reportes ajenos.
+              </td>
+            </tr>
+            <tr>
+              <td>Documento</td>
+              <td>
+                Rejilla A:D + canal E + F:I; fotos de 312 pt alineadas a la
+                misma fila; pie propio de 312 pt centrado 12 pt negrita;
+                vertical ajusta con bandas laterales. Participantes se imprimen
+                <b>en el bloque del cajetín</b>. Generación: datos → GET pinta
+                bajo demanda (ADR-B, be-spec-01); 409 si hay fotos declaradas
+                sin subir; con 0 fotos genera libre.
+              </td>
+            </tr>
+            <tr>
+              <td>Estandarización</td>
+              <td>
+                Header del stack 25 → <code>fontSize["2xl"]</code> con
+                <code>fs()</code>; todo lo nuevo con <code>escala.ts</code>;
+                menú anclado componente propio;
+                <code>includeFontPadding:false</code>; sombras solo por tokens;
+                borde izquierdo 4 px reservado a la sábana; fotos del cliente ya
+                reescaladas (1920 px q85, constantes existentes) + guardado a
+                galería de capturas de cámara.
+              </td>
+            </tr>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═════ 2 · P-00 ═════ -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="code">2</span>
+          <h3>P-00 · Selección de proveedores</h3>
+          <p>nada preseleccionado · check a la derecha · supervisión fija</p>
+        </div>
+        <div class="lamina">
+          <div class="phone">
+            <div class="p-cap">P-00 · estado inicial (botón apagado)</div>
+            <div class="p-hdr">
+              <span class="x">✕</span
+              ><span class="t">Reporte de actividades</span
+              ><span style="width: 22px"></span>
+            </div>
+            <div class="subhdr">
+              <div class="o">Autopista 75D – Matehuala · subtramo 3</div>
+              <div class="f">Fecha del reporte: <b>martes 25 de agosto</b></div>
+            </div>
+            <div class="p-body">
+              <div class="intro">
+                Selecciona a los contratistas que participan en este reporte.
+              </div>
+              <div class="lbl">Contratistas <span class="c">0 de 4</span></div>
+              <div class="prov">
+                <h6>Constructora Ríos SA de CV</h6>
+                <div class="chk"></div>
+              </div>
+              <div class="prov">
+                <h6>Edificaciones del Norte</h6>
+                <div class="chk"></div>
+              </div>
+              <div class="prov">
+                <h6>Grúas y Maniobras GTM</h6>
+                <div class="chk"></div>
+              </div>
+              <div class="prov">
+                <h6>Pavimentos Potosinos</h6>
+                <div class="chk"></div>
+              </div>
+              <div class="lbl">Supervisión</div>
+              <div class="prov fixed">
+                <h6>URBA Ingeniería</h6>
+                <span class="fija">Fija</span>
+              </div>
+            </div>
+            <div class="p-foot" style="flex-direction: column; gap: 6px">
+              <div class="btn btn-navy off" style="flex: none">
+                Comenzar a llenar el reporte
+              </div>
+              <div class="foot-hint">Selecciona al menos un contratista</div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="p-cap">P-00 · con selección (botón activo)</div>
+            <div class="p-hdr">
+              <span class="x">✕</span
+              ><span class="t">Reporte de actividades</span
+              ><span style="width: 22px"></span>
+            </div>
+            <div class="subhdr">
+              <div class="o">Autopista 75D – Matehuala · subtramo 3</div>
+              <div class="f">Fecha del reporte: <b>martes 25 de agosto</b></div>
+            </div>
+            <div class="p-body">
+              <div class="intro">
+                Selecciona a los contratistas que participan en este reporte.
+              </div>
+              <div class="lbl">Contratistas <span class="c">2 de 4</span></div>
+              <div class="prov on">
+                <h6>Constructora Ríos SA de CV</h6>
+                <div class="chk">✓</div>
+              </div>
+              <div class="prov">
+                <h6>Edificaciones del Norte</h6>
+                <div class="chk"></div>
+              </div>
+              <div class="prov">
+                <h6>Grúas y Maniobras GTM</h6>
+                <div class="chk"></div>
+              </div>
+              <div class="prov on">
+                <h6>Pavimentos Potosinos</h6>
+                <div class="chk">✓</div>
+              </div>
+              <div class="lbl">Supervisión</div>
+              <div class="prov fixed">
+                <h6>URBA Ingeniería</h6>
+                <span class="fija">Fija</span>
+              </div>
+            </div>
+            <div class="p-foot" style="flex-direction: column; gap: 6px">
+              <div class="btn btn-navy" style="flex: none">
+                Comenzar a llenar el reporte
+              </div>
+              <div class="foot-hint">
+                Podrás corregir la selección desde la Revisión
+              </div>
+            </div>
+          </div>
+          <div class="flownote" style="flex: 1; min-width: 260px">
+            <b>Ninguna fila viene marcada:</b> el usuario piensa en quiénes
+            participaron hoy y los marca rápido — no audita una lista llena
+            buscando ausentes. <b>El check vive a la derecha</b>; la fila entera
+            es tocable. Mínimo 1 contratista: el botón nace apagado con la pista
+            debajo y despierta con la primera selección. La supervisión se
+            muestra fija (URBA Ingeniería, etiqueta "Fija", sin toggle) — el
+            backend escribe su renglón de snapshot siempre (ADR-B §B-3). El POST
+            lleva los ids seleccionados; el servidor valida pertenencia a la
+            obra y <b>copia nombre y tipo a <code>ReporteProveedor</code></b
+            >: la selección queda congelada y el GET de octubre imprime lo de
+            agosto.
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════ 3 · PASO 1 ═════ -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="code">3</span>
+          <h3>Paso 1 · Actividades</h3>
+          <p>lista + composición en pantalla propia</p>
+        </div>
+        <div class="lamina">
+          <div class="phone">
+            <div class="p-cap">R-01 · paso 1</div>
+            <div class="p-hdr">
+              <span class="x">✕</span
+              ><span class="t">Reporte de actividades</span
+              ><span style="width: 22px"></span>
+            </div>
+            <div class="subhdr">
+              <div class="o">Autopista 75D – Matehuala</div>
+              <div class="f">Fecha del reporte: <b>mar 25 ago</b></div>
+            </div>
+            <div class="stepper">
+              <div class="sdot on">
+                <div class="d"></div>
+                <small>Activid.</small>
+              </div>
+              <div class="sdot">
+                <div class="d"></div>
+                <small>Fotos</small>
+              </div>
+              <div class="sdot">
+                <div class="d"></div>
+                <small>Concl.</small>
+              </div>
+              <div class="sdot">
+                <div class="d"></div>
+                <small>Revisión</small>
+              </div>
+            </div>
+            <div class="p-body">
+              <div class="lbl">
+                Actividades del día <span class="c">2</span>
+              </div>
+              <div class="actrow">
+                <span class="n">01</span>
+                <p>
+                  Plática de inicio de actividades y ejercicios de calistenia
+                  (NOM-030-STPS-2009).
+                </p>
+                <span class="ch">›</span>
+              </div>
+              <div class="actrow">
+                <span class="n">02</span>
+                <p>
+                  Revisión de documentación antes de iniciar actividades de
+                  izaje.
+                </p>
+                <span class="ch">›</span>
+              </div>
+              <div class="dashed">
+                <span class="pill">03</span>
+                <p>Escribir la siguiente actividad</p>
+                <span class="plus">＋</span>
+              </div>
+            </div>
+            <div class="p-foot">
+              <div class="btn btn-ghost">Atrás</div>
+              <div class="btn btn-navy">Siguiente →</div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="p-cap">composición · creando</div>
+            <div class="p-hdr">
+              <span class="x">‹</span><span class="t">Actividad 03</span
+              ><span class="act">Guardar</span>
+            </div>
+            <div class="p-body">
+              <div class="lbl">Descripción de la actividad</div>
+              <div class="field focus">
+                Personal sobre pipa de agua portando arnés y línea de vida en
+                maniobra de llenado…
+              </div>
+              <div class="fmeta"><span>Sin límite de caracteres</span></div>
+              <div style="margin-top: 12px">
+                <div
+                  class="btn btn-out"
+                  style="
+                    flex: none;
+                    border-color: var(--cyan);
+                    color: var(--cyan);
+                  "
+                >
+                  Guardar y escribir la siguiente
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flownote" style="flex: 1; min-width: 260px">
+            La fila entera abre la edición (misma pantalla de composición, sin
+            "Guardar y escribir la siguiente", con "Eliminar actividad" rojo al
+            fondo + confirmación nativa). El "Atrás" del pie regresa a P-00
+            conservando la selección. La renumeración tras eliminar es
+            silenciosa: el numeral es presentación, <code>orden</code> es dato.
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════ 4 · PASO 2 ═════ -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="code">4</span>
+          <h3>Paso 2 · Fotos</h3>
+          <p>lista compacta + carrusel de tanda</p>
+        </div>
+        <div class="lamina">
+          <div class="phone">
+            <div class="p-cap">paso 2 · con 2 fotos</div>
+            <div class="p-hdr">
+              <span class="x">✕</span
+              ><span class="t">Reporte de actividades</span
+              ><span style="width: 22px"></span>
+            </div>
+            <div class="stepper">
+              <div class="sdot done">
+                <div class="d">✓</div>
+                <small>Activid.</small>
+              </div>
+              <div class="sdot on">
+                <div class="d"></div>
+                <small>Fotos</small>
+              </div>
+              <div class="sdot">
+                <div class="d"></div>
+                <small>Concl.</small>
+              </div>
+              <div class="sdot">
+                <div class="d"></div>
+                <small>Revisión</small>
+              </div>
+            </div>
+            <div class="p-body">
+              <div class="intro">
+                Agrega tus fotografías con pie de foto. Máximo 6.
+              </div>
+              <div class="lbl">
+                Fotos del reporte <span class="c">2 de 6</span>
+              </div>
+              <div class="fotorow">
+                <div class="th img">📷</div>
+                <p>Recarga de combustible</p>
+                <span class="ch">›</span>
+              </div>
+              <div class="fotorow">
+                <div class="th img b">📷</div>
+                <p>Plática de seguridad</p>
+                <span class="ch">›</span>
+              </div>
+              <div class="lbl">Agregar fotos</div>
+              <div class="srcgrid">
+                <div class="dashed">
+                  <span style="font-size: 17px">📷</span>
+                  <p>Cámara</p>
+                </div>
+                <div class="dashed">
+                  <span style="font-size: 17px">🖼</span>
+                  <p>Galería</p>
+                </div>
+              </div>
+            </div>
+            <div class="p-foot">
+              <div class="btn btn-ghost">Atrás</div>
+              <div class="btn btn-navy">Siguiente →</div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="p-cap">carrusel de tanda · foto 2 de 3</div>
+            <div class="p-hdr">
+              <span class="x">✕</span><span class="t">Pies de foto</span
+              ><span class="act" style="color: #64748b">Guardar</span>
+            </div>
+            <div class="p-body">
+              <div class="batchbar">
+                <span class="l">Foto 2 de 3 · <b>Descartar esta foto</b></span>
+                <span class="chips"
+                  ><span class="chip-n ok">1</span
+                  ><span class="chip-n cur">2</span
+                  ><span class="chip-n">3</span></span
+                >
+              </div>
+              <div class="bigph img c"></div>
+              <div class="lbl" style="margin-top: 0">
+                Pie de foto · obligatorio
+              </div>
+              <div class="field focus">Personal con arnés y línea de vida</div>
+              <div class="fmeta"><span></span><span>33 / 50</span></div>
+            </div>
+            <div class="p-foot">
+              <div class="btn btn-ghost">← Anterior</div>
+              <div class="btn btn-navy">Siguiente foto →</div>
+            </div>
+          </div>
+          <div class="flownote" style="flex: 1; min-width: 260px">
+            Chips tocables (cyan=con pie, gris=sin, anillo navy=actual) para
+            saltar directo. En la última foto el pie cambia a
+            <b>"＋ Agregar otra"</b>, que abre el menú anclado (Cámara/Galería
+            hacia arriba, ancho del botón, "quedan N" cuando ≤2; el teclado se
+            oculta antes de medir). "Guardar" del header despierta solo con
+            todos los pies; si falta uno, franja ámbar "Falta el pie de la foto
+            N · Ir ›". ✕ confirma descartar la tanda completa; jamás se descarta
+            una foto solo por no tener pie. Al guardar, cada captura de cámara
+            se copia a la galería del teléfono (MediaLibrary) — el usuario
+            conserva su original sin costo de red.
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════ 5 · PASO 3 ═════ -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="code">5</span>
+          <h3>Paso 3 · Conclusión</h3>
+          <p>el paso es el campo</p>
+        </div>
+        <div class="lamina">
+          <div class="phone">
+            <div class="p-cap">paso 3</div>
+            <div class="p-hdr">
+              <span class="x">✕</span
+              ><span class="t">Reporte de actividades</span
+              ><span style="width: 22px"></span>
+            </div>
+            <div class="stepper">
+              <div class="sdot done">
+                <div class="d">✓</div>
+                <small>Activid.</small>
+              </div>
+              <div class="sdot done">
+                <div class="d">✓</div>
+                <small>Fotos</small>
+              </div>
+              <div class="sdot on">
+                <div class="d"></div>
+                <small>Concl.</small>
+              </div>
+              <div class="sdot">
+                <div class="d"></div>
+                <small>Revisión</small>
+              </div>
+            </div>
+            <div class="p-body">
+              <div class="lbl">
+                Conclusión del día <span class="c">obligatoria</span>
+              </div>
+              <div class="field focus" style="min-height: 96px">
+                Se supervisaron todas las actividades, verificando el
+                cumplimiento de la normativa STPS aplicable, sin incidentes.
+                Queda constancia en bitácora.
+              </div>
+              <div class="fmeta">
+                <span
+                  >Sin límite · crece hasta ~6 renglones y luego hace
+                  scroll</span
+                >
+              </div>
+            </div>
+            <div class="p-foot">
+              <div class="btn btn-ghost">Atrás</div>
+              <div class="btn btn-navy">Siguiente →</div>
+            </div>
+          </div>
+          <div class="flownote" style="flex: 1; min-width: 260px">
+            El teclado <b>cubre</b> el pie de navegación, no lo empuja: en iOS
+            es el comportamiento natural; en Android exige
+            <code>softwareKeyboardLayoutMode: "pan"</code> en
+            <code>app.json</code> (el default <code>resize</code> haría
+            exactamente lo contrario). Una configuración, comportamiento
+            idéntico en ambas plataformas.
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════ 6 · PASO 4 ═════ -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="code">6</span>
+          <h3>Paso 4 · Revisión y cierre</h3>
+          <p>Documento en Miniatura con PARTICIPANTES</p>
+        </div>
+        <div class="lamina">
+          <div class="phone">
+            <div class="p-cap">paso 4 · revisión (modo edit)</div>
+            <div class="p-hdr">
+              <span class="x">✕</span><span class="t">Revisión</span
+              ><span style="width: 22px"></span>
+            </div>
+            <div class="stepper">
+              <div class="sdot done">
+                <div class="d">✓</div>
+                <small>Activid.</small>
+              </div>
+              <div class="sdot done">
+                <div class="d">✓</div>
+                <small>Fotos</small>
+              </div>
+              <div class="sdot done">
+                <div class="d">✓</div>
+                <small>Concl.</small>
+              </div>
+              <div class="sdot on">
+                <div class="d"></div>
+                <small>Revisión</small>
+              </div>
+            </div>
+            <div class="p-body">
+              <div class="ordbar"><span>⇅ Ordenar</span></div>
+              <div class="doc-mini">
+                <div class="dh">
+                  <b>Reporte de actividades diario</b
+                  ><span>UIN-TOP-F-002 · 25/08/26</span>
+                </div>
+                <div class="st">PARTICIPANTES <span class="ed">✎</span></div>
+                <div class="roster">
+                  <b>Contratistas:</b> Constructora Ríos, Pavimentos
+                  Potosinos<br /><b>Supervisión:</b> URBA Ingeniería
+                </div>
+                <div class="st">
+                  ACTIVIDADES SUPERVISADAS: <span class="ed">✎</span>
+                </div>
+                <ol>
+                  <li>
+                    Plática de inicio de actividades y ejercicios de calistenia.
+                  </li>
+                  <li>Revisión de documentación antes del izaje.</li>
+                  <li>
+                    Personal sobre pipa de agua portando arnés y línea de vida.
+                  </li>
+                </ol>
+                <div class="st">CONCLUSIÓN: <span class="ed">✎</span></div>
+                <p class="body">
+                  Se supervisaron todas las actividades sin incidentes. Queda
+                  constancia en bitácora.
+                </p>
+                <div class="st">EVIDENCIA: <span class="ed">✎</span></div>
+                <div class="grid">
+                  <div>
+                    <div class="im img">📷</div>
+                    <div class="pf">Recarga de combustible</div>
+                  </div>
+                  <div>
+                    <div class="im img c">📷</div>
+                    <div class="pf">Personal con arnés</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="p-foot">
+              <div class="btn btn-ghost">Atrás</div>
+              <div class="btn btn-green">Guardar reporte</div>
+            </div>
+          </div>
+          <div class="flownote" style="flex: 1; min-width: 260px">
+            <b
+              >Cada ✎ (y la fila tocada) va directo a su editor y regresa
+              directo aquí</b
+            >
+            — el de PARTICIPANTES abre P-00. ⇅ Ordenar entra a un modo con asas
+            ≡ y "Listo": el único lugar donde se reordenan fotos, con el pie
+            viajando pegado a la suya. <br /><br />
+            <b>"Guardar reporte" (verde) abre el modal de finalidad:</b> el
+            reporte no se edita en la app después de guardar, y "El Excel se
+            genera después de guardar". Al confirmar: <b>con señal</b> →
+            "Guardado y enviado" + "Generar Excel" primaria (el entregable a un
+            toque); <b>sin señal</b> → "Guardado en el teléfono" + chip "Por
+            enviar" + "Ir a mis reportes". El registro entra a la cola Realm
+            (espejo de avances, <code>client_id</code> UUID en el body); el
+            borrador muere al 201 y las fotos suben por su propia cola (SAS →
+            PUT → confirmación).
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════ 7 · ZONA ═════ -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="code">7</span>
+          <h3>Zona de Reportes</h3>
+          <p>entrada, lista de la obra y detalle de consulta</p>
+        </div>
+        <div class="lamina">
+          <div class="phone">
+            <div class="p-cap">entrada rediseñada</div>
+            <div class="p-hdr">
+              <span style="width: 22px"></span
+              ><span class="t" style="font-size: 17px; font-weight: 700"
+                >Reportes</span
+              ><span style="position: relative; font-size: 15px"
+                >☁<span
+                  style="
+                    position: absolute;
+                    top: -6px;
+                    right: -9px;
+                    background: #f59e0b;
+                    color: #1e293b;
+                    font-size: 9.5px;
+                    font-weight: 700;
+                    border-radius: 8px;
+                    padding: 0 4px;
+                  "
+                  >1</span
+                ></span
+              >
+            </div>
+            <div class="p-body">
+              <div class="lbl">Crear</div>
+              <div class="mk-card">
+                <div class="tile">▤</div>
+                <div style="flex: 1">
+                  <h5>Reporte de actividades</h5>
+                  <p>
+                    Actividades del día, conclusión y evidencia fotográfica.
+                  </p>
+                </div>
+                <span class="ch">›</span>
+              </div>
+              <div class="mk-card">
+                <div class="tile" style="background: rgba(30, 41, 59, 0.08)">
+                  ▦
+                </div>
+                <div style="flex: 1">
+                  <h5>Tabla de avances</h5>
+                  <p>Seguimiento cuantitativo de conceptos y avance físico.</p>
+                </div>
+                <span class="ch">›</span>
+              </div>
+              <div class="lbl">
+                Reportes de la obra <span class="c">12</span>
+              </div>
+              <div class="rep">
+                <div class="doc" style="background: #f3f4f6; color: #9ca3af">
+                  ⇅
+                </div>
+                <div class="mid">
+                  <h6>Actividades · mar 25 ago</h6>
+                  <p>Sergio Cota · 3 actividades · 2 fotos</p>
+                </div>
+                <span class="estado-chip ch-gray">Por enviar</span
+                ><span class="ch">›</span>
+              </div>
+              <div class="rep">
+                <div class="doc">▤</div>
+                <div class="mid">
+                  <h6>Actividades · lun 24 ago</h6>
+                  <p>R. Medina · 6 actividades · 6 fotos</p>
+                </div>
+                <span class="estado-chip ch-green">Enviado</span
+                ><span class="ch">›</span>
+              </div>
+              <div class="rep">
+                <div class="doc">▤</div>
+                <div class="mid">
+                  <h6>Actividades · vie 21 ago</h6>
+                  <p>J. Torres · 5 actividades · 4 fotos</p>
+                </div>
+                <span class="estado-chip ch-green">Enviado</span
+                ><span class="ch">›</span>
+              </div>
+            </div>
+            <div class="tabs">
+              <div class="tab">
+                <div class="ic">▦</div>
+                Sábana
+              </div>
+              <div class="tab on">
+                <div class="ic">▥</div>
+                Reportes
+              </div>
+              <div class="tab">
+                <div class="ic">⛟</div>
+                Maquinaria
+              </div>
+              <div class="tab">
+                <div class="ic">◉</div>
+                Perfil
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="p-cap">detalle · enviado (modo read)</div>
+            <div class="p-hdr">
+              <span class="x">‹</span><span class="t">Actividades · 24 ago</span
+              ><span style="width: 22px"></span>
+            </div>
+            <div class="subhdr">
+              <div class="eyebrow">Reportado por</div>
+              <div class="o">R. Medina · lunes 24 de agosto, 18:02</div>
+              <div class="f">Autopista 75D – Matehuala · subtramo 3</div>
+            </div>
+            <div class="p-body">
+              <div class="doc-mini">
+                <div class="dh">
+                  <b>Reporte de actividades diario</b
+                  ><span>UIN-TOP-F-002 · 24/08/26</span>
+                </div>
+                <div class="st">PARTICIPANTES</div>
+                <div class="roster">
+                  <b>Contratistas:</b> Edificaciones del Norte, Grúas GTM<br /><b
+                    >Supervisión:</b
+                  >
+                  URBA Ingeniería
+                </div>
+                <div class="st">ACTIVIDADES SUPERVISADAS:</div>
+                <ol>
+                  <li>Plática de inicio y calistenia (NOM-030).</li>
+                  <li>Revisión documental previa al izaje.</li>
+                </ol>
+                <div class="st">CONCLUSIÓN:</div>
+                <p class="body">
+                  Actividades supervisadas sin incidentes; constancia en
+                  bitácora.
+                </p>
+                <div class="st">EVIDENCIA:</div>
+                <div class="grid">
+                  <div>
+                    <div class="im img">📷</div>
+                    <div class="pf">Recarga de combustible</div>
+                  </div>
+                  <div>
+                    <div class="im img b">📷</div>
+                    <div class="pf">Plática de seguridad</div>
+                  </div>
+                </div>
+              </div>
+              <div class="genrow">
+                <div class="btn btn-navy" style="flex: 1">
+                  ⬇ &nbsp;Generar Excel
+                </div>
+                <div class="btn-out">Generar PDF</div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="p-cap">detalle · por enviar (solo el autor)</div>
+            <div class="p-hdr">
+              <span class="x">‹</span><span class="t">Actividades · 25 ago</span
+              ><span style="width: 22px"></span>
+            </div>
+            <div class="subhdr">
+              <div class="eyebrow">Reportado por</div>
+              <div class="o">Sergio Cota · martes 25 de agosto, 17:41</div>
+              <div class="f">Autopista 75D – Matehuala · subtramo 3</div>
+            </div>
+            <div class="p-body">
+              <div class="doc-mini">
+                <div class="dh">
+                  <b>Reporte de actividades diario</b
+                  ><span>UIN-TOP-F-002 · 25/08/26</span>
+                </div>
+                <div class="st">PARTICIPANTES</div>
+                <div class="roster">
+                  <b>Contratistas:</b> Constructora Ríos, Pavimentos
+                  Potosinos<br /><b>Supervisión:</b> URBA Ingeniería
+                </div>
+                <div class="st">ACTIVIDADES SUPERVISADAS:</div>
+                <ol>
+                  <li>Plática de inicio y calistenia.</li>
+                  <li>Toldo y punto de hidratación a checadores.</li>
+                </ol>
+              </div>
+              <div class="offbar">
+                <span>⇅</span
+                ><span
+                  ><b>Por enviar.</b> Se enviará al recuperar la señal. Los
+                  archivos se generan cuando el reporte llegue al
+                  servidor.</span
+                >
+              </div>
+              <div class="genrow">
+                <div class="btn btn-navy off" style="flex: 1">
+                  ⬇ &nbsp;Generar Excel
+                </div>
+                <div class="btn-out off">Generar PDF</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flownote">
+          La lista fusiona la <b>cola local del autor</b> ("Por enviar", arriba,
+          visible solo en su dispositivo) con la
+          <b>lista del servidor</b> (React Query, pull-to-refresh). El detalle
+          jamás carga archivos: el JSON dibuja la Miniatura al instante y las
+          fotos llegan como thumbnails por SAS de lectura. "Generar" (repetible,
+          para todos): spinner en el botón → GET del archivo → caché → hoja de
+          compartir del sistema (patrón <code>reportService</code>). Si el
+          servidor responde 409 (fotos aún subiéndose), se muestra la misma
+          franja ámbar como explicación.
+        </div>
+      </section>
+
+      <!-- ═════ 8 · DOCUMENTO ═════ -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="code">8</span>
+          <h3>Geometría del documento</h3>
+          <p>
+            lo que el motor imprime — detalle completo en be-spec-01 y ADR-B
+          </p>
+        </div>
+        <div class="lamina">
+          <div class="pairblk">
+            <div class="cols9">
+              <div>A</div>
+              <div>B</div>
+              <div>C</div>
+              <div>D</div>
+              <div>E</div>
+              <div>F</div>
+              <div>G</div>
+              <div>H</div>
+              <div>I</div>
+            </div>
+            <div class="duo">
+              <div style="flex: 4">
+                <div class="ph">📷</div>
+                <div class="pie">Recarga de combustible</div>
+              </div>
+              <div style="flex: 1"></div>
+              <div style="flex: 4">
+                <div class="ph vert"><div class="inner">📷</div></div>
+                <div class="pie">Personal con arnés</div>
+              </div>
+            </div>
+            <div class="meta">
+              A:D + canal E + F:I · 312 pt por foto · pie centrado 12 pt bold en
+              fila propia · vertical centra con bandas (x_offset) · bloque de
+              par ATÓMICO
+            </div>
+          </div>
+          <div class="flownote" style="flex: 1; min-width: 280px">
+            Nada está anclado salvo la rejilla de 9 columnas y los formatos: el
+            contenido fluye con un <b>cursor de filas</b> (una línea envuelta =
+            una fila combinada A:I de ~21 pt), medido con Carlito — por eso el
+            documento crece exactamente lo que mide y no puede tener huecos.
+            Reglas: título nunca al final de página; actividad conserva mínimo 2
+            líneas o viaja entera; par de fotos jamás se parte. Participantes se
+            imprimen en el bloque del cajetín. Excel con <b>xlsxwriter</b>, PDF
+            con <b>ReportLab</b> sobre el mismo paginador. El pie de 50
+            caracteres del wizard viene del ancho impreso de 312 pt: interfaz y
+            papel comparten la misma medida.
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════ 9 · REFERENCIAS ═════ -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="code">9</span>
+          <h3>Referencias</h3>
+          <p>documentos hermanos de esta implementación</p>
+        </div>
+        <div class="reflist">
+          · <b>ADR-006</b> —
+          <code>ADR-006-modulo-reporte-actividades-frontend.md</code>:
+          decisiones de frontend D1–D10, mapa de componentes, dependencias de
+          backend.<br />
+          · <b>ADR-004</b> (backend) —
+          <code>ADR-004-reporte-actividades-backend.md</code>: persistencia
+          B-1–B-8, endpoints, motor de generación, política 409.<br />
+          · <b>be-spec-01</b> — <code>be-spec-01-datos-y-generacion.html</code>:
+          modelo ER y motor de paginación dibujados.<br />
+          · Archivos de trabajo del diseño iterativo:
+          <code>ux-spec-02b</code>–<code>02h</code> (histórico; este documento
+          los sustituye como referencia de construcción).
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

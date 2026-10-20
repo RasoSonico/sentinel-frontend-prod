@@ -10,26 +10,27 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
-  TextInput,
-  ActivityIndicator,
 } from "react-native";
 import BottomSheet, {
   BottomSheetScrollView,
+  BottomSheetTextInput,
   BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import BottomSheetBackdrop from "src/components/ui/BottomSheetBackdrop";
 import { Ionicons } from "@expo/vector-icons";
 import { DesignTokens } from "src/styles/designTokens";
-import { MaquinariaHubItemRealm } from "src/realm/maquinariaHub/MaquinariaHubItemRealm";
-import { useCreateJornada } from "src/hooks/data/query/useMaquinaria";
+import type { FilaMaquinaria } from "../filaMaquinaria";
+import { usePendingJornadaQueue } from "src/hooks/maquinaria/usePendingJornadaQueue";
+import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { useSnackbar } from "src/hooks/useSnackbar";
 import { MotivoInactividad } from "src/types/maquinaria";
 import { DateUtils } from "src/utils/dateUtils";
 
 interface Props {
   isVisible: boolean;
   onClose: () => void;
-  item: MaquinariaHubItemRealm | null;
+  item: FilaMaquinaria | null;
+  constructionId: number | undefined;
 }
 
 const MOTIVOS: { value: MotivoInactividad; label: string; icon: string }[] = [
@@ -40,7 +41,12 @@ const MOTIVOS: { value: MotivoInactividad; label: string; icon: string }[] = [
   { value: "OTRO", label: "Otro motivo", icon: "ellipsis-horizontal-circle" },
 ];
 
-const SinOperarSheet: React.FC<Props> = ({ isVisible, onClose, item }) => {
+const SinOperarSheet: React.FC<Props> = ({
+  isVisible,
+  onClose,
+  item,
+  constructionId,
+}) => {
   const sheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["55%", "75%"], []);
 
@@ -56,7 +62,9 @@ const SinOperarSheet: React.FC<Props> = ({ isVisible, onClose, item }) => {
     setObservaciones("");
   }
 
-  const createJornada = useCreateJornada();
+  const { addToQueue } = usePendingJornadaQueue();
+  const isOnline = useNetworkStatus();
+  const { showSnackbar } = useSnackbar();
 
   useEffect(() => {
     if (isVisible) {
@@ -74,30 +82,32 @@ const SinOperarSheet: React.FC<Props> = ({ isVisible, onClose, item }) => {
   );
 
   const handleConfirmar = () => {
-    if (!item || !motivo) return;
+    if (!item || !motivo || constructionId === undefined) return;
 
     const today = DateUtils.localDateToUTC(new Date());
 
-    createJornada.mutate(
-      {
-        estancia: item.estancia_id,
-        fecha: today,
-        estado: "SIN_OPERAR",
-        motivo_inactividad: motivo,
-        observaciones: observaciones.trim() || undefined,
-      },
-      {
-        onSuccess: () => {
-          onClose();
-        },
-        onError: (error: Error) => {
-          Alert.alert(
-            "Error",
-            error.message ?? "No se pudo registrar. Intenta de nuevo.",
-          );
-        },
-      },
+    // A la cola, igual que la jornada trabajando: una máquina parada por falla
+    // se reporta desde el frente, que es donde no hay señal.
+    addToQueue({
+      estanciaId: item.estancia_id,
+      maquinariaId: item.id,
+      maquinariaLocalId: item.maquinariaLocalId,
+      esTransitoria: false,
+      fecha: today,
+      estado: "SIN_OPERAR",
+      motivoInactividad: motivo,
+      observaciones: observaciones.trim(),
+      constructionId,
+      maquinariaEtiqueta: `${item.tipo} · ${item.marca} ${item.modelo}`,
+    });
+
+    showSnackbar(
+      isOnline === true
+        ? "Jornada registrada"
+        : "Guardada en el teléfono · se enviará al haber señal",
+      "success",
     );
+    onClose();
   };
 
   return (
@@ -109,6 +119,11 @@ const SinOperarSheet: React.FC<Props> = ({ isVisible, onClose, item }) => {
       onClose={onClose}
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={styles.handle}
+      // Este sheet tampoco los tenía, y tiene su propio campo de texto al
+      // final del scroll. Mismo trío que los sheets de avance.
+      keyboardBehavior="extend"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
     >
       <BottomSheetScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Sin operar hoy</Text>
@@ -151,7 +166,7 @@ const SinOperarSheet: React.FC<Props> = ({ isVisible, onClose, item }) => {
         </View>
 
         <Text style={styles.sectionLabel}>Notas (opcional)</Text>
-        <TextInput
+        <BottomSheetTextInput
           style={styles.notesInput}
           placeholder="Observaciones adicionales..."
           placeholderTextColor={DesignTokens.colors.neutral[400]}
@@ -164,14 +179,12 @@ const SinOperarSheet: React.FC<Props> = ({ isVisible, onClose, item }) => {
         <TouchableOpacity
           style={[styles.confirmBtn, !motivo && styles.confirmBtnDisabled]}
           onPress={handleConfirmar}
-          disabled={!motivo || createJornada.isPending}
+          disabled={!motivo}
           activeOpacity={0.8}
         >
-          {createJornada.isPending ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.confirmBtnText}>Confirmar</Text>
-          )}
+          {/* Sin indicador de carga: guardar es ahora una escritura local y
+              no hay espera de red que mostrar. */}
+          <Text style={styles.confirmBtnText}>Confirmar</Text>
         </TouchableOpacity>
       </BottomSheetScrollView>
     </BottomSheet>

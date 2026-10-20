@@ -18,6 +18,11 @@ export class MaquinariaHubItemRealm extends Realm.Object<MaquinariaHubItemRealm>
   requiere_reconciliacion!: boolean;
   dias_sin_reporte!: number;
   ultima_jornada_fecha!: string | null;
+  // Última lectura de cierre del horómetro y su fecha. Viven aquí, y no se
+  // piden al abrir la hoja de captura, porque la jornada se reporta en obra
+  // —donde puede no haber señal— y sin la referencia no hay con qué comparar.
+  ultimo_horometro!: string | null;
+  ultimo_horometro_fecha!: string | null;
 
   static schema: Realm.ObjectSchema = {
     name: "MaquinariaHubItemRealm",
@@ -40,6 +45,8 @@ export class MaquinariaHubItemRealm extends Realm.Object<MaquinariaHubItemRealm>
       requiere_reconciliacion: "bool",
       dias_sin_reporte: "int",
       ultima_jornada_fecha: "string?",
+      ultimo_horometro: "string?",
+      ultimo_horometro_fecha: "string?",
     },
   };
 }

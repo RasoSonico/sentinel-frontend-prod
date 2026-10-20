@@ -41,6 +41,8 @@ const flattenHubItem = (item: MaquinariaHubItem) => ({
   requiere_reconciliacion: item.requiere_reconciliacion,
   dias_sin_reporte: item.dias_sin_reporte,
   ultima_jornada_fecha: item.ultima_jornada_fecha ?? null,
+  ultimo_horometro: item.ultimo_horometro ?? null,
+  ultimo_horometro_fecha: item.ultimo_horometro_fecha ?? null,
 });
 
 export const hubDiarioOptions = (

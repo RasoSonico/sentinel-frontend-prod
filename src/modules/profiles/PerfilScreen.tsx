@@ -24,10 +24,14 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useAssignedConstruction } from "src/hooks/data/query/useAvance";
 import { usePendingAdvanceQueue } from "src/hooks/avance/usePendingAdvanceQueue";
+import { usePendingReporteQueue } from "src/hooks/reportes/usePendingReporteQueue";
+import { usePendingJornadaQueue } from "src/hooks/maquinaria/usePendingJornadaQueue";
 
 const PerfilScreen = () => {
   const auth = useAuth();
   const { pendingCount, failedCount, syncingCount } = usePendingAdvanceQueue();
+  const { totalCount: reportesSinEnviar } = usePendingReporteQueue();
+  const { totalCount: jornadasSinEnviar } = usePendingJornadaQueue();
   const user = useAppSelector(selectUser);
   const userName = useAppSelector(selectUserName) || "Usuario";
   const userEmail = useAppSelector(selectUserEmail) || "usuario@ejemplo.com";
@@ -73,7 +77,12 @@ const PerfilScreen = () => {
   // persona inicia sesión en este dispositivo se pierden. El aviso va aquí
   // porque es el único momento en que quien puede resolverlo (conectarse y
   // sincronizar) todavía puede actuar.
-  const unsyncedCount = pendingCount + failedCount + syncingCount;
+  const unsyncedCount =
+    pendingCount +
+    failedCount +
+    syncingCount +
+    reportesSinEnviar +
+    jornadasSinEnviar;
 
   const handleLogout = async () => {
     const doLogout = async () => {

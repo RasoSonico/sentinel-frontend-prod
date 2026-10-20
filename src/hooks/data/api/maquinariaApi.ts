@@ -4,6 +4,7 @@ import { ConceptoItem } from "src/types/concepto";
 import {
   TipoMaquinaria,
   MaquinariaItem,
+  AltaMaquinariaResponse,
   CreateMaquinariaBody,
   EstanciaResponse,
   CreateEstanciaBody,
@@ -54,8 +55,8 @@ export const getMaquinariasByConstruction = async (
 
 export const createMaquinaria = async (
   body: CreateMaquinariaBody,
-): Promise<MaquinariaItem> =>
-  apiRequest<MaquinariaItem>(
+): Promise<AltaMaquinariaResponse> =>
+  apiRequest<AltaMaquinariaResponse>(
     "post",
     API_CONFIG.endpoints.maquinaria.maquinarias,
     "Error al registrar la maquinaria",

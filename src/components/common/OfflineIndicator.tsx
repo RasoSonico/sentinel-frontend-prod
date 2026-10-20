@@ -4,6 +4,14 @@ import { Ionicons } from "@expo/vector-icons";
 import styles from "./styles/OfflineIndicator.styles";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
 
+/**
+ * Franja de estado de sincronización, compartida por todos los módulos.
+ *
+ * Vivía en `modules/avance/components` porque ahí nació. Se mudó a la casa
+ * común cuando Reportes la necesitó: es un componente puro —solo depende de
+ * `useNetworkStatus` y de lo que reciba por props— y dejarlo en un módulo
+ * habría obligado a que Reportes importara de Avances.
+ */
 interface OfflineIndicatorProps {
   pendingCount?: number;
   failedCount?: number;

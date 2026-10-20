@@ -150,6 +150,8 @@ export async function ensureCacheOwner(
   // actividad ajena.
   const pendingAdvances = realm.objects("PendingAdvanceSubmission").length;
   const pendingPhotos = realm.objects("PendingPhotoSubmission").length;
+  const pendingReportes = realm.objects("PendingReporteSubmission").length;
+  const pendingJornadas = realm.objects("PendingJornadaSubmission").length;
 
   console.log("[CacheOwner] Cambio de identidad — borrando cache local");
   await wipeLocalCaches(realm);
@@ -158,6 +160,8 @@ export async function ensureCacheOwner(
   telemetry.trackEvent("cache_wiped_identity_change", {
     pending_advances: pendingAdvances,
     pending_photos: pendingPhotos,
+    pending_reportes: pendingReportes,
+    pending_jornadas: pendingJornadas,
   });
 
   return "wiped";

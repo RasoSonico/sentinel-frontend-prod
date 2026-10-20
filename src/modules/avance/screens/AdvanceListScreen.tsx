@@ -31,7 +31,7 @@ import AdvanceItemCard from "../components/AdvanceItemCard";
 import AdvanceListHeader from "../components/AdvanceListHeader";
 import AdvanceListEmptyState from "../components/AdvanceListEmptyState";
 import AdvanceDetailBottomSheet from "../components/AdvanceDetailBottomSheet";
-import OfflineIndicator from "../components/OfflineIndicator";
+import OfflineIndicator from "src/components/common/OfflineIndicator";
 import QueueHeaderButton from "../components/QueueHeaderButton";
 
 import styles from "../styles/AdvanceListScreen.styles";

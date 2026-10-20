@@ -86,3 +86,30 @@ export function fechaLarga(iso: string): string {
   if (!p) return iso;
   return `${p.dia} de ${MESES_LARGOS[p.mes - 1]}`;
 }
+
+const DIAS_LARGOS = [
+  "domingo",
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábado",
+];
+
+/**
+ * `2026-08-25` → `martes 25 de agosto`.
+ *
+ * Para el subheader del wizard del reporte, donde la fecha es de SOLO LECTURA y
+ * tiene que leerse sin ambigüedad: es la fecha que el documento va a llevar
+ * impresa y el usuario no puede cambiarla, así que más vale que la reconozca de
+ * un vistazo.
+ */
+export function fechaLargaConDia(iso: string): string {
+  const p = partes(iso);
+  if (!p) return iso;
+  const d = diaCivil(iso);
+  if (isNaN(d)) return iso;
+  const diaSemana = DIAS_LARGOS[(((d + 4) % 7) + 7) % 7];
+  return `${diaSemana} ${p.dia} de ${MESES_LARGOS[p.mes - 1]}`;
+}

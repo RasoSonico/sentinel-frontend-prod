@@ -42,8 +42,18 @@ export const API_CONFIG = {
       incidentTypes: "/api/incidencias/incident-types/",
       incidentClassifications: "/api/incidencias/incident-classifications/",
     },
+    // Catálogo de empresas participantes. Fuera de `reportes` a propósito: el
+    // roster de una obra no es un hecho del formato UIN-TOP-F-002, y cualquier
+    // módulo que necesite saber quién ejecuta lee de aquí.
+    proveedores: {
+      lista: "/api/proveedores/",
+    },
     reportes: {
       physicalAdvance: "/api/reportes/physical-advance/",
+      // Reporte de actividades diario (UIN-TOP-F-002) — ADR-006
+      actividades: "/api/reportes/actividades/",
+      fotoUpload: "/api/reportes/fotos/upload/",
+      fotoConfirmUpload: "/api/reportes/fotos/confirm-upload/",
     },
     maquinaria: {
       hub: "/api/maquinaria/hub-diario/",

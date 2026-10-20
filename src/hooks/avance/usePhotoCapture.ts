@@ -23,7 +23,26 @@ interface UsePhotoCaptureProps {
   includeLocation?: boolean;
   locationData?: { latitude: number; longitude: number } | null;
   partidaName?: string;
+  /**
+   * Ancho al que se reduce la foto antes de subirla.
+   *
+   * El default es el de avances y NO se toca: esas fotos se ven en pantalla, y
+   * subirlas más grandes solo gastaría red de obra.
+   *
+   * El reporte de actividades pasa `ANCHO_FOTO_REPORTE` porque sus fotos se
+   * IMPRIMEN: el bloque de evidencia mide 4.5 pulgadas de ancho, así que 1200
+   * px salen a ~267 DPI y 1920 a ~427. Es un parámetro y no una constante
+   * propia a propósito — sigue habiendo un solo pipeline de redimensión en la
+   * app, que es lo que D9 del ADR-006 quería proteger.
+   */
+  anchoMaximo?: number;
 }
+
+/** Avances: la foto se mira en pantalla. */
+export const ANCHO_FOTO_AVANCE = 1200;
+
+/** Reportes: la foto se imprime en el entregable del cliente. */
+export const ANCHO_FOTO_REPORTE = 1920;
 
 /**
  * Hook personalizado para gestionar la captura de fotos
@@ -34,6 +53,7 @@ export const usePhotoCapture = ({
   includeLocation = true,
   locationData = null,
   partidaName = "",
+  anchoMaximo = ANCHO_FOTO_AVANCE,
 }: UsePhotoCaptureProps = {}) => {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -73,7 +93,7 @@ export const usePhotoCapture = ({
     try {
       const manipResult = await manipulateAsync(
         uri,
-        [{ resize: { width: 1200 } }], // Redimensionar a máximo 1200px de ancho
+        [{ resize: { width: anchoMaximo } }],
         { compress: compressionQuality, format: SaveFormat.JPEG },
       );
       return manipResult.uri;

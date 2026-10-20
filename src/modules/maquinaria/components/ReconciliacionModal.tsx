@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { DesignTokens } from "src/styles/designTokens";
-import { MaquinariaHubItemRealm } from "src/realm/maquinariaHub/MaquinariaHubItemRealm";
+import type { FilaMaquinaria } from "../filaMaquinaria";
 import { useCreateReconciliacion } from "src/hooks/data/query/useMaquinaria";
 import DateInput from "src/components/ui/DateInput";
 import { ResultadoRecon } from "src/types/maquinaria";
@@ -19,7 +19,7 @@ import { DateUtils } from "src/utils/dateUtils";
 interface Props {
   isVisible: boolean;
   onClose: () => void;
-  item: MaquinariaHubItemRealm | null;
+  item: FilaMaquinaria | null;
 }
 
 const ReconciliacionModal: React.FC<Props> = ({ isVisible, onClose, item }) => {

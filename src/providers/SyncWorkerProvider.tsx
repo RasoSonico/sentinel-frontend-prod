@@ -2,6 +2,8 @@ import React, { createContext, useContext, useCallback } from "react";
 import { useAdvanceSyncWorker } from "src/hooks/avance/useAdvanceSyncWorker";
 import { usePhotoSyncWorker } from "src/hooks/avance/usePhotoSyncWorker";
 import { useSyncQueueToRedux } from "src/hooks/avance/useSyncQueueToRedux";
+import { useReporteSyncWorker } from "src/hooks/reportes/useReporteSyncWorker";
+import { useMaquinariaSyncWorker } from "src/hooks/maquinaria/useMaquinariaSyncWorker";
 
 interface SyncWorkerContextValue {
   // Advance sync
@@ -26,6 +28,16 @@ export function SyncWorkerProvider({
 }) {
   const advanceSyncWorker = useAdvanceSyncWorker();
   const photoSyncWorker = usePhotoSyncWorker();
+  // El worker del reporte vive aquí por la misma razón que los otros dos: la
+  // cola tiene que drenarse aunque el usuario nunca abra la tab de Reportes.
+  // Un reporte capturado sin señal debe salir solo en cuanto haya red, esté
+  // donde esté el usuario.
+  const reporteSyncWorker = useReporteSyncWorker();
+  // Y el de maquinaria por lo mismo: un alta o una jornada capturadas en el
+  // frente deben salir solas en cuanto haya red, aunque el usuario ya se haya
+  // ido a otra tab. Este drena las DOS colas, y en orden: el alta antes que su
+  // jornada, porque de ella sale la estancia a la que la jornada se cuelga.
+  const jornadaSyncWorker = useMaquinariaSyncWorker();
 
   // Bridge Realm queue counts to Redux state
   useSyncQueueToRedux();
@@ -36,11 +48,22 @@ export function SyncWorkerProvider({
     // Photo sync will be triggered automatically when advances complete
     // But we can also trigger it manually
     await photoSyncWorker.syncNow();
-  }, [advanceSyncWorker, photoSyncWorker]);
+    await reporteSyncWorker.syncNow();
+    await jornadaSyncWorker.syncNow();
+  }, [
+    advanceSyncWorker,
+    photoSyncWorker,
+    reporteSyncWorker,
+    jornadaSyncWorker,
+  ]);
 
   const contextValue: SyncWorkerContextValue = {
     // Advance sync
-    isSyncing: advanceSyncWorker.isSyncing || photoSyncWorker.isSyncing,
+    isSyncing:
+      advanceSyncWorker.isSyncing ||
+      photoSyncWorker.isSyncing ||
+      reporteSyncWorker.isSyncing ||
+      jornadaSyncWorker.isSyncing,
     currentItemId: advanceSyncWorker.currentItemId,
     syncNow,
     retryItem: advanceSyncWorker.retryItem,

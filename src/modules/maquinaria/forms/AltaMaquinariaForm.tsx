@@ -6,17 +6,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DesignTokens } from "src/styles/designTokens";
 import SearchableDropdown from "src/components/ui/SearchableDropdown";
 import DateInput from "src/components/ui/DateInput";
-import {
-  useTiposMaquinaria,
-  useCreateMaquinaria,
-} from "src/hooks/data/query/useMaquinaria";
+import { useTiposMaquinaria } from "src/hooks/data/query/useMaquinaria";
+import { usePendingMaquinariaQueue } from "src/hooks/maquinaria/usePendingMaquinariaQueue";
+import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { useSnackbar } from "src/hooks/useSnackbar";
 import {
   altaMaquinariaSchema,
   altaMaquinariaDefaultValues,
@@ -53,7 +52,9 @@ const FieldError: React.FC<{ message?: string }> = ({ message }) =>
 
 const AltaMaquinariaForm: React.FC<Props> = ({ constructionId, onSuccess }) => {
   const { data: tipos, isInitialLoading: loadingTipos } = useTiposMaquinaria();
-  const createMaquinaria = useCreateMaquinaria();
+  const { addToQueue } = usePendingMaquinariaQueue();
+  const isOnline = useNetworkStatus();
+  const { showSnackbar } = useSnackbar();
   const { openModal } = useModal();
 
   const tipoOptions = useMemo(
@@ -79,30 +80,36 @@ const AltaMaquinariaForm: React.FC<Props> = ({ constructionId, onSuccess }) => {
     mode: "onBlur",
   });
 
+  /**
+   * A la cola, nunca a la red directa.
+   *
+   * Una máquina llega a la obra y se da de alta **ahí**, en el acceso, que es
+   * donde no hay señal. Antes esto era un `mutate` que terminaba en un Alert
+   * pidiendo reintentar contra una red inexistente, y el supervisor se quedaba
+   * sin poder registrar ni reportar nada de esa máquina en todo el día.
+   */
   const onSubmit = (data: AltaMaquinariaFormData) => {
-    createMaquinaria.mutate(
-      {
-        construction: constructionId,
-        tipo: data.tipo,
-        marca: data.marca,
-        modelo: data.modelo,
-        propietario_tipo: data.propietario_tipo,
-        tipo_permanencia: data.tipo_permanencia,
-        fecha_ingreso: data.fecha_ingreso,
-      },
-      {
-        onSuccess: () => {
-          onSuccess();
-        },
-        onError: (error: Error) => {
-          Alert.alert(
-            "Error al registrar",
-            error.message ??
-              "No se pudo registrar la maquinaria. Intenta de nuevo.",
-          );
-        },
-      },
+    const tipoNombre =
+      tipoOptions.find((t) => t.value === data.tipo)?.label ?? "";
+
+    addToQueue({
+      constructionId,
+      tipoId: data.tipo,
+      tipoNombre,
+      marca: data.marca,
+      modelo: data.modelo,
+      propietarioTipo: data.propietario_tipo,
+      tipoPermanencia: data.tipo_permanencia,
+      fechaIngreso: data.fecha_ingreso,
+    });
+
+    showSnackbar(
+      isOnline === true
+        ? "Maquinaria registrada"
+        : "Guardada en el teléfono · se registrará al haber señal",
+      "success",
     );
+    onSuccess();
   };
 
   return (
@@ -278,19 +285,12 @@ const AltaMaquinariaForm: React.FC<Props> = ({ constructionId, onSuccess }) => {
       </View>
 
       <TouchableOpacity
-        style={[
-          styles.submitBtn,
-          createMaquinaria.isPending && styles.submitBtnDisabled,
-        ]}
+        style={styles.submitBtn}
         onPress={handleSubmit(onSubmit)}
-        disabled={createMaquinaria.isPending}
         activeOpacity={0.8}
       >
-        {createMaquinaria.isPending ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <Text style={styles.submitBtnText}>Registrar maquinaria</Text>
-        )}
+        {/* Sin indicador de carga: registrar es ahora una escritura local. */}
+        <Text style={styles.submitBtnText}>Registrar maquinaria</Text>
       </TouchableOpacity>
     </View>
   );

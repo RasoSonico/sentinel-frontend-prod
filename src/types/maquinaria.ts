@@ -47,6 +47,19 @@ export interface CreateMaquinariaBody {
   propietario_tipo: PropietarioTipo;
   tipo_permanencia: TipoPermanencia;
   fecha_ingreso: string;
+  client_id?: string;
+}
+
+/**
+ * Respuesta del alta: la máquina **y la estancia que se le abrió**.
+ *
+ * El `estancia_id` es lo que cierra el círculo de la cola offline. El alta
+ * crea las dos cosas en una transacción, y sin ese id una jornada capturada
+ * contra una máquina dada de alta sin señal no sabría a qué colgarse.
+ */
+export interface AltaMaquinariaResponse extends MaquinariaItem {
+  estancia_id: number | null;
+  client_id: string | null;
 }
 
 export interface EstanciaResponse {
@@ -81,6 +94,16 @@ export interface JornadaResponse {
   estado: EstadoJornada;
   motivo_inactividad: MotivoInactividad | null;
   observaciones: string;
+  /**
+   * Lecturas del horómetro. Llegan como cadena porque DRF serializa
+   * `DecimalField` así, y convertirlas a `number` perdería la décima en los
+   * valores que el flotante no representa exacto.
+   */
+  horometro_inicial: string | null;
+  horometro_final: string | null;
+  /** Derivado en el servidor: `final - inicial`. Null si falta una lectura. */
+  horas_maquina: string | null;
+  client_id: string | null;
   reportado_por: number;
   created_at: string;
 }
@@ -92,6 +115,14 @@ export interface CreateJornadaTrabajandoBody {
   catalog: number;
   concept?: number | null;
   observaciones?: string;
+  /** Opcionales y no van en pareja: ver `Jornada` en el backend. */
+  horometro_inicial?: string | null;
+  horometro_final?: string | null;
+  /**
+   * Clave de idempotencia, acuñada al ENCOLAR. Un segundo POST con la misma
+   * devuelve la jornada existente con 200 en vez de duplicarla.
+   */
+  client_id?: string;
 }
 
 export interface CreateJornadaSinOperarBody {
@@ -100,6 +131,9 @@ export interface CreateJornadaSinOperarBody {
   estado: "SIN_OPERAR";
   motivo_inactividad: MotivoInactividad;
   observaciones?: string;
+  horometro_inicial?: string | null;
+  horometro_final?: string | null;
+  client_id?: string;
 }
 
 export type CreateJornadaBody =
@@ -112,6 +146,9 @@ export interface CreateJornadaTransitoriaBody {
   concept_id?: number | null;
   fecha: string;
   observaciones?: string;
+  horometro_inicial?: string | null;
+  horometro_final?: string | null;
+  client_id?: string;
 }
 
 export interface CreateReconciliacionSigueBody {
@@ -173,6 +210,19 @@ export interface MaquinariaHubItem {
   requiere_reconciliacion: boolean;
   dias_sin_reporte: number;
   ultima_jornada_fecha: string | null;
+  /**
+   * Última lectura de cierre del horómetro que EXISTE para esta estancia, con
+   * la fecha en que se tomó.
+   *
+   * Viaja en el hub —y por lo tanto queda en el caché de Realm— para que la
+   * pantalla de captura pueda comparar contra ella sin pedir nada por red.
+   * Importa porque se captura en obra, que es donde no hay señal.
+   *
+   * La fecha viene aparte a propósito: "cierre de ayer" sería mentira en una
+   * máquina que lleva tres días sin reportarse.
+   */
+  ultimo_horometro: string | null;
+  ultimo_horometro_fecha: string | null;
 }
 
 export interface HubDiarioResponse {

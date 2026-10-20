@@ -1,7 +1,5 @@
-import { RealmProvider, useRealm } from "@realm/react";
-import React, { useState, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as FileSystem from "expo-file-system";
+import { RealmProvider } from "@realm/react";
+import React from "react";
 import Realm from "realm";
 import { AvanceBaseCatalog } from "src/realm/avanceBase/Catalog";
 import { AvanceBaseConcept } from "src/realm/avanceBase/Concept";
@@ -29,51 +27,14 @@ import { AssignedConstructionResponse } from "src/realm/assignedConstruction/Res
 import { ConstructionRealm } from "src/realm/assignedConstruction/Construction";
 import { PendingAdvanceSubmission } from "src/realm/pendingAdvance/PendingAdvanceSubmission";
 import { PendingPhotoSubmission } from "src/realm/pendingAdvance/PendingPhotoSubmission";
+import { PendingReporteSubmission } from "src/realm/pendingReporte/PendingReporteSubmission";
+import { PendingReportePhotoSubmission } from "src/realm/pendingReporte/PendingReportePhotoSubmission";
+import { PendingJornadaSubmission } from "src/realm/pendingJornada/PendingJornadaSubmission";
+import { PendingMaquinariaSubmission } from "src/realm/pendingMaquinaria/PendingMaquinariaSubmission";
 import { MaquinariaHubResponse } from "src/realm/maquinariaHub/Response";
 import { MaquinariaHubItemRealm } from "src/realm/maquinariaHub/MaquinariaHubItemRealm";
 import { TiposMaquinariaResponse } from "src/realm/tiposMaquinaria/Response";
 import { TipoMaquinariaRealm } from "src/realm/tiposMaquinaria/TipoMaquinariaRealm";
-
-// One-time wipe function - REMOVE AFTER DEPLOYMENT
-const performDatabaseWipe = async (realm: Realm) => {
-  const WIPE_VERSION = 1; // Increment to trigger new wipe
-  const WIPE_KEY = `realm_wipe_v${WIPE_VERSION}`;
-
-  // Check if already wiped
-  const hasWiped = await AsyncStorage.getItem(WIPE_KEY);
-  if (hasWiped) return;
-
-  console.log("[RealmWipe] Starting FULL database wipe...");
-
-  // Wipe ALL Realm data
-  realm.write(() => {
-    realm.deleteAll();
-  });
-
-  // Delete local photo files
-  const photosDir = `${FileSystem.documentDirectory}photos/`;
-  await FileSystem.deleteAsync(photosDir, { idempotent: true });
-
-  // Mark as wiped
-  await AsyncStorage.setItem(WIPE_KEY, "true");
-  console.log("[RealmWipe] Full database wipe complete");
-};
-
-// Wrapper component to trigger wipe - REMOVE AFTER DEPLOYMENT
-function RealmWipeHandler({ children }: { children: React.ReactNode }) {
-  const realm = useRealm();
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    performDatabaseWipe(realm).then(() => setIsReady(true));
-  }, [realm]);
-
-  if (!isReady) {
-    return null;
-  }
-
-  return <>{children}</>;
-}
 
 // IMPORTANTE: schema y onMigration viven a nivel de módulo para que su
 // identidad sea estable entre renders. @realm/react compara la configuración
@@ -115,6 +76,13 @@ const SENTINEL_SCHEMA = [
   PendingAdvanceSubmission,
   // Pending Photo Submission schema
   PendingPhotoSubmission,
+  // Cola del reporte de actividades diario (schemaVersion 13, ADR-006 D7)
+  PendingReporteSubmission,
+  PendingReportePhotoSubmission,
+  // Cola de la jornada de maquinaria (schemaVersion 16)
+  PendingJornadaSubmission,
+  // Cola del alta de maquinaria (schemaVersion 17)
+  PendingMaquinariaSubmission,
   // Maquinaria schemas
   MaquinariaHubResponse,
   MaquinariaHubItemRealm,
@@ -155,6 +123,44 @@ const handleMigration = (oldRealm: Realm, newRealm: Realm) => {
   if (oldRealm.schemaVersion < 12) {
     newRealm.delete(newRealm.objects("AvanceBaseResponse"));
   }
+  // schemaVersion 13 (ADR-006 D7): cola del reporte de actividades diario.
+  //
+  // Bump ADITIVO: dos clases nuevas y ninguna existente modificada, así que no
+  // hay NADA que borrar ni que migrar. Se deja la rama vacía a propósito, para
+  // que quede constancia de que la omisión es deliberada y no un olvido — el
+  // patrón E1 del ADR-003 pide declarar cada versión aunque no haga trabajo.
+  if (oldRealm.schemaVersion < 13) {
+    // Sin migración de datos: clases nuevas.
+  }
+  if (oldRealm.schemaVersion < 14) {
+    // Sin migración de datos: `area` y `supervisionJson` se agregan con
+    // default en el esquema. Un reporte encolado ANTES de esta versión queda
+    // con `area: ""` y el servidor lo rechazará con 400 — es correcto: se
+    // capturó bajo un contrato que ya no existe, y el usuario lo ve como
+    // fallido con reintento en vez de recibir un documento sin área.
+  }
+  if (oldRealm.schemaVersion < 15) {
+    // Sin migración de datos: `ultimo_horometro` y `ultimo_horometro_fecha`
+    // son opcionales en `MaquinariaHubItemRealm` y nacen nulos. El hub es
+    // caché de lectura, así que el primer refetch con señal los llena solo;
+    // mientras tanto la pantalla de captura simplemente no muestra la
+    // referencia de la lectura anterior, que es el comportamiento correcto
+    // para una máquina de la que todavía no se sabe nada.
+  }
+  if (oldRealm.schemaVersion < 16) {
+    // Sin migración de datos: `PendingJornadaSubmission` es una clase nueva y
+    // ninguna existente cambió. La rama va vacía a propósito, como las
+    // anteriores, para que la omisión se lea deliberada y no como olvido.
+  }
+  if (oldRealm.schemaVersion < 17) {
+    // Sin migración de datos: clase nueva (`PendingMaquinariaSubmission`) más
+    // `maquinariaLocalId` opcional en la cola de jornadas, que nace nulo.
+    //
+    // Nulo es además el valor CORRECTO para lo que ya estuviera encolado: una
+    // jornada capturada antes de esta versión solo pudo crearse contra una
+    // máquina que ya existía en el servidor, así que su `estanciaId` es real y
+    // no hay enlace que esperar.
+  }
 };
 
 export default function RealmProviderWrapper({
@@ -165,12 +171,10 @@ export default function RealmProviderWrapper({
   return (
     <RealmProvider
       schema={SENTINEL_SCHEMA}
-      schemaVersion={12}
+      schemaVersion={17}
       onMigration={handleMigration}
     >
       {children}
-      {/* Hanlder to Wipe Realm Data for Dev Purposes */}
-      {/* <RealmWipeHandler>{children}</RealmWipeHandler> */}
     </RealmProvider>
   );
 }

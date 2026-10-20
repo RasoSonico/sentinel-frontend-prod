@@ -1,5 +1,5 @@
 import React from "react";
-import OfflineIndicator from "../../components/OfflineIndicator";
+import OfflineIndicator from "src/components/common/OfflineIndicator";
 import { useAdvanceSubmit } from "../hooks/useAdvanceSubmit";
 import { useAppSelector } from "src/redux/hooks";
 import { selectOfflineSync } from "src/redux/slices/avance/advanceSlice";

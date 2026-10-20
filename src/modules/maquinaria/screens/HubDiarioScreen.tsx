@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Text,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,7 +14,6 @@ import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { DesignTokens } from "src/styles/designTokens";
 import { MaquinariaStackParamList } from "src/navigation/types";
-import { MaquinariaHubItemRealm } from "src/realm/maquinariaHub/MaquinariaHubItemRealm";
 import { useHubDiarioData } from "../hooks/useHubDiarioData";
 import MaquinariaCard from "../components/MaquinariaCard";
 import HubResumenHeader, { HubFilter } from "../components/HubResumenHeader";
@@ -22,6 +22,15 @@ import ReportarJornadaSheet from "../components/ReportarJornadaSheet";
 import SalidaObraSheet from "../components/SalidaObraSheet";
 import ReconciliacionModal from "../components/ReconciliacionModal";
 import IngresoMaquinariaModal from "../components/IngresoMaquinariaModal";
+import { usePendingJornadaQueue } from "src/hooks/maquinaria/usePendingJornadaQueue";
+import { usePendingMaquinariaQueue } from "src/hooks/maquinaria/usePendingMaquinariaQueue";
+import {
+  filaDeCola,
+  filaDeServidor,
+  type FilaMaquinaria,
+} from "../filaMaquinaria";
+import { PendingJornadaSubmission } from "src/realm/pendingJornada/PendingJornadaSubmission";
+import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
 import styles from "../styles/HubDiarioScreen.styles";
 
 type ActiveSheet = "sinOperar" | "reportar" | "salida" | null;
@@ -32,11 +41,51 @@ const HubDiarioScreen: React.FC = () => {
 
   const { hub, constructionId, isLoading, refetch } = useHubDiarioData();
 
+  // La cola, para que la tarjeta refleje lo capturado antes de que el servidor
+  // lo confirme. Y la señal leída UNA vez aquí: llamarla dentro de la tarjeta
+  // serían N suscripciones a NetInfo para el mismo valor.
+  const {
+    porEstancia,
+    porMaquinariaLocal,
+    reintentarJornada,
+    descartarJornada,
+  } = usePendingJornadaQueue();
+  const { sinSincronizar } = usePendingMaquinariaQueue();
+  const sinSenal = useNetworkStatus() === false;
+
+  /**
+   * Rescate de una jornada fallida: reintentar o descartar.
+   *
+   * "Reintentar" devuelve el presupuesto COMPLETO de intentos. Que lo pida una
+   * persona cambia el significado: sabe algo que el teléfono no, como que el
+   * servidor ya se arregló. Mismo criterio que el detalle del reporte.
+   */
+  const handleResolverCola = useCallback(
+    (enCola: PendingJornadaSubmission) => {
+      const id = enCola._id;
+      const etiqueta = enCola.maquinariaEtiqueta || "esta jornada";
+      Alert.alert(
+        "No se envió",
+        `${enCola.errorMessage ?? "El envío falló."}\n\n${etiqueta}`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Reintentar", onPress: () => reintentarJornada(id) },
+          {
+            text: "Descartar",
+            style: "destructive",
+            onPress: () => descartarJornada(id),
+          },
+        ],
+      );
+    },
+    [reintentarJornada, descartarJornada],
+  );
+
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
   const [selectedItem, setSelectedItem] =
-    useState<MaquinariaHubItemRealm | null>(null);
+    useState<FilaMaquinaria | null>(null);
   const [reconciliacionItem, setReconciliacionItem] =
-    useState<MaquinariaHubItemRealm | null>(null);
+    useState<FilaMaquinaria | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showIngresoModal, setShowIngresoModal] = useState(false);
   const [activeFilter, setActiveFilter] = useState<HubFilter>(null);
@@ -52,36 +101,52 @@ const HubDiarioScreen: React.FC = () => {
     setSelectedItem(null);
   }, []);
 
-  const handleReportar = useCallback((item: MaquinariaHubItemRealm) => {
+  const handleReportar = useCallback((item: FilaMaquinaria) => {
     setSelectedItem(item);
     setActiveSheet("reportar");
   }, []);
 
-  const handleSinOperar = useCallback((item: MaquinariaHubItemRealm) => {
+  const handleSinOperar = useCallback((item: FilaMaquinaria) => {
     setSelectedItem(item);
     setActiveSheet("sinOperar");
   }, []);
 
-  const handleSalida = useCallback((item: MaquinariaHubItemRealm) => {
+  const handleSalida = useCallback((item: FilaMaquinaria) => {
     setSelectedItem(item);
     setActiveSheet("salida");
   }, []);
 
-  const handleReconciliar = useCallback((item: MaquinariaHubItemRealm) => {
+  const handleReconciliar = useCallback((item: FilaMaquinaria) => {
     setReconciliacionItem(item);
   }, []);
 
   const renderItem = useCallback(
-    ({ item }: { item: MaquinariaHubItemRealm }) => (
+    ({ item }: { item: FilaMaquinaria }) => (
       <MaquinariaCard
         item={item}
+        enCola={
+          item.maquinariaLocalId
+            ? porMaquinariaLocal.get(item.maquinariaLocalId)
+            : porEstancia.get(item.estancia_id)
+        }
+        sinSenal={sinSenal}
         onReportar={handleReportar}
         onSinOperar={handleSinOperar}
         onSalida={handleSalida}
         onReconciliar={handleReconciliar}
+        onResolverCola={handleResolverCola}
       />
     ),
-    [handleReportar, handleSinOperar, handleSalida, handleReconciliar],
+    [
+      porEstancia,
+      porMaquinariaLocal,
+      sinSenal,
+      handleReportar,
+      handleSinOperar,
+      handleSalida,
+      handleReconciliar,
+      handleResolverCola,
+    ],
   );
 
   const renderHeader = useCallback(() => {
@@ -118,7 +183,17 @@ const HubDiarioScreen: React.FC = () => {
     );
   }, [isLoading]);
 
-  const all = hub?.maquinarias ? Array.from(hub.maquinarias) : [];
+  /**
+   * Las del servidor MÁS las que todavía viven en el teléfono.
+   *
+   * Las locales van primero: son las que acaban de darse de alta y las que el
+   * usuario está buscando en ese momento. Si se mezclaran al final de una
+   * lista de veinte máquinas, registrar una se sentiría como que no pasó nada.
+   */
+  const all = [
+    ...sinSincronizar.map(filaDeCola),
+    ...(hub?.maquinarias ? Array.from(hub.maquinarias).map(filaDeServidor) : []),
+  ];
   const maquinarias = !activeFilter
     ? all
     : activeFilter === "reportadas"
@@ -180,6 +255,7 @@ const HubDiarioScreen: React.FC = () => {
         isVisible={activeSheet === "sinOperar"}
         onClose={closeSheet}
         item={selectedItem}
+        constructionId={constructionId}
       />
 
       <SalidaObraSheet
