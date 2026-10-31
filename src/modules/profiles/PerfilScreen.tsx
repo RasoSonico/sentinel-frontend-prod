@@ -1,5 +1,5 @@
 // src/modules/profile/screens/PerfilScreen.tsx
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import {
   selectUser,
 } from "../../redux/selectors/authSelectors";
 import { useAuth } from "../../hooks/useAuth";
+import { useBarraDeEstado } from "src/hooks/ui/useBarraDeEstado";
 import { DesignTokens } from "../../styles/designTokens";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -26,9 +27,16 @@ import { useAssignedConstruction } from "src/hooks/data/query/useAvance";
 import { usePendingAdvanceQueue } from "src/hooks/avance/usePendingAdvanceQueue";
 import { usePendingReporteQueue } from "src/hooks/reportes/usePendingReporteQueue";
 import { usePendingJornadaQueue } from "src/hooks/maquinaria/usePendingJornadaQueue";
+import PantallaMiFirma from "src/modules/firma/PantallaMiFirma";
 
 const PerfilScreen = () => {
   const auth = useAuth();
+  // La única tab que abre en blanco. Las otras tres llevan encabezado azul y
+  // se quedan con el default de la app; aquí los iconos del reloj y la
+  // batería tienen que ir oscuros o no se ven. Lo mismo vale para las hojas
+  // de firma, que se abren desde aquí y también son blancas.
+  useBarraDeEstado("claro");
+  const [firmaAbierta, setFirmaAbierta] = useState(false);
   const { pendingCount, failedCount, syncingCount } = usePendingAdvanceQueue();
   const { totalCount: reportesSinEnviar } = usePendingReporteQueue();
   const { totalCount: jornadasSinEnviar } = usePendingJornadaQueue();
@@ -275,6 +283,27 @@ const PerfilScreen = () => {
           <Card.Content>
             <Text style={styles.cardTitle}>Configuración</Text>
 
+            {/* Va primera: usa `styles.menuItem` y `styles.menuItemText`
+                a propósito, los mismos de sus hermanas. Copiarlos a un
+                componente aparte sería garantizar que un día dejen de
+                parecerse. */}
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => setFirmaAbierta(true)}
+            >
+              <Ionicons
+                name="create-outline"
+                size={24}
+                color={DesignTokens.colors.neutral[600]}
+              />
+              <Text style={styles.menuItemText}>Mi firma</Text>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={DesignTokens.colors.neutral[400]}
+              />
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.menuItem}>
               <Ionicons
                 name="person-outline"
@@ -327,6 +356,11 @@ const PerfilScreen = () => {
 
         <Text style={styles.versionText}>SENTINEL v1.0.0</Text>
       </ScrollView>
+
+      <PantallaMiFirma
+        visible={firmaAbierta}
+        onCerrar={() => setFirmaAbierta(false)}
+      />
     </SafeAreaView>
   );
 };

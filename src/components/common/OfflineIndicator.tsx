@@ -11,6 +11,19 @@ import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
  * común cuando Reportes la necesitó: es un componente puro —solo depende de
  * `useNetworkStatus` y de lo que reciba por props— y dejarlo en un módulo
  * habría obligado a que Reportes importara de Avances.
+ *
+ * **`isOnline === false` es lo ÚNICO que significa "sin red".** `useNetworkStatus`
+ * devuelve tres valores y `null` es *todavía no se sabe*, pero esta franja lo
+ * leía con `!isOnline`, y `!null` es `true`: durante el instante que va del
+ * montaje a la respuesta de NetInfo afirmaba "Modo sin conexión" en rojo —aun
+ * con la cola vacía, porque ese mismo `null` también le impedía salirse por el
+ * retorno temprano—.
+ *
+ * La asimetría manda, igual que en los workers: decir "sin conexión" cuando no
+ * se sabe asusta al usuario y contradice a la cola, que mientras tanto sí está
+ * intentando. El precio es el caso patológico —si NetInfo nunca resuelve, la
+ * franja no declara el modo sin conexión—, y es el que el proyecto ya eligió
+ * pagar en todas partes.
  */
 interface OfflineIndicatorProps {
   pendingCount?: number;
@@ -30,8 +43,12 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   onViewQueuePress,
 }) => {
   const isOnline = useNetworkStatus();
-  // Si está online y no hay elementos pendientes ni fallidos, no mostrar
-  if (isOnline && pendingCount === 0 && failedCount === 0 && !isSyncing) {
+  const sinRed = isOnline === false;
+
+  // Sin nada que reportar y sin un "no hay red" confirmado, la franja no se
+  // dibuja. Mientras el estado de red es incógnita se calla: todavía no tiene
+  // nada que decir.
+  if (!sinRed && pendingCount === 0 && failedCount === 0 && !isSyncing) {
     return null;
   }
 
@@ -70,7 +87,7 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
     <View
       style={[
         styles.container,
-        !isOnline
+        sinRed
           ? styles.offlineContainer
           : hasErrors
             ? styles.errorContainer
@@ -79,15 +96,15 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
     >
       <View style={styles.infoContainer}>
         <Ionicons
-          name={!isOnline ? "cloud-offline" : hasErrors ? "alert-circle" : "cloud-upload"}
+          name={sinRed ? "cloud-offline" : hasErrors ? "alert-circle" : "cloud-upload"}
           size={18}
-          color={!isOnline ? "#e74c3c" : hasErrors ? "#e74c3c" : "#3498db"}
+          color={sinRed ? "#e74c3c" : hasErrors ? "#e74c3c" : "#3498db"}
           style={styles.icon}
         />
 
         <View>
           <Text style={styles.statusText}>
-            {!isOnline
+            {sinRed
               ? "Modo sin conexión"
               : isSyncing
                 ? "Sincronizando..."
@@ -106,7 +123,7 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
         </View>
       </View>
 
-      {isOnline && pendingCount > 0 && !isSyncing && onSyncPress && (
+      {!sinRed && pendingCount > 0 && !isSyncing && onSyncPress && (
         <TouchableOpacity
           style={styles.syncButton}
           onPress={onSyncPress}

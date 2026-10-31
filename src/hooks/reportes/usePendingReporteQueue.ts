@@ -10,7 +10,7 @@ import {
   PendingReportePhotoSubmission,
   PendingReportePhotoStatus,
 } from "src/realm/pendingReporte/PendingReportePhotoSubmission";
-import type { FotoReporte } from "src/types/reporte";
+import type { FirmaPayload, FotoReporte } from "src/types/reporte";
 
 /**
  * Cola offline del reporte de actividades (ADR-006, Decisión 7).
@@ -47,6 +47,16 @@ export interface ReporteEnColaInput {
   proveedorIds: number[];
   contratistas: string[];
   supervision: string[];
+  /** Geometría de la firma. Siempre presente: firmar es obligatorio. */
+  firma: FirmaPayload;
+}
+
+/** Un reporte que acaba de quedar listo para generar su archivo. */
+export interface ReporteDisponible {
+  localId: string;
+  reporteId: number;
+  constructionName: string;
+  fechaReporte: string;
 }
 
 const parse = <T,>(json: string, fallback: T): T => {
@@ -226,6 +236,7 @@ export function usePendingReporteQueue() {
             })),
           ),
           proveedorIdsJson: JSON.stringify(data.proveedorIds),
+          firmaJson: JSON.stringify(data.firma),
           contratistasJson: JSON.stringify(data.contratistas),
           supervisionJson: JSON.stringify(data.supervision),
           actividadesCount: data.actividades.length,
@@ -511,9 +522,22 @@ export function usePendingReporteQueue() {
   );
 
   /**
-   * Borra los reportes ya sincronizados. Se llama DESPUÉS de que la lista de la
-   * obra los refleje: sacarlos antes los haría desaparecer de la pantalla y
-   * reaparecer con el refetch.
+   * Borra los reportes ya sincronizados Y sin fotos pendientes. Se llama
+   * DESPUÉS de que la lista de la obra los refleje: sacarlos antes los haría
+   * desaparecer de la pantalla y reaparecer con el refetch.
+   *
+   * **La condición de las fotos no es un detalle.** Purgar al 201 borraba el
+   * único registro que traduce el id local al id de servidor mientras sus
+   * fotos seguían subiendo, y entonces:
+   *
+   * - el detalle abierto por id local se quedaba sin identidad y moría
+   *   â€”vista previa vacía, "0 actividades · 0 fotos", botones apagados para
+   *   siempreâ€”, que es el defecto de fondo de esta enmienda;
+   * - y nada podía saber en qué momento el reporte quedaba DISPONIBLE, porque
+   *   para cuando su última foto cerraba ya no había fila que consultar.
+   *
+   * Conservarlo no duplica nada en pantalla: la lista descarta la copia local
+   * en cuanto el servidor devuelve ese `reporteId`.
    */
   const removeDoneReportes = useCallback((): number => {
     const hechos = realm
@@ -521,12 +545,56 @@ export function usePendingReporteQueue() {
       .filtered('status == "done"');
     if (hechos.length === 0) return 0;
 
-    const total = hechos.length;
+    const purgables = [...hechos].filter(
+      (reporte) =>
+        realm
+          .objects(PendingReportePhotoSubmission)
+          .filtered("reporteLocalId == $0", reporte._id).length === 0,
+    );
+    if (purgables.length === 0) return 0;
+
     realm.write(() => {
-      realm.delete(hechos);
+      realm.delete(purgables);
     });
-    return total;
+    return purgables.length;
   }, [realm]);
+
+  /**
+   * De los reportes que se nombran, cuáles quedaron DISPONIBLES: en el
+   * servidor y con todas sus fotos cerradas. Es el instante exacto en que el
+   * usuario ya puede generar el archivo.
+   *
+   * Se lee de Realm en vivo y no de `reportesEnCola`, por la misma razón que
+   * `leerTrabajoPendiente`: el worker lo llama a media vuelta, cuando los
+   * cambios que acaba de escribir todavía no están en ningún snapshot de
+   * render.
+   */
+  const leerReportesDisponibles = useCallback(
+    (localIds: Iterable<string>): ReporteDisponible[] => {
+      const listos: ReporteDisponible[] = [];
+      for (const localId of localIds) {
+        const reporte = realm.objectForPrimaryKey(
+          PendingReporteSubmission,
+          localId,
+        );
+        if (!reporte || reporte.status !== "done") continue;
+        if (reporte.reporteId === null) continue;
+        const faltan = realm
+          .objects(PendingReportePhotoSubmission)
+          .filtered('reporteLocalId == $0 AND status != "done"', localId).length;
+        if (faltan === 0) {
+          listos.push({
+            localId,
+            reporteId: reporte.reporteId,
+            constructionName: reporte.constructionName,
+            fechaReporte: reporte.fechaReporte,
+          });
+        }
+      }
+      return listos;
+    },
+    [realm],
+  );
 
   const resetStuckSyncingPhotos = useCallback((): number => {
     const stuck = realm
@@ -559,6 +627,7 @@ export function usePendingReporteQueue() {
     getPhotosByReporteId,
     fotosListasParaSubir,
     leerTrabajoPendiente,
+    leerReportesDisponibles,
 
     // Escritura
     addToQueue,

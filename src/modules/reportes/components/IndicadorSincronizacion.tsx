@@ -18,34 +18,62 @@ import { useSyncWorker } from "src/providers/SyncWorkerProvider";
  * del provider, que además arrastra los tres workers de una vez.
  */
 export function IndicadorSincronizacion() {
-  const { reportesEnCola, failedCount, syncingCount } =
-    usePendingReporteQueue();
-  const { syncNow } = useSyncWorker();
+  const { reportesEnCola } = usePendingReporteQueue();
+  const { syncNow, isReporteSyncing } = useSyncWorker();
 
   /**
-   * Cuenta reportes que todavía NO están disponibles, por cualquier motivo:
-   * o no han llegado al servidor, o sus fotos siguen subiendo. Es el mismo
-   * criterio del chip de la lista — el usuario no tiene por qué llevar dos
-   * cuentas distintas de lo mismo en la misma pantalla.
+   * **Detenido = se agotaron los intentos.** Un reporte entre reintentos está
+   * `failed` por unos segundos mientras el worker espera su backoff, y
+   * pintarlo de rojo ahí convierte un estado de paso en un veredicto: la
+   * franja decía "1 fallido" —sin ninguna acción— sobre algo que se iba a
+   * reintentar solo un segundo después.
    *
-   * Los fallidos van aparte porque el indicador los pinta distinto: no están
-   * esperando, están detenidos.
+   * Es el mismo corte que ya hace el chip de la fila, que dice "Reintentando"
+   * mientras queden intentos y "No se envió" cuando no.
    */
-  const pendientes = useMemo(
+  const detenidos = useMemo(
+    () =>
+      reportesEnCola.filter((r) => r.status === "failed" && r.intentosAgotados)
+        .length,
+    [reportesEnCola],
+  );
+
+  /**
+   * Lo que todavía no está disponible y **no** está detenido: no ha llegado al
+   * servidor, le faltan fotos, o está esperando su reintento. Mismo criterio
+   * que el chip de la lista — el usuario no tiene por qué llevar dos cuentas
+   * distintas de lo mismo en la misma pantalla.
+   */
+  const enEspera = useMemo(
     () =>
       reportesEnCola.filter(
         (r) =>
-          r.status !== "failed" &&
+          !(r.status === "failed" && r.intentosAgotados) &&
           !(r.status === "done" && r.fotosPendientes === 0),
       ).length,
     [reportesEnCola],
   );
 
+  /**
+   * **"Sincronizando" es que el ciclo esté corriendo, no que una fila esté en
+   * `syncing`.**
+   *
+   * Antes salía de contar reportes con `status === "syncing"`, y ese estado
+   * solo existe mientras el POST del reporte está en vuelo: un segundo. Las
+   * fotos son otra cola y subirlas nunca devuelve el reporte a `syncing`, así
+   * que durante TODA la subida de fotos —el tramo largo, en el que la app está
+   * trabajando más— la franja decía "N pendientes de sincronizar" y ofrecía el
+   * botón de Sincronizar, como si nada estuviera pasando.
+   *
+   * El botón solo aparece cuando no hay ciclo (lo decide `OfflineIndicator`),
+   * así que con esto vuelve a significar lo que debe: hay trabajo parado y
+   * nadie lo está intentando.
+   */
   return (
     <OfflineIndicator
-      pendingCount={pendientes}
-      failedCount={failedCount}
-      isSyncing={syncingCount > 0}
+      pendingCount={enEspera}
+      failedCount={detenidos}
+      isSyncing={isReporteSyncing}
       onSyncPress={syncNow}
     />
   );

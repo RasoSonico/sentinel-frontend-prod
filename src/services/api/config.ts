@@ -43,14 +43,19 @@ export const API_CONFIG = {
       incidentClassifications: "/api/incidencias/incident-classifications/",
     },
     // Catálogo de empresas participantes. Fuera de `reportes` a propósito: el
-    // roster de una obra no es un hecho del formato UIN-TOP-F-002, y cualquier
+    // roster de una obra no es un hecho del formato UIN-RP-F-002, y cualquier
     // módulo que necesite saber quién ejecuta lee de aquí.
     proveedores: {
       lista: "/api/proveedores/",
     },
+    // Firma del usuario. Módulo propio y no parte de `usuarios`: la firma
+    // la adopta cualquier documento que la requiera, no solo el perfil.
+    firma: {
+      mia: "/api/firma/mia",
+    },
     reportes: {
       physicalAdvance: "/api/reportes/physical-advance/",
-      // Reporte de actividades diario (UIN-TOP-F-002) — ADR-006
+      // Reporte de actividades diario (UIN-RP-F-002) — ADR-006
       actividades: "/api/reportes/actividades/",
       fotoUpload: "/api/reportes/fotos/upload/",
       fotoConfirmUpload: "/api/reportes/fotos/confirm-upload/",
@@ -61,7 +66,6 @@ export const API_CONFIG = {
       maquinarias: "/api/maquinaria/maquinarias/",
       estancias: "/api/maquinaria/estancias/",
       jornadas: "/api/maquinaria/jornadas/",
-      jornadaTransitoria: "/api/maquinaria/jornadas/transitoria/",
       reconciliaciones: "/api/maquinaria/reconciliaciones/",
     },
   },

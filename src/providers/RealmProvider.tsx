@@ -33,6 +33,7 @@ import { PendingJornadaSubmission } from "src/realm/pendingJornada/PendingJornad
 import { PendingMaquinariaSubmission } from "src/realm/pendingMaquinaria/PendingMaquinariaSubmission";
 import { MaquinariaHubResponse } from "src/realm/maquinariaHub/Response";
 import { MaquinariaHubItemRealm } from "src/realm/maquinariaHub/MaquinariaHubItemRealm";
+import { DetalleJornadaRealm } from "src/realm/maquinariaHub/DetalleJornadaRealm";
 import { TiposMaquinariaResponse } from "src/realm/tiposMaquinaria/Response";
 import { TipoMaquinariaRealm } from "src/realm/tiposMaquinaria/TipoMaquinariaRealm";
 
@@ -86,6 +87,9 @@ const SENTINEL_SCHEMA = [
   // Maquinaria schemas
   MaquinariaHubResponse,
   MaquinariaHubItemRealm,
+  // Renglones de la jornada (schemaVersion 18). Embebido y compartido por el
+  // caché del hub y la cola de envío: es el mismo dato en dos momentos.
+  DetalleJornadaRealm,
   TiposMaquinariaResponse,
   TipoMaquinariaRealm,
 ];
@@ -161,6 +165,74 @@ const handleMigration = (oldRealm: Realm, newRealm: Realm) => {
     // máquina que ya existía en el servidor, así que su `estanciaId` es real y
     // no hay enlace que esperar.
   }
+  // schemaVersion 18 (ADR-007): una jornada pasa de una actividad a N.
+  //
+  // **La primera migración de maquinaria que NO es aditiva.** Desaparecen
+  // `jornada_catalog`/`jornada_concept` del caché del hub y
+  // `catalogId`/`conceptId`/`esTransitoria` de la cola.
+  if (oldRealm.schemaVersion < 18) {
+    // 1. El caché del hub se tira entero. Es de solo lectura y el primer
+    //    refetch con señal lo reconstruye con la forma nueva; conservarlo
+    //    dejaría filas a medio camino entre dos contratos.
+    newRealm.delete(newRealm.objects("MaquinariaHubResponse"));
+
+    // 2. La cola NO se tira: ahí vive trabajo que el supervisor capturó en
+    //    campo y que todavía no llega al servidor.
+    //
+    //    Una jornada encolada antes de esta versión no tiene renglones, y el
+    //    servidor rechaza con 400 una jornada TRABAJANDO sin actividades. Se
+    //    le arma uno con lo que se supo de ella. Mismo criterio que la
+    //    migración 0005 del backend: un renglón que diga que no se sabe es
+    //    más útil que perder el registro.
+    const viejas = oldRealm.objects("PendingJornadaSubmission");
+    const nuevas = newRealm.objects("PendingJornadaSubmission");
+    for (let i = 0; i < viejas.length; i += 1) {
+      const vieja = viejas[i] as unknown as { conceptId: number | null };
+      const nueva = nuevas[i] as unknown as {
+        detalles: unknown[];
+        estado: string;
+      };
+      // SIN_OPERAR no lleva renglones, y el servidor lo exige así.
+      if (nueva.estado !== "TRABAJANDO") continue;
+
+      nueva.detalles.push(
+        vieja.conceptId
+          ? {
+              orden: 1,
+              concept: vieja.conceptId,
+              descripcion: "",
+              horas_estimadas: null,
+            }
+          : {
+              // Solo se supo el catálogo, que ya no tiene dónde vivir, y su
+              // nombre nunca estuvo en la cola. Queda la marca: el supervisor
+              // puede corregirla al abrir la jornada.
+              orden: 1,
+              concept: null,
+              descripcion: "Actividad capturada antes de la actualización",
+              horas_estimadas: null,
+            },
+      );
+    }
+  }
+
+  // schemaVersion 19 (firma): `firmaJson` en la cola del reporte.
+  //
+  // Aditiva y sin migración de datos: el campo nace vacío y vacío es el
+  // valor correcto para lo ya encolado. Un reporte capturado antes de esta
+  // versión no tiene firma, y el servidor cae a la del perfil de su autor —
+  // que es quien lo capturó. Si no la tuviera dada de alta, el envío falla
+  // con 400 y el usuario lo ve en la lista de pendientes, que es mejor que
+  // entregar un documento sin firmar.
+
+  // schemaVersion 20: las dos lecturas del horómetro de la jornada de HOY en
+  // el caché del hub, para la tabla de maquinaria de la previsualización.
+  //
+  // Aditiva y sin migración de datos: nacen en nulo, y nulo es correcto para
+  // lo que ya está cacheado — esas filas se escribieron sin las lecturas.
+  // El primer refresco del hub las trae; hasta entonces la tabla imprime "—"
+  // en esas columnas, que es lo mismo que hace el documento cuando no hay
+  // lectura. Nada que inventar y nada que corregir.
 };
 
 export default function RealmProviderWrapper({
@@ -171,7 +243,7 @@ export default function RealmProviderWrapper({
   return (
     <RealmProvider
       schema={SENTINEL_SCHEMA}
-      schemaVersion={17}
+      schemaVersion={20}
       onMigration={handleMigration}
     >
       {children}

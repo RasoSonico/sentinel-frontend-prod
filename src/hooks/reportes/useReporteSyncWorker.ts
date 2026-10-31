@@ -16,8 +16,9 @@ import { useNetworkStatus } from "../utils/useNetworkStatus";
 import { useSnackbar } from "../useSnackbar";
 import { useAppSelector } from "src/redux/hooks";
 import { ApiError } from "src/services/api/apiClient";
+import { navigateReportes } from "src/navigation/NavigationService";
 import { PendingReporteSubmission } from "src/realm/pendingReporte/PendingReporteSubmission";
-import type { ReportePayload } from "src/types/reporte";
+import type { FirmaPayload, ReportePayload } from "src/types/reporte";
 
 import {
   usePendingReporteQueue,
@@ -69,6 +70,7 @@ export function useReporteSyncWorker() {
     resetStuckSyncingPhotos,
     setPhotoStatus,
     leerTrabajoPendiente,
+    leerReportesDisponibles,
     removeDonePhotos,
     removeDoneReportes,
     getItemById,
@@ -118,6 +120,12 @@ export function useReporteSyncWorker() {
           actividades: JSON.parse(item.actividadesJson) as ActividadEnCola[],
           fotos: JSON.parse(item.fotosJson) as FotoSerializada[],
           proveedor_ids: JSON.parse(item.proveedorIdsJson) as number[],
+          // Vacío solo en los reportes encolados antes de que existiera la
+          // firma (schemaVersion 19). Se omite el campo y el servidor cae a la
+          // del perfil del autor, que es quien capturó el reporte.
+          ...(item.firmaJson
+            ? { firma: JSON.parse(item.firmaJson) as FirmaPayload }
+            : {}),
         });
 
         const cerrado = completeReporteSyncAtomic(
@@ -251,6 +259,15 @@ export function useReporteSyncWorker() {
     let reportesEnviados = 0;
     let fotosSubidas = 0;
     let fallos = 0;
+    /**
+     * Reportes que este ciclo movió —se enviaron, o les subió alguna foto—.
+     *
+     * Es lo que permite avisar en el instante correcto. El aviso de éxito no
+     * puede colgarse de "se envió un reporte": las fotos de un reporte pueden
+     * cerrar DOS ciclos después, y entonces ese ciclo no envía nada y el
+     * usuario no se enteraría nunca de que su reporte ya se puede generar.
+     */
+    const tocados = new Set<string>();
 
     try {
       for (const item of [...leerTrabajoPendiente().reportes]) {
@@ -258,8 +275,11 @@ export function useReporteSyncWorker() {
         // cambia a media vuelta, así que revisarlo aquí nunca hizo nada. Si la
         // red se cae en medio, lo que corta es el fallo de la petición.
         if (!montadoRef.current) break;
-        if (await enviarReporte(item)) reportesEnviados += 1;
-        else fallos += 1;
+        const localId = item._id;
+        if (await enviarReporte(item)) {
+          reportesEnviados += 1;
+          tocados.add(localId);
+        } else fallos += 1;
       }
 
       // Se RELEEN de Realm, no se usa el snapshot del render que creó este
@@ -269,9 +289,16 @@ export function useReporteSyncWorker() {
       // y la foto se quedaba esperando un ciclo que no llegaba.
       for (const foto of leerTrabajoPendiente().fotos) {
         if (!montadoRef.current) break;
-        if (await subirFoto(foto)) fotosSubidas += 1;
-        else fallos += 1;
+        const localId = foto.reporteLocalId;
+        if (await subirFoto(foto)) {
+          fotosSubidas += 1;
+          tocados.add(localId);
+        } else fallos += 1;
       }
+
+      // ANTES de purgar: `removeDoneReportes` borra justo las filas que esto
+      // necesita leer.
+      const disponibles = leerReportesDisponibles(tocados);
 
       if (reportesEnviados > 0 || fotosSubidas > 0) {
         await queryClient.invalidateQueries({
@@ -287,13 +314,42 @@ export function useReporteSyncWorker() {
         removeDoneReportes();
       }
 
-      if (reportesEnviados > 0) {
-        showSnackbar(
-          reportesEnviados === 1
-            ? "Reporte enviado"
-            : `${reportesEnviados} reportes enviados`,
-          "success",
-        );
+      /**
+       * "Reporte enviado" cuando el reporte queda DISPONIBLE, no cuando
+       * responde el POST.
+       *
+       * Antes salía al 201, cuando todavía faltaban las fotos y no se podía
+       * generar nada: el único aviso de la app que dice "ya puedes generar"
+       * apareciéndose cuando aún no se podía. "ABRIR" lo convierte en el
+       * camino de un toque al archivo —y por id de SERVIDOR, que es el que
+       * sobrevive a la purga de la cola—.
+       *
+       * El aviso sale esté el usuario donde esté, incluso capturando otro
+       * reporte: es un aviso, y abrir o no es su decisión. Y sale solo en el
+       * teléfono que guardó el reporte, porque el worker recorre únicamente
+       * la cola de este dispositivo.
+       */
+      if (disponibles.length === 1) {
+        const [listo] = disponibles;
+        showSnackbar("Reporte enviado", "success", {
+          label: "ABRIR",
+          onPress: () =>
+            navigateReportes("ReporteDetalle", {
+              reporteId: listo.reporteId,
+              constructionName: listo.constructionName,
+              fechaReporte: listo.fechaReporte,
+              // Solo el autor tiene este reporte en su cola.
+              esAutor: true,
+            }),
+        });
+      } else if (disponibles.length > 1) {
+        // Con varios no hay un detalle al que abrir —elegir uno por el usuario
+        // sería adivinar—, así que ABRIR lleva a la lista, donde están todos
+        // con su chip.
+        showSnackbar(`${disponibles.length} reportes enviados`, "success", {
+          label: "ABRIR",
+          onPress: () => navigateReportes("ReportSelection"),
+        });
       }
       if (reportesEnviados + fotosSubidas + fallos > 0) {
         telemetry.trackEvent("reporte_sync_completed", {
@@ -326,6 +382,7 @@ export function useReporteSyncWorker() {
     pendingCount,
     fotosListasParaSubir,
     leerTrabajoPendiente,
+    leerReportesDisponibles,
     enviarReporte,
     subirFoto,
     queryClient,

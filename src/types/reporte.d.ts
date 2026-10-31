@@ -1,5 +1,5 @@
 /**
- * Contratos del reporte de actividades diario (UIN-TOP-F-002).
+ * Contratos del reporte de actividades diario (UIN-RP-F-002).
  *
  * Espejo de lo que sirve `reportes/serializers.py` en el backend (ADR-004).
  * Los nombres de campo se conservan en snake_case tal como llegan: renombrarlos
@@ -8,6 +8,7 @@
  */
 
 import type { AreaReporte } from "src/modules/reportes/constantes";
+import type { Geometria } from "src/modules/firma/trazo";
 
 export type TipoProveedor = "CONTRATISTA" | "SUPERVISION";
 
@@ -50,7 +51,24 @@ export interface ReportePayload {
   actividades: ActividadPayload[];
   fotos: FotoPayload[];
   proveedor_ids: number[];
+  /**
+   * La firma de quien cierra. **Obligatoria en el documento**, opcional en el
+   * payload: si no viene, el servidor usa la del perfil de quien hace la
+   * petición. Se manda siempre de todos modos — ver `firmaJson` en la cola.
+   */
+  firma?: FirmaPayload;
 }
+
+/**
+ * Geometría del trazo. Coordenadas de la caja de captura, origen arriba-izq.
+ *
+ * **Alias y no una interfaz propia.** El tipo canónico vive con el código que
+ * dibuja (`src/modules/firma/trazo.ts`), que es el que tiene que coincidir con
+ * el backend punto por punto. Declararlo otra vez aquí sería tener dos
+ * definiciones de la misma cosa, y la segunda que se quede atrás se descubre
+ * cuando una firma sale deformada en un documento ya entregado.
+ */
+export type FirmaPayload = Geometria;
 
 // ── Lectura ────────────────────────────────────────────────────────────────
 
@@ -79,6 +97,34 @@ export interface ParticipanteReporte {
   tipo: TipoProveedor;
 }
 
+/**
+ * Una máquina del día, **copiada** al reporte al emitirlo.
+ *
+ * El supervisor no la captura en el reporte: sale de lo que reportó en la tab
+ * de Maquinaria. Se copia y no se referencia, para que el documento siga
+ * diciendo lo que decía aunque la ficha de la máquina cambie después.
+ *
+ * Las lecturas viajan como CADENA —un `Decimal` perdería la décima al pasar
+ * por flotante— y las horas NO viajan: se derivan de las dos lecturas. Un
+ * tercer número que pudiera no cuadrar con los otros dos haría que ninguno
+ * sirviera como evidencia.
+ */
+export interface MaquinariaReporte {
+  orden: number;
+  /** "Retroexcavadora JCB 3CX", ya compuesto por el servidor. */
+  equipo: string;
+  estado: "TRABAJANDO" | "SIN_OPERAR";
+  /** Vacío cuando trabajó. */
+  motivo_inactividad: string;
+  horometro_inicial: string | null;
+  horometro_final: string | null;
+  actividades: {
+    orden: number;
+    texto: string;
+    horas_estimadas: string | null;
+  }[];
+}
+
 export interface ReporteListItem {
   id: number;
   client_id: string;
@@ -101,6 +147,8 @@ export interface ReporteDetalle extends ReporteListItem {
   actividades: ActividadReporte[];
   fotos: FotoReporte[];
   participantes: ParticipanteReporte[];
+  /** Congelada al emitir. Vacía si ese día no reportó ninguna máquina. */
+  maquinaria: MaquinariaReporte[];
   /**
    * Espejo de la condición del 409 del backend: `false` mientras queden fotos
    * declaradas sin subir. Permite apagar los botones de Generar ANTES de pedir

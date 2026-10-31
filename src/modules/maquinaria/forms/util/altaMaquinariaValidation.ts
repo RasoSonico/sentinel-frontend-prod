@@ -8,9 +8,11 @@ export const altaMaquinariaSchema = z.object({
   propietario_tipo: z.enum(["PROPIA", "RENTADA", "SUBCONTRATISTA"], {
     required_error: "Selecciona el tipo de propiedad",
   }),
-  tipo_permanencia: z.enum(["RESIDENTE", "TRANSITORIA"], {
-    required_error: "Selecciona el tipo de permanencia",
-  }),
+  // Siempre RESIDENTE (ADR-007 D13). El formulario ya no pregunta: una renta
+  // de dos dias es una estancia normal corta que se cierra al registrar la
+  // salida. La distincion nunca llego a funcionar y solo cambiaba, sin que el
+  // usuario lo viera, el endpoint al que iba su jornada.
+  tipo_permanencia: z.literal("RESIDENTE"),
   fecha_ingreso: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (YYYY-MM-DD)"),
@@ -23,6 +25,6 @@ export const altaMaquinariaDefaultValues: AltaMaquinariaFormData = {
   marca: "",
   modelo: "",
   propietario_tipo: undefined as unknown as "PROPIA",
-  tipo_permanencia: undefined as unknown as "RESIDENTE",
+  tipo_permanencia: "RESIDENTE",
   fecha_ingreso: DateUtils.localDateToUTC(new Date()),
 };

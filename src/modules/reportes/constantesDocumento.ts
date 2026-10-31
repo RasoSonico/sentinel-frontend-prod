@@ -8,5 +8,5 @@
  * va a imprimir.
  */
 
-export const FORMATO_CODIGO = "UIN-TOP-F-002";
+export const FORMATO_CODIGO = "UIN-RP-F-002";
 export const FORMATO_TITULO = "Reporte de actividades diario";

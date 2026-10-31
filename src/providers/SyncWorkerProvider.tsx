@@ -15,6 +15,16 @@ interface SyncWorkerContextValue {
   isPhotoSyncing: boolean;
   currentPhotoId: string | null;
   retryPhoto: (photoId: string) => Promise<void>;
+  /**
+   * Solo el worker de reportes, separado del `isSyncing` de arriba —que une
+   * los cuatro—.
+   *
+   * La franja de Reportes necesita contestar "¿se está moviendo MI cola?", y
+   * con el valor unido diría "Sincronizando" cuando lo que sincroniza es
+   * maquinaria. Cubre el ciclo COMPLETO del reporte: el POST y la subida de
+   * sus fotos.
+   */
+  isReporteSyncing: boolean;
 }
 
 const SyncWorkerContext = createContext<SyncWorkerContextValue | undefined>(
@@ -71,6 +81,7 @@ export function SyncWorkerProvider({
     isPhotoSyncing: photoSyncWorker.isSyncing,
     currentPhotoId: photoSyncWorker.currentPhotoId,
     retryPhoto: photoSyncWorker.retryPhoto,
+    isReporteSyncing: reporteSyncWorker.isSyncing,
   };
 
   return (

@@ -459,6 +459,180 @@ Se dejan escritos porque las causas son estructurales y se van a repetir.
 
 - **F30 — El chequeo de red DENTRO de los lazos del worker nunca hizo nada.** `isOnline` es un valor capturado por el closure: no cambia a media vuelta. TypeScript lo delató al acotarlo a `true | null`. Se quitó; queda solo `montadoRef.current`.
 
+- **F31 — La clave del formato es `UIN-RP-F-002`, no `UIN-TOP-F-002` (corrige §1 y todas las menciones).** Confirmada por Sergio el 23-oct-2026; cierra la pregunta abierta 12 del ADR-004 backend, que la tenía pendiente entre `UIN-TOP-F-002` y `UIN-SUP-F-010`. La hipótesis de entonces iba bien encaminada —al volverse el área un campo, el formato dejó de ser el de Topografía— pero el código que quedó no es el de Supervisión sino uno de reporte, sin área.
+
+    `FORMATO_CODIGO` vive en `src/modules/reportes/constantesDocumento.ts` y lo consumen la miniatura del detalle y el paso de revisión. **Se pudo cambiar sin más porque todavía no hay reportes entregados**: el backend compone el folio al leer (`FORMATO_CODIGO` + día + consecutivo de obra), así que la clave vieja no sobrevive en ningún documento en manos de nadie. El día que los haya, el cambio deja de ser gratis.
+
+    `docs/ux/ux-spec-02.html` conserva la clave vieja a propósito: es el registro de un diseño fechado, no documentación viva.
+
+---
+
+## Enmiendas (2026-10-30, después de guardar)
+
+Revisión del tramo final del flujo: lo que pasa desde "Guardar reporte" hasta que el usuario puede generar el archivo. Origen: observación de campo del autor, un video del flujo con señal (30-oct) y dos diagnósticos independientes del código (`main` @6cb9c1d) que llegaron a la misma causa. Referencia visual: `docs/ux/reportes-despues-de-guardar.html` (UX-SPEC-02, Enmienda A).
+
+Donde una enmienda dice **corrige**, el texto original de la decisión citada **ya no describe el sistema**.
+
+### Lo que se observó
+
+Con señal, guardando un reporte con una foto, el video muestra en 15 segundos:
+
+1. Modal **"Guardado y enviado"** con "Generar Excel" e "Ir a mis reportes". El reporte apenas había entrado a la cola: `enviado` se calculaba como `isOnline === true` al encolar.
+2. Al cerrarse el modal, por un instante, **el wizard vaciado** detrás ("Sin actividades capturadas", "Sin área seleccionada").
+3. "Ir a mis reportes" **no lleva a la lista**: reemplaza la ruta por el detalle del reporte, identificado por su **id local**. "Generar Excel" ejecuta la misma función.
+4. Detalle con franja ámbar fija *"Enviando · Sigue en este teléfono; se enviará al recuperar la señal"*, aunque había señal.
+5. Al responder el POST, la pantalla cambia a los datos del servidor: **pantalla en blanco con indicador**, y las fotos que aún suben pasan de la imagen local a un **recuadro gris con nube** (la miniatura remota vale `null`).
+6. Al terminar las fotos, el worker purga la copia local. **El id local deja de resolver**: la pantalla vuelve a la rama "en cola" con `enCola` vacío. Desaparece la vista previa, el pie dice **"0 actividades · 0 fotos"**, los botones quedan apagados para siempre. En el mismo instante aparece el aviso "Reporte enviado".
+7. Desde la lista, el mismo reporte ya dice "Disponible" y su detalle funciona, porque ahí se abre por id de servidor.
+
+El caos no tenía una sola causa: un defecto de identidad (6), textos fijos que no corresponden al estado (1, 4), dos franjas ámbar con el mismo título y distinto significado (4, 5), y una promesa del diseño original que la implementación no podía cumplir (1, 3).
+
+### Destino y resultado
+
+- **F32 — Se retira el modal de resultado; la confirmación lleva directo a la lista de la obra (corrige §7).** "Guardar reporte" en el modal de confirmación encola el reporte y lleva a **REPORTES DE LA OBRA**. El modal de confirmación (finalidad del guardado) se conserva sin cambios.
+
+  **Implementación: no hay ruta nueva.** El wizard es una ruta modal de este mismo stack y `ReportSelection` es su raíz, así que la lista ya está montada debajo: llegar a ella es `navigate("ReportSelection", { recienGuardado })`, que vuelve a la ruta existente y la saca de la pila. Eso conserva la razón original del `replace` —que el "atrás" del sistema no devuelva a un borrador ya enviado— sin apilar nada.
+
+  **Justificación:**
+  - El §7 original prometía, con señal, "Guardado y enviado" + "Generar Excel". **El error estaba en el diseño, no en la implementación:** en ese instante el reporte apenas sale del teléfono y no se puede generar nada. Ningún texto puede decir "enviado" antes de que el servidor lo confirme.
+  - Con señal, un reporte con 4–6 fotos queda disponible en menos de un minuto; sin señal, no se puede generar hasta recuperarla. En ninguno de los dos casos tiene sentido que el usuario espere en una pantalla.
+  - La lista ya resuelve el problema: funde cola y servidor, y su chip contesta la única pregunta que importa (F18) y cambia solo.
+  - El modal de resultado existía para elegir entre "Generar Excel" e "Ir a mis reportes". Sin la primera opción, ya no hay nada que elegir: un segundo modal solo repetiría lo que la lista dice mejor, a cambio de un toque en cada guardado.
+
+  **Alternativas rechazadas:**
+  - _Modal de resultado con una sola salida honesta ("Ir a mis reportes")_: correcta, pero cuesta un toque en cada guardado para llegar al mismo lugar. Se dibujó y se comparó (Enmienda A del UX-SPEC-02).
+  - _Quedarse en el detalle esperando para generar_: sin señal no hay nada que esperar; con señal, la espera es corta pero la pantalla no puede ofrecer nada útil mientras dura.
+  - _Mantener "Generar Excel" en el resultado_: promete algo que en ese momento nunca se puede cumplir.
+
+- **F33 — Al llegar a la lista: fila resaltada y aviso según la señal.**
+  - La fila del reporte recién guardado aparece **arriba** y lleva un **resaltado de llegada**: un tinte de fondo que se mantiene ~1.5 s y se desvanece en ~1 s, hasta quedar igual a las demás.
+  - **Con señal:** aviso breve, que se va solo: *"Reporte guardado · enviando"*.
+  - **Sin señal:** aviso que **no se va solo** (`duration: Number.POSITIVE_INFINITY`), con acción **"OK"**: *"Guardado en el teléfono. Se enviará solo al recuperar la señal."* Un solo texto, tipo `info`, con la forma actual del `SnackbarProvider`.
+
+  **Justificación:** el modal de resultado se retira, pero su información más importante —que el reporte sigue en el teléfono— no puede retirarse con él. Ocultarlo produciría la peor falla posible del módulo: creer que se entregó algo que no salió (razón original del §7). Un aviso de cuatro segundos se puede no ver; por eso el de sin señal espera a que el usuario lo descarte, y el chip "Por enviar" queda en la primera fila hasta que se envía.
+
+  **Por qué sin título ni tipo `warning`:** lo que evita creer que el reporte salió ya está cubierto por tres cosas —el aviso no se va hasta que el usuario lo descarta, el texto lo dice, y el chip "Por enviar" se queda en la fila—. Un título en negritas repetiría el mismo mensaje y obligaría a cambiar la forma de un componente que usa toda la app. El ámbar se queda como lenguaje exclusivo del chip "Por enviar".
+
+  **Alternativas rechazadas (aviso):** _aviso sin señal con duración normal_ (se pierde); _franja fija en la lista_ (ruido permanente para un estado que el chip ya comunica); _agregar título opcional y tipo `warning` al `SnackbarProvider`_ (cambiar un componente compartido para decir lo mismo).
+
+  **Resaltado de llegada — reglas:**
+  - **Fondo y nada más.** Sin contorno, sin sombra, sin halo, sin borde lateral de color.
+  - **El tinte no puede coincidir** con el fondo del patrón "cerrado" (`cerrado.fondo` #F8FAFC, `cerrado.fondoControl` #F1F5F9) ni con el fondo de ningún chip de estado. Se usa el tono más claro de la familia primaria, publicado como token propio: **`DesignTokens.colors.llegada` = `#EBF4FF`** (= `primary[50]`). Verificado contra los chips vivos —`warning[100]` #FEF3C7 para "Por enviar"/"Enviando", `success[50]` #ECFDF5 para "Disponible", `error[50]` #FEF2F2 para los de fallo—: no coincide con ninguno.
+  - **No comunica estado.** El estado lo dice el chip; el resaltado solo dice "este es el tuyo". Por eso no depende del color: la señal principal es la posición (arriba), y el tinte la refuerza.
+  - **Una sola vez por llegada.** No reaparece al volver a la lista ni al cambiar el chip.
+  - **No bloquea.** La fila se puede tocar mientras está resaltada.
+  - **Movimiento reducido:** sin desvanecimiento; el tinte se retira de golpe al cumplirse el mismo tiempo total (~2.5 s). Se consulta `AccessibilityInfo.isReduceMotionEnabled()`.
+  - **La marca se consume al leerla.** Viaja como parámetro de ruta y la lista la limpia en cuanto la lee (`setParams` a `undefined`): los parámetros persisten mientras la pantalla siga en la pila y, sin limpiarla, la fila se resaltaría otra vez cada vez que el usuario regresa a la tab.
+  - **El resaltado sobrevive al cambio de identidad de la fila.** A media animación el servidor devuelve el reporte y la lista descarta la copia local: la fila deja de ser `local:<uuid>` y pasa a ser `srv:<id>`. El resaltado se busca por las dos, así que no se corta.
+
+  **Qué cuenta como "sin señal" al llegar:** solo `isOnline === false`. `null` ("todavía no se sabe", F25) toma el camino **con señal**, igual que el chip de la lista. `useReporteSubmitToQueue` devolvía `enviado: isOnline === true`, que mandaba `null` al camino sin señal: el aviso decía "se queda en el teléfono" sobre una fila que ya decía "Enviando". Pasa a `isOnline !== false`. **Cambia también una métrica viva:** `was_offline` de `reporte_actividades_saved` usaba `!isOnline` y contaba los `null` como offline; con el mismo criterio ahora solo cuenta un `false` explícito, así que la serie no es comparable de un lado a otro de esta fecha.
+
+  **Por qué no el patrón "cerrado":** ADR-007 D11 significa *"esto ya quedó en esta pantalla; tócalo para cambiarlo"* y se declara exclusivo. Una fila recién guardada ni está completa en esta pantalla ni se reabre con un toque, y su regla 1 reserva explícitamente el estado de envío a otro lenguaje. Usarlo aquí le daría a D11 un segundo significado y el usuario dejaría de poder leerlo con certeza en cualquiera de los dos lugares.
+
+  **Alternativas rechazadas (resaltado):** _patrón "cerrado"_ (contradice D11); _enmendar D11 para que también signifique "recién ocurrido"_ (rompe la exclusividad que lo hace legible); _etiqueta de texto "Nuevo"_ (compite con el chip, único texto de estado de la fila); _contorno o halo_ (lenguaje de selección y de foco).
+
+- **F34 — "Reporte enviado · ABRIR" cuando el reporte queda DISPONIBLE, no cuando responde el POST.** El aviso de éxito se dispara cuando el reporte **y todas sus fotos** están en el servidor: el mismo momento en que el chip pasa a "Disponible".
+  - **Uno solo:** "Reporte enviado", y **ABRIR** lleva a su detalle **por id de servidor**, con los botones encendidos.
+  - **Varios a la vez** (se vuelve de días sin señal): "N reportes enviados", y **ABRIR** lleva a la lista. Elegir uno por el usuario sería adivinar.
+  - **Sale esté el usuario donde esté**, incluso capturando otro reporte, y ABRIR navega entrando por la raíz: App → tab Reportes → pantalla. Es un aviso; abrirlo o no es decisión suya.
+  - **Solo en el teléfono que guardó el reporte.** El worker recorre únicamente la cola de este dispositivo, y un reporte encolado existe solo ahí (§7). Si tres personas de la misma obra guardan su reporte el mismo día, cada teléfono avisa de lo suyo; los demás se enteran abriendo la lista. El aviso es el acuse de recibo del propio envío, no una notificación de obra.
+
+  **Justificación:** antes "Reporte enviado" aparecía al 201 del POST, cuando todavía no se podía generar —en el video coincide con la pantalla rota—. Es el único momento en que la app puede decirle al usuario "ya puedes generar" sin que lo esté buscando, y debe coincidir con que de verdad pueda.
+
+  **Implementación — por qué no bastaba contar envíos.** El ciclo del worker avisaba con `reportesEnviados > 0`, es decir reportes enviados **en ese ciclo**. Las fotos de un reporte pueden cerrar dos ciclos después, y en ese ciclo no se envía ningún reporte: con el disparador nuevo colgado de ese contador, **ese reporte no avisaría nunca** — y es justo el caso de volver de un rato sin señal. El ciclo acumula ahora los reportes que **movió** (enviados, o con alguna foto subida) y al final pregunta cuáles quedaron completos. Esa pregunta va **antes de purgar**, porque la purga borra las filas que hay que leer.
+
+  La navegación desde el worker no necesitó infraestructura nueva: `navigationRef` ya existía y está enganchado al `NavigationContainer` en `RootNavigator`.
+
+### Detalle de un reporte en camino
+
+- **F35 — La pantalla de detalle no depende de la cola, ni para saber qué reporte muestra ni para saber qué pintar (precisa F17).**
+
+  **Requisito:** en cuanto el id local resuelve a un id de servidor, la pantalla conserva ese id durante toda su vida, y ninguna purga puede volver a dejarla sin identidad. Mientras carga el detalle del servidor sigue mostrando la vista previa local: **nunca una pantalla en blanco**.
+
+  F17 conservó el `done` justamente porque su `reporteId` es lo único que traduce el id local al de servidor. La purga posterior, correcta para la lista, rompía esa traducción para cualquier pantalla que siguiera abierta con el id local. Es el defecto que deja la pantalla muerta (paso 6).
+
+  **Se resolvió en tres piezas, porque el defecto eran tres.**
+
+  1. **La identidad se fija en la ruta.** En cuanto se conoce el id de servidor se escribe en los parámetros (`setParams`), que no dependen de Realm.
+  2. **La purga espera a las fotos.** `removeDoneReportes` borraba todo `done`, incluso con fotos subiendo. Ahora solo purga los que ya no tienen ninguna fila de foto. No duplica nada en pantalla: la lista descarta la copia local en cuanto el servidor devuelve ese `reporteId`. Esto es además lo que hace posible el disparador de F34.
+  3. **La pantalla se queda con una copia congelada de lo que ya mostró.** Fijar el id evita perder la identidad, pero no el contenido: la vista previa se lee **viva** de Realm, y la purga se la lleva igual. La copia se toma la primera vez que se lee la cola y se conserva hasta que la del servidor esté completa.
+
+  **La opción (b) que se había evaluado —que la purga conserve una marca mínima `localId → reporteId`— se descarta.** Protege un caso que no existe: después de la purga, la fila de la lista viene del servidor y lleva `reporteId` con `localId` nulo, así que nadie llega con un id local muerto salvo una pantalla que ya estaba abierta, y eso lo cubre (1). Mantenerla costaría una clase de Realm y una migración para nada.
+
+  Este defecto **no desaparecía con F32**: la lista también abre reportes en cola por id local, y la pantalla moría igual si el reporte sincronizaba mientras se miraba.
+
+- **F36 — Una sola línea de estado en el detalle, calculada del estado real (corrige §8).** Sustituye a las dos franjas ámbar tituladas "Enviando" —la de "sigue en este teléfono" y la de "algunas fotografías siguen subiendo"—, que se veían iguales y decían cosas distintas, así que parecían una sola que nunca se iba.
+
+  | Estado | Línea | Estilo |
+  | --- | --- | --- |
+  | Sin señal, nada se intenta | **Por enviar** · "Sin señal. Se enviará solo al recuperarla." | Ámbar: pide atención, no ha salido del teléfono |
+  | Falta el reporte | **Enviando** · "Enviando el reporte." | Neutro, con indicador de actividad |
+  | Faltan fotos | **Enviando** · "Faltan N fotos por subir." | Neutro, con indicador de actividad |
+  | Disponible | *(sin línea)* | — |
+  | Falló | Se conserva la franja de error y el rescate de F19 | Error |
+
+  **`isOnline === null` ("todavía no se sabe", F25) cuenta como "Enviando"**, no como "Por enviar". Es la misma regla del chip de la lista; si el detalle la aplicara distinto, la lista y el detalle dirían cosas diferentes del mismo reporte.
+
+  **"Por enviar" solo para un reporte de este teléfono.** Un reporte ajeno visto sin señal no está esperando mi red para salir: decirle al usuario "se enviará solo al recuperarla" sobre el reporte de otra persona es falso. Para esos la línea dice qué falta en el servidor.
+
+  **Si no está disponible, siempre hay línea.** Queda una ventana —entre que la última foto cierra y el detalle del servidor se refresca— en la que ninguna condición específica aplica. Ahí cae a "Enviando el reporte" en vez de a nada: una pantalla sin línea y sin botones sería otra vez el callejón sin salida.
+
+  **Excepción acotada a F18, deliberada.** F18 fijó que el chip contesta una pregunta binaria y expone el veredicto, no el motivo. Eso **sigue valiendo para el chip de la lista**, que no cambia. En el detalle el usuario ya abrió el reporte y está mirando una espera; decirle qué falta es lo que la vuelve comprensible. Se dice **qué falta**, no un porcentaje ni un avance.
+
+  **Alternativa rechazada:** _barra de progreso de fotos_ — es el estado intermedio que F18 descartó.
+
+- **F37 — Las fotos nunca retroceden.** Mientras este teléfono conserve el archivo (`PendingReportePhotoSubmission.localUri`), se muestra ese, con una marca **"☁ subiendo"** en la esquina. La miniatura del servidor solo lo reemplaza cuando ya existe.
+
+  **Justificación:** pasar de la foto real a un recuadro gris se lee como "se borró" —la misma conclusión que F29 corrigió para las actividades—.
+
+  **Por qué se puede:** el backend crea las filas de foto desde el 201, así que el detalle del servidor declara **todas** las fotos con su id y su pie desde el primer momento; lo único que falta es `thumbnail_url`, que vale `null` hasta que los bytes llegan. La unión local↔servidor es por `fotoRemotaId`. La copia congelada de F35 cubre la ventana en que la purga ya soltó el archivo local y el refetch aún no llega.
+
+- **F38 — Sin botones muertos.** Mientras el reporte no se puede generar, en lugar de "Generar Excel" y "Generar PDF" apagados va una frase que dice qué falta: *"El Excel y el PDF se podrán generar cuando el reporte llegue al servidor."* (falta el reporte) o *"…en cuanto terminen de subir las fotos."* Al quedar disponible, los botones aparecen ahí mismo, sin salir de la pantalla.
+
+  **Justificación:** dos botones apagados sin explicación son un callejón sin salida —el usuario no sabe si está roto, si le falta un permiso o si solo tiene que esperar—.
+
+### Defectos encontrados al revisar
+
+- **F39 — Dos defectos de la salida del wizard.**
+
+  1. **El wizard se vaciaba a la vista del usuario.** El borrador se reiniciaba antes de navegar y, durante el desvanecimiento del modal, se veía la Revisión en blanco. **No hacía falta reiniciarlo:** el borrador vive en el `useReducer` de `BorradorReporteProvider`, que envuelve la pantalla y muere con la ruta modal al cerrarse. Esa llamada pagaba un costo visual por algo que el desmontaje hace solo.
+  2. **`fechaReporte` se calculaba con `new Date().toISOString().slice(0, 10)`** en `ReporteWizardRoute`: fecha UTC, que después de las 18:00 en CDMX es el día siguiente. No faltaba una regla —las Precauciones de este mismo ADR ya lo prohíben y citan la Decisión 9 del ADR-003—; faltaba aplicarla. Con F32 esa ruta se retira y la fecha de la lista y del detalle sale de la cola o del servidor. Era la única instancia viva del patrón en `src/`.
+
+- **F40 — `esAutor` se calculaba mal en la lista.** `ReportSelectionScreen` abría el detalle con `esAutor: fila.porEnviar`: el usuario dejaba de ser autor de su reporte en cuanto se enviaba. Hoy solo alimenta `reporte_archivo_generated`, así que **`es_autor` venía `false` para todo archivo generado de un reporte ya entregado**: la métrica está sesgada desde que existe.
+
+  - **Corrección:** se calcula en `useReportesDeObra`, no en la pantalla, porque la respuesta depende de dos fuentes —la cola y la lista del servidor— y tenía que ser la misma en las dos. Un reporte en cola es del autor por definición; uno del servidor, si `reportado_por` es el usuario de la sesión.
+  - **Los ids coinciden:** `/api/usuarios/me/` devuelve `"id": str(user.id)` —la PK de Django, no el `oid` de Azure— y `reportado_por` es esa misma PK como número. Se compara en texto.
+  - **ABRIR (F34)** pasa `esAutor: true`: el worker solo procesa la cola del propio teléfono, así que quien guardó es quien mira.
+  - **Datos históricos:** los eventos `reporte_archivo_generated` anteriores al 30-oct-2026 no sirven para separar autor de no autor.
+
+### La franja de sincronización (31-oct)
+
+- **F41 — La franja de estado decía lo contrario de lo que estaba pasando (precisa F15).** Encontrado probando el flujo nuevo: al guardar con señal, la franja de REPORTES DE LA OBRA decía "Sincronizando…" un segundo y luego **"1 pendiente de sincronizar" con el botón Sincronizar** —durante toda la subida de fotos, que es el tramo largo y justo cuando la app más está trabajando—.
+
+  **La regla de producto, que es lo que estaba roto:** "N pendientes de sincronizar" + el botón significa **hay trabajo parado y nadie lo está intentando; te toca a ti**. Es para lo que se construyó el componente en Avances, donde `isSyncing` sale de una bandera global del ciclo. Reportes lo había cableado a `syncingCount > 0`, que cuenta filas de `PendingReporteSubmission` con `status === "syncing"` —un estado que solo existe mientras el POST del reporte está en vuelo—. Las fotos son otra cola y subirlas nunca devuelve el reporte a `syncing`, así que el ciclo entero de fotos se pintaba como cola detenida.
+
+  Tres correcciones:
+
+  1. **"Sincronizando" es que el ciclo esté corriendo**, no que una fila esté en `syncing`. `SyncWorkerProvider` publica `isReporteSyncing` —solo el worker de reportes, separado del `isSyncing` que une los cuatro, que habría dicho "Sincronizando" en Reportes cuando lo que sincroniza es maquinaria—. Esa bandera cubre el ciclo completo: POST **y** fotos. El botón Sincronizar vuelve a aparecer solo cuando de verdad no hay nada intentándose.
+  2. **"Fallido" es que se agotaron los intentos.** Entre reintentos el worker deja el reporte en `failed` mientras espera su backoff (1 / 2 / 4 s), y la franja se ponía roja diciendo "1 fallido" **sin ofrecer ninguna acción** sobre algo que se iba a reintentar solo. Pintar un estado de paso como veredicto. Ahora la franja hace el mismo corte que el chip de la fila: "Reintentando" mientras queden intentos, "No se envió" cuando no.
+  3. **`isOnline === false` es lo único que significa "sin red" (corrige `OfflineIndicator`).** La franja leía `!isOnline`, y `!null` es `true`: durante el instante entre montarse y la respuesta de NetInfo afirmaba "Modo sin conexión" en rojo, **incluso con la cola vacía**, porque ese mismo `null` también le impedía salirse por el retorno temprano. Es el defecto de la deuda abierta #2, en el componente en vez de en el worker.
+
+  **Alcance:** (3) toca un componente **compartido**, así que también cambia la lista de avances y el formulario de captura de avance —que tenían el mismo parpadeo rojo—. Las otras dos son solo de Reportes.
+
+  **El precio de (3), aceptado:** si NetInfo nunca resuelve, `isOnline` se queda en `null` y la franja ya no declarará el modo sin conexión; mostrará los pendientes y el botón, y los intentos fallarán. Es la misma asimetría que eligió F25 para el worker: intentar sin red cuesta una petición fallida, no intentar creyendo que no hay cuesta una cola trabada. Lo contrario —lo que había— era una franja que contradecía a la cola que en ese mismo momento sí estaba intentando.
+
+### Deuda técnica derivada
+
+- **La franja roja de "detenido" no ofrece salida.** Cuando un reporte agota sus intentos, la franja lo anuncia sin ningún botón: `OfflineIndicator` solo pinta "Ver cola" si recibe `onViewQueuePress`, y Reportes no tiene una pantalla de cola —el rescate (Reintentar / Descartar) vive en el detalle, al que se llega tocando la fila—. Funciona, pero la franja queda como un cartel muerto.
+- **Un reporte `done` con una foto fallida permanente conserva su fila en la cola.** Con la purga condicionada a las fotos (F35), una foto que agota sus intentos deja al reporte en Realm indefinidamente. No es una fuga nueva —esa foto ya se quedaba— y el usuario puede descartar desde el detalle, pero no hay limpieza automática.
+- **Telemetría del cierre nuevo.** Faltan `reporte_abrir_desde_aviso` y `reporte_detalle_abierto_en_camino`, y sigue abierta la deuda de `reporte_detail_opened`; conviene resolverlas juntas.
+
+**Resueltas al construir (no son deuda):**
+
+- *Tipo de advertencia en el `SnackbarProvider`*: no hace falta. El aviso sin señal es un solo texto tipo `info` (F33).
+- *Duración persistente del aviso sin señal*: react-native-paper 5.14.5 trata `duration === Number.POSITIVE_INFINITY` como "no se va solo". Se pasa ese valor.
+- *Navegación de "ABRIR" desde el worker*: `navigationRef` ya existía y está enganchado al `NavigationContainer`.
+
 ---
 
 ## Deuda técnica
@@ -476,7 +650,7 @@ Estado al 2026-10-12, ordenada por riesgo. Las que cerraron se conservan tachada
 
    El caso que lo decidió, planteado por el autor: *terminó el informe y por X o Y no lo pudo enviar para que se fuera a la cola.* Trabajo completo, cero recuperable. **Decidido: se persiste.** Falta elegir si se guarda en cada cambio o con rebote, y qué ocurre al reabrir la app con un borrador a medias.
 
-2. **`useAdvanceSyncWorker` y `usePhotoSyncWorker` siguen con `!isOnline` — riesgo medio.** F25 arregló el worker de reportes y sembró `useNetworkStatus`, pero los de avances conservan el defecto: `null` ("todavía no se sabe") se colapsa con `false` ("no hay red"), así que **el worker se duerme durante la ventana de incertidumbre**. El usuario abre la app con señal perfecta y ve "Modo sin conexión" con la cola detenida.
+2. **`useAdvanceSyncWorker` y `usePhotoSyncWorker` siguen con `!isOnline` — riesgo medio.** F25 arregló el worker de reportes y sembró `useNetworkStatus`, pero los de avances conservan el defecto: `null` ("todavía no se sabe") se colapsa con `false` ("no hay red"), así que **el worker se duerme durante la ventana de incertidumbre**. F41.3 pagó la mitad visible —la franja ya no dice "Modo sin conexión" mientras no se sabe—, pero **los dos workers de avances siguen dormidos en esa ventana**: ahora sin cartel que lo delate.
 
    La siembra con `NetInfo.fetch()` redujo esa ventana de potencialmente infinita a un viaje redondo. **Pero si en algún dispositivo ese `fetch()` falla o se cuelga, `isOnline` se queda en `null` y los dos workers de avances no despiertan nunca.** El arreglo es una línea por guarda (`isOnline === false`); lo que cuesta es volver a verificar el sync de avances y fotos completo, que es camino de producción.
 
@@ -492,7 +666,7 @@ Estado al 2026-10-12, ordenada por riesgo. Las que cerraron se conservan tachada
 
 6. **`getProveedores` sigue en `reporteService.ts`.** El roster ya no es un hecho del reporte (F7). Hoy el reporte es su único consumidor; cuando haya otro, se muda a un servicio propio.
 
-7. **Faltan dos eventos de telemetría**: `reporte_archivo_generated` y `reporte_detail_opened`.
+7. **Falta `reporte_detail_opened`**, y con el cierre nuevo (F34) faltan también `reporte_abrir_desde_aviso` y `reporte_detalle_abierto_en_camino`. Conviene resolverlas juntas. `reporte_archivo_generated` ya existe —y desde F40 su `es_autor` es confiable—.
 
 8. **Preselección por última selección en P-00.** Si la telemetría muestra que el roster diario es estable, recordar la última selección ahorraría toques. Requiere evidencia antes de construirse.
 
@@ -503,6 +677,10 @@ Estado al 2026-10-12, ordenada por riesgo. Las que cerraron se conservan tachada
 11. **Verificación de headers de navigators hermanos** (§10.1). La corrección tipográfica se aplica a Reportes; queda pendiente confirmar que los demás stacks quedaron consistentes.
 
 12. **Piezas que requieren rebuild nativo**, pendientes de la siguiente compilación: `softwareKeyboardLayoutMode: "pan"` (§5) y `expo-media-library`.
+
+13. **Un reporte `done` con una foto fallida permanente conserva su fila en la cola — riesgo bajo.** La purga del reporte está condicionada a que no le queden fotos (F35), así que una foto que agota sus intentos lo deja en Realm indefinidamente. No es una fuga nueva —esa foto ya se quedaba— y el usuario puede descartar desde el detalle, pero no hay limpieza automática.
+
+14. **`was_offline` de `reporte_actividades_saved` cambia de significado el 30-oct-2026** (F33). Antes contaba `isOnline === null` como offline; ahora solo un `false` explícito. La serie no es comparable de un lado a otro de esa fecha.
 
 ---
 
@@ -530,19 +708,37 @@ Orden sugerido, con validación entre etapas: **(1)** clases Realm y worker de s
 | D9 · Fotos            | Servicio de fotos del módulo                                                               | Constantes de redimensión existentes + `expo-media-library` al capturar                          |
 | D10 · Estandarización | `ReportesNavigator`, `ReportSelectionScreen`                                               | `fontSize["2xl"]` en el header; migración a `escala.ts`                                          |
 
+#### Enmiendas del 30-oct (después de guardar)
+
+| Enmienda | Archivo(s) | Cambio |
+| --- | --- | --- |
+| F32 · Sin modal de resultado | `components/ModalGuardarReporte.tsx`, `screens/ReporteWizardScreen.tsx`, `screens/ReporteWizardRoute.tsx` | Se borra `ModalResultadoGuardado`; el wizard expone un solo `onGuardado`; la ruta navega a `ReportSelection` |
+| F33 · Llegada a la lista | `navigation/types.ts`, `screens/ReportSelectionScreen.tsx`, `hooks/ui/useResaltadoDeLlegada.ts`, `styles/designTokens.ts`, `hooks/reportes/useReporteSubmitToQueue.ts` | Parámetro `recienGuardado`; componente `Fila` con tinte animado; token `llegada`; `enviado: isOnline !== false` |
+| F34 · Aviso al quedar disponible | `hooks/reportes/useReporteSyncWorker.ts`, `hooks/reportes/usePendingReporteQueue.ts`, `navigation/NavigationService.ts` | Conjunto de reportes tocados por el ciclo + `leerReportesDisponibles`; `navigateReportes` |
+| F35 · Identidad y copia | `screens/ReporteDetailScreen.tsx`, `hooks/reportes/usePendingReporteQueue.ts` | `setParams` del id de servidor; copia congelada de la vista previa; `removeDoneReportes` espera a las fotos |
+| F36 · Línea de estado | `screens/ReporteDetailScreen.tsx` | `LineaDeEstado` sustituye a `FranjaAmbar`; estado calculado |
+| F37 · Fotos | `components/DocumentoMiniatura.tsx`, `screens/ReporteDetailScreen.tsx` | `FotoMiniatura.subiendo` + marca sobre la imagen; unión local↔servidor por `fotoRemotaId` |
+| F38 · Sin botones muertos | `screens/ReporteDetailScreen.tsx` | Frase de espera en lugar de los botones apagados |
+| F40 · `esAutor` | `hooks/reportes/useReportesDeObra.ts`, `screens/ReportSelectionScreen.tsx` | `esAutor` se calcula en el hook y baja a la ruta |
+| F41 · Franja de sincronización | `components/IndicadorSincronizacion.tsx`, `providers/SyncWorkerProvider.tsx`, `components/common/OfflineIndicator.tsx` | `isReporteSyncing` publicado y cableado; "fallido" = intentos agotados; `isOnline === false` en lugar de `!isOnline` |
+
 ### Precauciones
 
 - **El bump de esquema Realm es aditivo** (clases nuevas, ninguna modificada): sigue el patrón E1 del ADR-003 — declarar `SENTINEL_SCHEMA` a nivel de módulo, nunca inline, y agregar rama en `handleMigration`.
 - **`DocumentoMiniatura` nace con los dos modos.** Construirlo primero solo para el wizard y "generalizarlo después" es la vía conocida a dos componentes divergentes.
 - **El `client_id` se genera al encolar, no al enviar** — es lo que hace la idempotencia real ante reintentos y dobles toques.
 - **Nunca abrir rutas de red propias desde los pasos del wizard.** Toda escritura pasa por la cola, misma regla que D13.1 del ADR-004 (Fase 2) fijó para la captura rápida.
-- **Fechas siempre con `DateUtils`**, nunca `toISOString().split("T")[0]` — el patrón de bugs UTC de la Decisión 9 del ADR-003 aplica al `fecha_reporte`, que es precisamente un dato de día local capturado a las 17:00+.
+- **Fechas siempre con `DateUtils`**, nunca `toISOString().split("T")[0]` — el patrón de bugs UTC de la Decisión 9 del ADR-003 aplica al `fecha_reporte`, que es precisamente un dato de día local capturado a las 17:00+. **Esta precaución ya estaba escrita cuando se cometió el bug que corrige F39.2**: no basta con enunciarla.
+- **La cola solo se purga cuando ya no hace falta.** Una fila `done` de `PendingReporteSubmission` es lo único que traduce el id local al de servidor y lo único que sabe cuándo un reporte queda disponible: no se borra mientras le queden fotos (F35). Cualquier purga nueva tiene que preguntarse qué pantalla abierta depende de lo que está borrando.
+- **Una pantalla no deriva de la cola lo que la cola va a borrar.** Si lo necesita después de la purga, se queda con su propia copia (F35).
 
 ---
 
 ## Ver también
 
 - `docs/ux/ux-spec-02.html` — UX-SPEC-02 FINAL: el flujo, las láminas de cada pantalla y la geometría del documento
+- `docs/ux/reportes-despues-de-guardar.html` — UX-SPEC-02, Enmienda A: el tramo de después de guardar (F32–F40)
+- `docs/adr/ADR-007-maquinaria-jornada-sheet.md` — D11, patrón "cerrado"; F33 deliberadamente NO lo usa
 - `ADR-004-reporte-de-actividades.md` (repo backend) — persistencia, endpoints, motor de generación y política 409; contraparte directa de este ADR
 - `be-spec-01-datos-y-generacion.html` — modelo entidad-relación y motor de paginación dibujados
 - `docs/adr/ADR-003-sabana-home-fase1.md` — Decisión 1 (la tab Reportes que este módulo llena), Decisión 9 (patrón de bugs UTC), deuda #12 (caché tras logout)

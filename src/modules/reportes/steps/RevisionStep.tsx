@@ -2,6 +2,9 @@ import React, { useCallback, useMemo, useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import BloqueDeFirma from "src/modules/firma/BloqueDeFirma";
+import { useAppSelector } from "src/redux/hooks";
+import { selectUserName } from "src/redux/selectors/authSelectors";
 import { DesignTokens } from "src/styles/designTokens";
 import { fs, sp } from "src/styles/escala";
 
@@ -12,6 +15,7 @@ import {
 } from "../components/DocumentoMiniatura";
 import { ReordenarFotos } from "../components/ReordenarFotos";
 import { etiquetaDeArea } from "../constantes";
+import { useMaquinariaDelDia } from "../hooks/useMaquinariaDelDia";
 import { useBorradorReporte } from "../state/BorradorReporteContext";
 import { FORMATO_CODIGO } from "../constantesDocumento";
 
@@ -29,8 +33,13 @@ interface Props {
 }
 
 export function RevisionStep({ onEditarBloque }: Props) {
-  const { borrador, reordenarFotos } = useBorradorReporte();
+  const { borrador, reordenarFotos, setFirma } = useBorradorReporte();
   const [ordenando, setOrdenando] = useState(false);
+  const nombre = useAppSelector(selectUserName);
+  // No vive en el borrador porque no se captura aquí: el servidor la copia de
+  // la tab de Maquinaria al emitir. Se lee al revisar, de las mismas fuentes
+  // que esa tab, para que la revisión enseñe el documento COMPLETO.
+  const maquinaria = useMaquinariaDelDia(borrador.fechaReporte);
 
   const datos = useMemo<DatosMiniatura>(
     () => ({
@@ -44,13 +53,14 @@ export function RevisionStep({ onEditarBloque }: Props) {
       area: borrador.area ? etiquetaDeArea(borrador.area) : null,
       actividades: borrador.actividades.map((a) => a.texto),
       conclusion: borrador.conclusion,
+      maquinaria,
       fotos: borrador.fotos.map((f) => ({
         id: f.id,
         uri: f.localUri,
         pie: f.pie,
       })),
     }),
-    [borrador],
+    [borrador, maquinaria],
   );
 
   const alternarOrden = useCallback(() => setOrdenando((v) => !v), []);
@@ -104,11 +114,24 @@ export function RevisionStep({ onEditarBloque }: Props) {
           />
         </View>
       ) : (
-        <DocumentoMiniatura
-          datos={datos}
-          modo="edit"
-          onEditar={onEditarBloque}
-        />
+        <>
+          <DocumentoMiniatura
+            datos={datos}
+            modo="edit"
+            onEditar={onEditarBloque}
+          />
+          {/* La firma va al final, donde va en el documento, y solo cuando se
+              está revisando: durante el reordenamiento de fotos la pantalla es
+              otra cosa y el bloque estorbaría. */}
+          <View style={estilos.firma}>
+            <BloqueDeFirma
+              firma={borrador.firma}
+              onCambiar={setFirma}
+              nombre={nombre ?? undefined}
+              textoConfirmar="Firmar el reporte"
+            />
+          </View>
+        </>
       )}
     </ScrollView>
   );
@@ -116,6 +139,12 @@ export function RevisionStep({ onEditarBloque }: Props) {
 
 const estilos = StyleSheet.create({
   cuerpo: { padding: sp(16), gap: sp(12), paddingBottom: sp(24) },
+  firma: {
+    backgroundColor: DesignTokens.colors.background.primary,
+    borderRadius: DesignTokens.borderRadius.md,
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.neutral[200],
+  },
   barra: { flexDirection: "row", justifyContent: "flex-end" },
   botonOrdenar: {
     flexDirection: "row",

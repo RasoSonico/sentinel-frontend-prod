@@ -408,7 +408,15 @@ Indicadores:
 5. **Observaciones del día en "Sí, trabajó":** la hoja final no tiene dónde registrar "trabajó y luego se descompuso" (decisión del 13-oct: va en observaciones). Propuesta: enlace "+ Nota del día" bajo las actividades, que se compacta con el patrón "cerrado".
 6. **Cola offline con arranque:** "Guardar arranque" crea la jornada y el cierre es un `PATCH` posterior. Si el arranque sigue en la cola cuando llega el cierre, la cola debe fusionarlos (un solo `POST`) en lugar de encolar un `PATCH` sobre un id que aún no existe.
 7. **Rendimiento de la búsqueda local** en catálogos muy grandes (miles de conceptos): medir antes de optimizar; si hace falta, índice en memoria por obra al abrir la hoja.
-8. **Sin pruebas en frontend:** la regla del tap (D12) es el primer candidato a prueba de interacción automatizada.
+8. **El teclado se resuelve con un módulo NATIVO, no en JavaScript — pendiente del próximo build nativo.** Se intentó dos veces en JS y las dos empeoraron la hoja: los avisos de teclado de Android llegan en pares espurios al redimensionar, y `onLayout` da la posición relativa al padre inmediato y no al contenido del scroll. Ninguna de las dos se arregla desde JS sin heurística.
+
+   Las apps grandes no lo hacen en JS: iOS añade un *inset* y desplaza el *first responder* solo; Android usa `adjustResize` + `requestRectangleOnScreen`. El equivalente en React Native es **`react-native-keyboard-controller`**, que recibe el marco del teclado por callbacks nativos y mide el campo enfocado en nativo — sin eventos JS, sin carreras.
+
+   **Por qué está diferido:** es un módulo nativo y el proyecto es *managed*, así que exige un build de desarrollo nuevo. El código es poco —su plugin en `app.config.ts`, `KeyboardProvider` en la raíz y cambiar el scroll de la hoja—; la puerta es el build. **Hacerlo cuando toque un build nativo por otra razón**, y verificar en dispositivo que convive con `@gorhom/bottom-sheet`: los dos quieren mandar sobre el mismo layout.
+
+   Mientras tanto la hoja es estable pero el campo enfocado puede quedar bajo el teclado. El diagnóstico completo está en `docs/pruebas-frontend.md`.
+
+9. **Sin pruebas en frontend:** la regla del tap (D12) es el primer candidato a prueba de interacción automatizada.
 
 ---
 

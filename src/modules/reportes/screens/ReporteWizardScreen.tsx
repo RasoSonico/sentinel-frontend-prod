@@ -7,10 +7,7 @@ import { useReporteSubmitToQueue } from "src/hooks/reportes/useReporteSubmitToQu
 import { useCapturaFotosReporte } from "../hooks/useCapturaFotosReporte";
 
 import { BotonWizard } from "../components/BotonWizard";
-import {
-  ModalConfirmarGuardado,
-  ModalResultadoGuardado,
-} from "../components/ModalGuardarReporte";
+import { ModalConfirmarGuardado } from "../components/ModalGuardarReporte";
 import { WizardShell } from "../components/WizardShell";
 import { WizardStepper } from "../components/WizardStepper";
 import { FotoBatchCarousel } from "../components/FotoBatchCarousel";
@@ -63,10 +60,15 @@ interface Props {
   constructionName: string;
   /** Cierra el wizard y vuelve a la zona de reportes. */
   onSalir: () => void;
-  /** Abre el detalle del reporte recién encolado. */
-  onIrAMisReportes: (reporteLocalId: string) => void;
-  /** Genera el Excel del reporte recién enviado (solo con señal). */
-  onGenerarExcel: (reporteLocalId: string) => void;
+  /**
+   * El reporte quedó encolado. Cierra el wizard y lleva a la lista de la obra.
+   *
+   * No hay pantalla de resultado: en ese instante el reporte apenas sale del
+   * teléfono y no hay nada que ofrecer —no se puede generar ningún archivo
+   * hasta que el servidor lo confirme—. El resultado se ve donde vive, en el
+   * chip de la fila, que además cambia solo.
+   */
+  onGuardado: (reporteLocalId: string) => void;
 }
 
 export function ReporteWizardScreen(props: Props) {
@@ -81,8 +83,7 @@ function Wizard({
   constructionId,
   constructionName,
   onSalir,
-  onIrAMisReportes,
-  onGenerarExcel,
+  onGuardado,
 }: Props) {
   const { borrador, tieneTrabajoSinGuardar, reiniciar } = useBorradorReporte();
   const { submitToQueue } = useReporteSubmitToQueue();
@@ -98,10 +99,6 @@ function Wizard({
 
   const [confirmando, setConfirmando] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  const [resultado, setResultado] = useState<{
-    reporteLocalId: string;
-    enviado: boolean;
-  } | null>(null);
 
   // ── Validación por paso ─────────────────────────────────────────────────
 
@@ -251,23 +248,22 @@ function Wizard({
         was_offline: !salida.enviado,
       });
       setConfirmando(false);
-      setResultado(salida);
+      /**
+       * **Sin `reiniciar()` aquí.** Vaciar el borrador antes de salir dejaba
+       * la Revisión en blanco —"Sin actividades capturadas", "Sin área
+       * seleccionada"— justo detrás del modal que se desvanecía: el usuario
+       * veía su reporte borrarse en el instante de guardarlo.
+       *
+       * No hace falta: el borrador vive en el `useReducer` de
+       * `BorradorReporteProvider`, que envuelve esta pantalla y muere con la
+       * ruta modal al cerrarse. Reiniciar aquí era pagar el costo visual de
+       * algo que el desmontaje hace solo.
+       */
+      onGuardado(salida.reporteLocalId);
     } finally {
       setGuardando(false);
     }
-  }, [submitToQueue, borrador, constructionId, constructionName]);
-
-  const cerrarResultado = useCallback(
-    (accion: "reportes" | "excel") => {
-      const salida = resultado;
-      setResultado(null);
-      reiniciar();
-      if (!salida) return;
-      if (accion === "excel") onGenerarExcel(salida.reporteLocalId);
-      else onIrAMisReportes(salida.reporteLocalId);
-    },
-    [resultado, reiniciar, onGenerarExcel, onIrAMisReportes],
-  );
+  }, [submitToQueue, borrador, constructionId, constructionName, onGuardado]);
 
   // ── Subpantallas ────────────────────────────────────────────────────────
 
@@ -351,7 +347,12 @@ function Wizard({
                 onPress={() => setConfirmando(true)}
                 deshabilitado={
                   borrador.actividades.length < MIN_ACTIVIDADES ||
-                  fotosSinPie > 0
+                  fotosSinPie > 0 ||
+                  // Firmar es obligatorio: un reporte va firmado o no va
+                  // (ADR-006 del backend, decisión 6). El servidor lo exige
+                  // también; esto evita que el usuario descubra el 400 cuando
+                  // ya creía haber cerrado.
+                  borrador.firma === null
                 }
               />
             ) : (
@@ -403,13 +404,6 @@ function Wizard({
         guardando={guardando}
         onCancelar={() => setConfirmando(false)}
         onConfirmar={guardar}
-      />
-
-      <ModalResultadoGuardado
-        visible={resultado !== null}
-        enviado={resultado?.enviado ?? false}
-        onGenerarExcel={() => cerrarResultado("excel")}
-        onIrAMisReportes={() => cerrarResultado("reportes")}
       />
     </>
   );

@@ -1,6 +1,7 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Platform,
   Pressable,
@@ -10,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 
 import { DesignTokens } from "src/styles/designTokens";
@@ -20,7 +21,10 @@ import {
   useReportesDeObra,
   type FilaReporte,
 } from "src/hooks/reportes/useReportesDeObra";
+import { usePendingReporteQueue } from "src/hooks/reportes/usePendingReporteQueue";
 import { useProveedores } from "src/hooks/reportes/useProveedores";
+import { useResaltadoDeLlegada } from "src/hooks/ui/useResaltadoDeLlegada";
+import { useSnackbar } from "src/hooks/useSnackbar";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
 import { fechaConDia } from "src/modules/avance/utils/fechaPrograma";
 import type { ReportesStackParamList } from "src/navigation/types";
@@ -31,6 +35,7 @@ type Navegacion = StackNavigationProp<
   ReportesStackParamList,
   "ReportSelection"
 >;
+type Ruta = RouteProp<ReportesStackParamList, "ReportSelection">;
 
 /**
  * Zona de Reportes (ADR-006, Decisión 8).
@@ -50,6 +55,8 @@ type Navegacion = StackNavigationProp<
  */
 export default function ReportSelectionScreen() {
   const navigation = useNavigation<Navegacion>();
+  const { params } = useRoute<Ruta>();
+  const { showSnackbar } = useSnackbar();
   const { data: obra } = useAssignedConstruction();
 
   const obraId = obra?.id !== undefined ? Number(obra.id) : null;
@@ -74,6 +81,65 @@ export default function ReportSelectionScreen() {
    */
   useProveedores(obraId);
 
+  // â”€â”€ Llegada desde el wizard (F32, F33) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  const recienGuardado = params?.recienGuardado ?? null;
+  const [resaltado, setResaltado] = useState<string | null>(null);
+  const [anotado, setAnotado] = useState<string | null>(null);
+  const consumidoRef = useRef<string | null>(null);
+  const { resolverReporteId } = usePendingReporteQueue();
+
+  /**
+   * Ajuste de estado EN RENDER, no en un efecto: es el patrón de React para
+   * derivar estado de algo que cambió desde fuera. En un efecto costaría un
+   * render en cascada y, sobre todo, un parpadeo —la fila se pintaría un
+   * cuadro sin resaltar antes de resaltarse—.
+   */
+  if (recienGuardado !== null && recienGuardado !== anotado) {
+    setAnotado(recienGuardado);
+    setResaltado(recienGuardado);
+  }
+
+  useEffect(() => {
+    if (!recienGuardado || consumidoRef.current === recienGuardado) return;
+    consumidoRef.current = recienGuardado;
+
+    /**
+     * **La marca se consume al leerla.** Los parámetros de una ruta persisten
+     * mientras la pantalla siga en la pila: sin limpiarla, la fila volvería a
+     * resaltarse y el aviso a salir cada vez que el usuario regresa a la tab.
+     */
+    navigation.setParams({ recienGuardado: undefined });
+
+    if (sinSenal) {
+      /**
+       * Sin señal el aviso **no se va solo**. Es la información más
+       * importante de todo el flujo —que el reporte sigue en el teléfono— y
+       * perderla produce la peor falla posible del módulo: creer que se
+       * entregó algo que no salió. Un aviso de cuatro segundos se puede no
+       * ver; éste espera a que el usuario lo descarte, y el chip "Por enviar"
+       * se queda en la fila hasta que de verdad se envíe.
+       */
+      showSnackbar(
+        "Guardado en el teléfono. Se enviará solo al recuperar la señal.",
+        "info",
+        { label: "OK", onPress: () => {} },
+        Number.POSITIVE_INFINITY,
+      );
+    } else {
+      // "Guardado" es lo único cierto en este instante. "Enviado" solo cuando
+      // el servidor lo confirme —y ese aviso lo da el worker, con ABRIR—.
+      showSnackbar("Reporte guardado · enviando", "info");
+    }
+  }, [recienGuardado, sinSenal, navigation, showSnackbar]);
+
+  /**
+   * El reporte recién guardado cambia de identidad a media animación: en
+   * cuanto el servidor lo devuelve, la lista descarta la copia local y la fila
+   * pasa a ser la del servidor. Sin esto el resaltado se cortaría justo ahí.
+   */
+  const idServidorResaltado = resaltado ? resolverReporteId(resaltado) : null;
+
   const abrirWizard = useCallback(() => {
     if (obraId === null) return;
     navigation.navigate("ReporteWizard", {
@@ -96,7 +162,7 @@ export default function ReportSelectionScreen() {
         localId: fila.localId ?? undefined,
         constructionName: obraNombre,
         fechaReporte: fila.fechaReporte,
-        esAutor: fila.porEnviar,
+        esAutor: fila.esAutor,
       });
     },
     [navigation, obraNombre],
@@ -104,38 +170,18 @@ export default function ReportSelectionScreen() {
 
   const renderFila = useCallback(
     ({ item }: { item: FilaReporte }) => (
-      <Pressable
+      <Fila
+        fila={item}
+        sinSenal={sinSenal}
+        recienLlegada={
+          (item.localId !== null && item.localId === resaltado) ||
+          (idServidorResaltado !== null &&
+            item.reporteId === idServidorResaltado)
+        }
         onPress={() => abrirDetalle(item)}
-        accessibilityRole="button"
-        accessibilityLabel={`Reporte de actividades del ${item.fechaReporte}, por ${item.autor}`}
-        style={({ pressed }) => [estilos.fila, pressed && estilos.presionado]}
-      >
-        <View style={estilos.filaIcono}>
-          <Ionicons
-            name="document-text-outline"
-            size={fs(20)}
-            color={DesignTokens.colors.executive.primary}
-          />
-        </View>
-        <View style={estilos.filaTexto}>
-          <Text style={estilos.filaTitulo}>
-            Actividades · {fechaConDia(item.fechaReporte)}
-          </Text>
-          <Text style={estilos.filaMeta} numberOfLines={1}>
-            {item.autor} · {item.actividadesCount}{" "}
-            {item.actividadesCount === 1 ? "actividad" : "actividades"} ·{" "}
-            {item.fotosCount} {item.fotosCount === 1 ? "foto" : "fotos"}
-          </Text>
-        </View>
-        <Chip fila={item} sinSenal={sinSenal} />
-        <Ionicons
-          name="chevron-forward"
-          size={fs(18)}
-          color={DesignTokens.colors.neutral[300]}
-        />
-      </Pressable>
+      />
     ),
-    [abrirDetalle, sinSenal],
+    [abrirDetalle, sinSenal, resaltado, idServidorResaltado],
   );
 
   return (
@@ -204,6 +250,75 @@ export default function ReportSelectionScreen() {
         )
       }
     />
+  );
+}
+
+/**
+ * Una fila de REPORTES DE LA OBRA.
+ *
+ * Es un componente y no un bloque dentro de `renderItem` porque el resaltado
+ * de llegada necesita hooks propios por fila.
+ *
+ * El tinte va en un `Animated.View` que envuelve al `Pressable` y no en el
+ * `Pressable` mismo: su `style` es una función de `pressed`, y una función no
+ * se puede animar.
+ */
+function Fila({
+  fila,
+  sinSenal,
+  recienLlegada,
+  onPress,
+}: {
+  fila: FilaReporte;
+  sinSenal: boolean;
+  recienLlegada: boolean;
+  onPress: () => void;
+}) {
+  const intensidad = useResaltadoDeLlegada(recienLlegada);
+  const fondo = intensidad.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      DesignTokens.colors.background.primary,
+      DesignTokens.colors.llegada,
+    ],
+  });
+
+  return (
+    <Animated.View style={[estilos.fila, { backgroundColor: fondo }]}>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Reporte de actividades del ${fila.fechaReporte}, por ${fila.autor}`}
+        style={({ pressed }) => [
+          estilos.filaToque,
+          pressed && estilos.presionado,
+        ]}
+      >
+        <View style={estilos.filaIcono}>
+          <Ionicons
+            name="document-text-outline"
+            size={fs(20)}
+            color={DesignTokens.colors.executive.primary}
+          />
+        </View>
+        <View style={estilos.filaTexto}>
+          <Text style={estilos.filaTitulo}>
+            Actividades · {fechaConDia(fila.fechaReporte)}
+          </Text>
+          <Text style={estilos.filaMeta} numberOfLines={1}>
+            {fila.autor} · {fila.actividadesCount}{" "}
+            {fila.actividadesCount === 1 ? "actividad" : "actividades"} ·{" "}
+            {fila.fotosCount} {fila.fotosCount === 1 ? "foto" : "fotos"}
+          </Text>
+        </View>
+        <Chip fila={fila} sinSenal={sinSenal} />
+        <Ionicons
+          name="chevron-forward"
+          size={fs(18)}
+          color={DesignTokens.colors.neutral[300]}
+        />
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -367,15 +482,19 @@ const estilos = StyleSheet.create({
     color: DesignTokens.colors.neutral[500],
     ...sinPaddingAndroid,
   },
+  // El contenedor lleva el fondo —es lo que se tie al llegar— y el hijo lleva
+  // la caja táctil con su relleno.
   fila: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: sp(10),
-    padding: sp(12),
     marginBottom: sp(8),
     borderRadius: DesignTokens.borderRadius.base,
     backgroundColor: DesignTokens.colors.background.primary,
     ...DesignTokens.shadows.sm,
+  },
+  filaToque: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: sp(10),
+    padding: sp(12),
   },
   presionado: { opacity: 0.85 },
   filaIcono: {

@@ -11,7 +11,6 @@ import {
   CloseEstanciaBody,
   JornadaResponse,
   CreateJornadaBody,
-  CreateJornadaTransitoriaBody,
   CreateReconciliacionBody,
   ReconciliacionResponse,
   HubDiarioResponse,
@@ -94,16 +93,6 @@ export const createJornada = async (
     body,
   );
 
-export const createJornadaTransitoria = async (
-  body: CreateJornadaTransitoriaBody,
-): Promise<JornadaResponse> =>
-  apiRequest<JornadaResponse>(
-    "post",
-    API_CONFIG.endpoints.maquinaria.jornadaTransitoria,
-    "Error al registrar la jornada transitoria",
-    body,
-  );
-
 export const createReconciliacion = async (
   body: CreateReconciliacionBody,
 ): Promise<ReconciliacionResponse> =>
@@ -123,17 +112,5 @@ export const getConceptsByCatalog = async (
     endpoint,
     "Error al obtener conceptos del catálogo",
   );
-  return response.results ?? [];
-};
-
-export const getJornadasByEstancia = async (
-  estanciaId: number,
-  pageSize = 2,
-): Promise<JornadaResponse[]> => {
-  const endpoint = `${API_CONFIG.endpoints.maquinaria.jornadas}?estancia_id=${estanciaId}&page_size=${pageSize}`;
-  const response = await apiRequest<{
-    count: number;
-    results: JornadaResponse[];
-  }>("get", endpoint, "Error al obtener jornadas de la estancia");
   return response.results ?? [];
 };

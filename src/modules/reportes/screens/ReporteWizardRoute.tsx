@@ -24,33 +24,24 @@ export default function ReporteWizardRoute() {
   const salir = useCallback(() => navigation.goBack(), [navigation]);
 
   /**
-   * Tras guardar se REEMPLAZA la ruta en vez de apilar el detalle encima: si
-   * el wizard siguiera en la pila, el "atrás" del sistema devolvería al usuario
-   * a un borrador que ya se envió.
+   * Tras guardar, el destino es **la lista de la obra**, no el detalle.
+   *
+   * El wizard es una ruta modal de este mismo stack y `ReportSelection` es su
+   * raíz: la lista ya está montada debajo, así que esto no apila nada —vuelve
+   * a ella y le deja el id del recién guardado—. El wizard sale de la pila,
+   * que es lo que impide que el "atrás" del sistema devuelva al usuario a un
+   * borrador ya enviado.
+   *
+   * Antes esto reemplazaba la ruta por el detalle del reporte identificado por
+   * su id LOCAL, y el botón que decía "Ir a mis reportes" no llevaba a la
+   * lista. Cuando el worker purgaba la copia local, ese id dejaba de resolver
+   * y la pantalla se quedaba muerta.
    */
   const irAMisReportes = useCallback(
     (localId: string) => {
-      navigation.replace("ReporteDetalle", {
-        localId,
-        constructionName: params.constructionName,
-        fechaReporte: new Date().toISOString().slice(0, 10),
-        esAutor: true,
-      });
+      navigation.navigate("ReportSelection", { recienGuardado: localId });
     },
-    [navigation, params.constructionName],
-  );
-
-  /**
-   * "Generar Excel" del modal de resultado.
-   *
-   * Lleva al detalle, que es donde viven los botones de generación — y para
-   * entonces el worker ya tiene el `reporteId` real. Ofrecer la descarga aquí
-   * mismo obligaría a esperar al POST dentro de un modal, con el usuario
-   * mirando un spinner sin saber qué pasa.
-   */
-  const generarExcel = useCallback(
-    (localId: string) => irAMisReportes(localId),
-    [irAMisReportes],
+    [navigation],
   );
 
   return (
@@ -58,8 +49,7 @@ export default function ReporteWizardRoute() {
       constructionId={params.constructionId}
       constructionName={params.constructionName}
       onSalir={salir}
-      onIrAMisReportes={irAMisReportes}
-      onGenerarExcel={generarExcel}
+      onGuardado={irAMisReportes}
     />
   );
 }

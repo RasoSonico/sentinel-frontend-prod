@@ -34,15 +34,23 @@ const flattenHubItem = (item: MaquinariaHubItem) => ({
   estancia_fecha_ingreso: item.estancia_actual.fecha_ingreso,
   jornada_id: item.jornada_hoy?.id ?? null,
   jornada_estado: item.jornada_hoy?.estado ?? null,
-  jornada_catalog: item.jornada_hoy?.catalog ?? null,
-  jornada_concept: item.jornada_hoy?.concept ?? null,
   jornada_motivo_inactividad: item.jornada_hoy?.motivo_inactividad ?? null,
   jornada_observaciones: item.jornada_hoy?.observaciones ?? null,
+  // Los renglones pasan TAL CUAL: los nombres del esquema local son los del
+  // servidor justamente para que este paso no traduzca nada. Traducir aquí es
+  // donde se cuela un tipo que no es el que Realm declara, y una escritura
+  // rechazada deja la pantalla con datos viejos sin decir nada.
+  jornada_detalles: item.jornada_hoy?.detalles ?? [],
+  jornada_horometro_inicial: item.jornada_hoy?.horometro_inicial ?? null,
+  jornada_horometro_final: item.jornada_hoy?.horometro_final ?? null,
   requiere_reconciliacion: item.requiere_reconciliacion,
   dias_sin_reporte: item.dias_sin_reporte,
   ultima_jornada_fecha: item.ultima_jornada_fecha ?? null,
   ultimo_horometro: item.ultimo_horometro ?? null,
   ultimo_horometro_fecha: item.ultimo_horometro_fecha ?? null,
+  ultima_jornada_trabajada_fecha: item.ultima_jornada_trabajada?.fecha ?? null,
+  ultima_jornada_trabajada_detalles:
+    item.ultima_jornada_trabajada?.detalles ?? [],
 });
 
 export const hubDiarioOptions = (
@@ -144,8 +152,20 @@ export const useHubDiario = (constructionId: number | undefined) => {
   };
 };
 
-export const useHubDiarioFromRealm = (constructionId: number | undefined) => {
-  const localDate = DateUtils.localDateToUTC(new Date());
+/**
+ * El hub cacheado, sin pedir nada por red.
+ *
+ * `fecha` por default es hoy, que es el caso de la tab de Maquinaria. Se puede
+ * pasar otra porque el caché está guardado POR DÍA: la previsualización de un
+ * reporte que lleva días en la cola tiene que leer el día de ESE reporte, no
+ * el de hoy. Si no hay caché de ese día, devuelve `null` — que es la verdad:
+ * no se sabe, no que no hubiera maquinaria.
+ */
+export const useHubDiarioFromRealm = (
+  constructionId: number | undefined,
+  fecha?: string,
+) => {
+  const localDate = fecha ?? DateUtils.localDateToUTC(new Date());
   return useObject(
     MaquinariaHubResponse,
     constructionId ? realmKey(constructionId, localDate) : "",

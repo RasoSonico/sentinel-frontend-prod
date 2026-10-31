@@ -1,5 +1,7 @@
 import Realm from "realm";
 
+import { DetalleJornadaRealm } from "src/realm/maquinariaHub/DetalleJornadaRealm";
+
 export type PendingJornadaStatus = "pending" | "syncing" | "failed" | "done";
 
 /**
@@ -20,26 +22,20 @@ export type PendingJornadaStatus = "pending" | "syncing" | "failed" | "done";
  *
  * Un punto que NO se parece a las otras dos colas: aquí el usuario puede
  * capturar la jornada de una máquina **que él mismo acaba de dar de alta sin
- * señal**. Esa cadena —alta primero, jornada después— es la segunda tanda, y
- * por eso `estanciaId` es un entero del servidor y no admite todavía un id
- * local. Cuando toque, es el mismo movimiento que hizo `reporteId` con las
- * fotos: reescribir el enlace cuando el POST del alta devuelva el id real.
+ * señal**. Esa cadena se resuelve con `maquinariaLocalId`, abajo: el mismo
+ * movimiento que hizo `reporteId` con las fotos, reescribir el enlace cuando
+ * el POST del alta devuelva el id real.
  */
 export class PendingJornadaSubmission extends Realm.Object<PendingJornadaSubmission> {
   _id!: string; // UUID · client_id de idempotencia
 
   // ── Payload ───────────────────────────────────────────────────────────
   /**
-   * Estancia del servidor. Para una jornada transitoria viaja en 0: ese
-   * endpoint crea la estancia él mismo a partir de `maquinariaId`.
-   *
-   * Vale 0 también mientras la jornada espera a un alta encolada: entonces el
-   * que manda es `maquinariaLocalId`.
+   * Estancia del servidor. Vale 0 mientras la jornada espera a un alta
+   * encolada: entonces el que manda es `maquinariaLocalId`.
    */
   estanciaId!: number;
   maquinariaId!: number;
-  /** `true` → va a `/jornadas/transitoria/`, que crea Estancia y Jornada. */
-  esTransitoria!: boolean;
 
   /**
    * `_id` del alta en `PendingMaquinariaSubmission` cuando esta jornada es de
@@ -57,8 +53,20 @@ export class PendingJornadaSubmission extends Realm.Object<PendingJornadaSubmiss
 
   fecha!: string; // YYYY-MM-DD, día LOCAL
   estado!: string; // TRABAJANDO | SIN_OPERAR
-  catalogId!: number | null;
-  conceptId!: number | null;
+
+  /**
+   * Lo que la máquina hizo ese día: N actividades, cada una un concepto del
+   * catálogo o un texto escrito a mano.
+   *
+   * Sustituye al par `catalogId`/`conceptId`, que solo admitía una. Vacío
+   * cuando la jornada es SIN_OPERAR — y el servidor lo exige así.
+   *
+   * El `orden` se guarda aunque el servidor lo reasigne por posición: si el
+   * usuario abre lo que está en cola, tiene que ver sus actividades en el
+   * orden en que las capturó.
+   */
+  detalles!: Realm.List<DetalleJornadaRealm>;
+
   motivoInactividad!: string | null;
   observaciones!: string;
 
@@ -99,13 +107,11 @@ export class PendingJornadaSubmission extends Realm.Object<PendingJornadaSubmiss
 
       estanciaId: "int",
       maquinariaId: "int",
-      esTransitoria: { type: "bool", default: false },
       maquinariaLocalId: "string?",
 
       fecha: "string",
       estado: "string",
-      catalogId: "int?",
-      conceptId: "int?",
+      detalles: { type: "list", objectType: "DetalleJornadaRealm" },
       motivoInactividad: "string?",
       observaciones: { type: "string", default: "" },
 

@@ -74,7 +74,13 @@ export type SabanaStackParamList = {
 
 // Parámetros para el navegador de Reportes (tab de primer nivel, ADR-003)
 export type ReportesStackParamList = {
-  ReportSelection: undefined;
+  /**
+   * `recienGuardado` es el id local del reporte que se acaba de guardar: la
+   * lista lo usa para resaltar su fila y dar el acuse, y lo limpia en cuanto
+   * lo lee. Si no se limpiara, los parámetros persisten y la fila volvería a
+   * resaltarse cada vez que el usuario regresa a la tab.
+   */
+  ReportSelection: { recienGuardado?: string } | undefined;
   AdvanceReport: {
     constructionId: string;
     constructionName: string;
@@ -132,7 +138,11 @@ export type IncidentDetailScreenNavigationProp = StackNavigationProp<
 // Tipo para la ruta raíz que decide entre Auth y App
 export type RootStackParamList = {
   Auth: undefined;
-  App: undefined;
+  // Tipado como contenedor de las tabs para poder navegar ANIDADO desde fuera
+  // del árbol —el worker de sincronización vive en un provider y no tiene
+  // `useNavigation`—. Con `undefined` el `navigate("App", { screen: ... })` de
+  // `NavigationService` no compilaba.
+  App: NavigatorScreenParams<AppTabParamList> | undefined;
 };
 
 // Tipos para el uso de la navegación en componentes

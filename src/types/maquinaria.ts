@@ -85,15 +85,50 @@ export interface CloseEstanciaBody {
   detalle_motivo_salida: string;
 }
 
+/**
+ * Un renglón de lo que hizo la máquina, como lo devuelve el servidor.
+ *
+ * `concept` **ó** `descripcion`: una actividad es un concepto del catálogo o
+ * un texto escrito a mano, nunca las dos vacías. El catálogo no viaja porque
+ * se deduce del concepto.
+ */
+export interface DetalleJornada {
+  orden: number;
+  concept: number | null;
+  descripcion: string;
+  /**
+   * El reparto que hace el supervisor **a ojo** del total del horómetro.
+   *
+   * Cadena, no número, por lo mismo que el horómetro: el servidor la manda
+   * así y el flotante perdería décimas. Es percepción, no medición —pero eso
+   * no la vuelve menos merecedora de llegar intacta—.
+   */
+  horas_estimadas: string | null;
+}
+
+/**
+ * Un renglón como se ENVÍA.
+ *
+ * `concept_id`, no `concept`: el servidor lee y escribe con nombres distintos
+ * para este campo. El `orden` **no viaja** — lo asigna el servidor según la
+ * posición en el arreglo, para que dos renglones no puedan pelearse el mismo
+ * número.
+ */
+export interface DetalleEntrada {
+  concept_id?: number | null;
+  descripcion?: string;
+  horas_estimadas?: string | null;
+}
+
 export interface JornadaResponse {
   id: number;
   estancia: number;
-  catalog: number | null;
-  concept: number | null;
   fecha: string;
   estado: EstadoJornada;
   motivo_inactividad: MotivoInactividad | null;
   observaciones: string;
+  /** Vacío cuando la jornada es SIN_OPERAR. */
+  detalles: DetalleJornada[];
   /**
    * Lecturas del horómetro. Llegan como cadena porque DRF serializa
    * `DecimalField` así, y convertirlas a `number` perdería la décima en los
@@ -112,8 +147,8 @@ export interface CreateJornadaTrabajandoBody {
   estancia: number;
   fecha: string;
   estado: "TRABAJANDO";
-  catalog: number;
-  concept?: number | null;
+  /** Al menos una. El servidor rechaza una jornada TRABAJANDO sin renglones. */
+  detalles: DetalleEntrada[];
   observaciones?: string;
   /** Opcionales y no van en pareja: ver `Jornada` en el backend. */
   horometro_inicial?: string | null;
@@ -139,17 +174,6 @@ export interface CreateJornadaSinOperarBody {
 export type CreateJornadaBody =
   | CreateJornadaTrabajandoBody
   | CreateJornadaSinOperarBody;
-
-export interface CreateJornadaTransitoriaBody {
-  maquinaria_id: number;
-  catalog_id: number;
-  concept_id?: number | null;
-  fecha: string;
-  observaciones?: string;
-  horometro_inicial?: string | null;
-  horometro_final?: string | null;
-  client_id?: string;
-}
 
 export interface CreateReconciliacionSigueBody {
   estancia_id: number;
@@ -187,10 +211,33 @@ export interface HubResumen {
 export interface JornadaHoy {
   id: number;
   estado: EstadoJornada;
-  catalog: number | null;
-  concept: number | null;
   motivo_inactividad: MotivoInactividad | null;
   observaciones: string;
+  /**
+   * Las dos lecturas del día, como CADENA.
+   *
+   * No son para la tarjeta del hub, que no las muestra: son para la tabla de
+   * maquinaria del reporte, que las imprime junto con las horas derivadas. Y
+   * viajan en el hub —lo único que se cachea— porque el reporte se arma en
+   * obra: lo que no esté aquí no se puede previsualizar sin señal.
+   */
+  horometro_inicial: string | null;
+  horometro_final: string | null;
+  /** Vacío cuando SIN_OPERAR. */
+  detalles: DetalleJornada[];
+}
+
+/**
+ * El último día que la máquina **de verdad trabajó**, con todo lo que hizo.
+ *
+ * Es lo que alimenta "Repetir lo del {fecha} · {N}". No es "ayer": las obras
+ * no tienen horario fijo, así que el servidor busca la última jornada
+ * TRABAJANDO anterior a hoy, sea de cuando sea. La fecha viaja para que el
+ * botón pueda decir de cuándo viene lo que va a copiar.
+ */
+export interface UltimaJornadaTrabajada {
+  fecha: string;
+  detalles: DetalleJornada[];
 }
 
 export interface EstanciaActual {
@@ -223,6 +270,8 @@ export interface MaquinariaHubItem {
    */
   ultimo_horometro: string | null;
   ultimo_horometro_fecha: string | null;
+  /** `null` si la máquina nunca ha tenido una jornada trabajada previa. */
+  ultima_jornada_trabajada: UltimaJornadaTrabajada | null;
 }
 
 export interface HubDiarioResponse {

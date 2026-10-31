@@ -44,16 +44,38 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     fallbackToCacheTimeout: 0,
   },
   assetBundlePatterns: ["**/*"],
+  // Los spreads NO son opcionales, por lo mismo que en `extra` más abajo:
+  // redefinir estos objetos sin ellos borraba en silencio lo que app.json ya
+  // declaraba, y nada avisa — la config resuelta simplemente sale sin eso.
+  //
+  // De `ios` se perdían `scheme` y `associatedDomains` —los universal links
+  // contra el backend— y de `android`, los intent filters del esquema
+  // `sentinel`. Los dos llevaban tiempo sin llegar a ninguna build.
   ios: {
+    ...config.ios,
     supportsTablet: true,
     bundleIdentifier: "com.urbaingenieria.sentinel",
   },
   android: {
+    ...config.android,
     adaptiveIcon: {
       foregroundImage: "./src/assets/Icon.png",
       backgroundColor: "#FFFFFF",
     },
     package: "com.urbaingenieria.sentinel",
+    // Explícito y en FALSO, aunque sea el default: app.json lo declaraba en
+    // true y el spread de arriba lo habría encendido de golpe.
+    //
+    // Encenderlo no es una línea de config: la app dibujaría bajo las barras
+    // del sistema, y las pantallas sin encabezado de navegación —Login,
+    // Perfil y las dos hojas de firma— usan el `SafeAreaView` de react-native,
+    // que en Android no hace nada. Su contenido se metería debajo del reloj.
+    // Migrarlas a `react-native-safe-area-context` y revisar en dispositivo es
+    // una pasada propia.
+    //
+    // Mientras tanto la barra se pinta por pantalla desde `useBarraDeEstado`,
+    // que es justo lo que deja de funcionar cuando esto se enciende.
+    edgeToEdgeEnabled: false,
   },
   web: {
     favicon: "./src/assets/SENTINEL_LOGO.png",

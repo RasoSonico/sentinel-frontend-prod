@@ -66,6 +66,10 @@ export function useReporteSubmitToQueue() {
           takenAt: foto.takenAt,
         })),
         proveedorIds: borrador.proveedorIds,
+        // El wizard no deja llegar aquí sin firma: la Revisión bloquea el
+        // botón. El `??` satisface al tipo — una firma faltante la rechaza el
+        // servidor con 400 en `firma`, igual que un área vacía.
+        firma: borrador.firma ?? { ancho: 0, alto: 0, trazos: [] },
         contratistas: borrador.contratistas.map((p) => p.nombre),
         supervision: borrador.supervisores.map((p) => p.nombre),
       });
@@ -77,14 +81,19 @@ export function useReporteSubmitToQueue() {
         fotos_count: borrador.fotos.length,
         contratistas_count: borrador.contratistas.length,
         supervision_count: borrador.supervisores.length,
-        was_offline: !isOnline,
+        // Mismo criterio que `enviado`: solo un `false` explícito cuenta como
+        // offline. Antes `null` subía como offline y abultaba la métrica con
+        // guardados que sí tenían red.
+        was_offline: isOnline === false,
       });
 
-      // `isOnline` puede ser `null` mientras el estado de red aún no se
-      // determina. Ante la duda se responde "guardado en el teléfono": prometer
-      // una entrega que no podemos confirmar es exactamente el fallo que esta
-      // bifurcación existe para evitar.
-      return { reporteLocalId, enviado: isOnline === true };
+      // `isOnline === false` es lo ÚNICO que significa "sin señal". `null` es
+      // "todavía no se sabe" (F25), y mandarlo por el camino de sin señal hacía
+      // que la app contradijera a su propio chip: la lista calcula `sinSenal`
+      // con esta misma comparación, así que el aviso decía "se queda en el
+      // teléfono" sobre una fila que ya decía "Enviando". Si luego resulta que
+      // no había red, el chip pasa a "Por enviar" y eso basta.
+      return { reporteLocalId, enviado: isOnline !== false };
     },
     [addToQueue, isOnline],
   );

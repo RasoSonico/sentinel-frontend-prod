@@ -15,16 +15,27 @@ import {
  * solo POST, así que no hay segunda fase ni enlaces que reescribir.
  */
 
+/**
+ * Una actividad tal como la captura la hoja.
+ *
+ * El `orden` no viaja: lo da la posición en el arreglo, igual que en el POST.
+ * Un solo criterio de numeración de punta a punta.
+ */
+export interface DetalleParaEncolar {
+  concept?: number | null;
+  descripcion?: string;
+  horasEstimadas?: string | null;
+}
+
 export interface JornadaParaEncolar {
   estanciaId: number;
   maquinariaId: number;
   /** `_id` del alta en cola si la máquina aún no existe en el servidor. */
   maquinariaLocalId?: string | null;
-  esTransitoria: boolean;
   fecha: string;
   estado: "TRABAJANDO" | "SIN_OPERAR";
-  catalogId?: number | null;
-  conceptId?: number | null;
+  /** Al menos una cuando TRABAJANDO; vacío cuando SIN_OPERAR. */
+  detalles?: DetalleParaEncolar[];
   motivoInactividad?: string | null;
   observaciones?: string;
   horometroInicial?: string | null;
@@ -139,11 +150,17 @@ export function usePendingJornadaQueue() {
           estanciaId: datos.estanciaId,
           maquinariaId: datos.maquinariaId,
           maquinariaLocalId: datos.maquinariaLocalId ?? null,
-          esTransitoria: datos.esTransitoria,
           fecha: datos.fecha,
           estado: datos.estado,
-          catalogId: datos.catalogId ?? null,
-          conceptId: datos.conceptId ?? null,
+          // El `orden` se asigna por POSICIÓN, aquí y en el POST. Guardarlo
+          // sirve para que, si el usuario abre lo que está en cola, vea sus
+          // actividades como las capturó.
+          detalles: (datos.detalles ?? []).map((d, i) => ({
+            orden: i + 1,
+            concept: d.concept ?? null,
+            descripcion: d.descripcion?.trim() ?? "",
+            horas_estimadas: d.horasEstimadas || null,
+          })),
           motivoInactividad: datos.motivoInactividad ?? null,
           observaciones: datos.observaciones ?? "",
           horometroInicial: datos.horometroInicial || null,

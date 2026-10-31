@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   FlatList,
@@ -17,14 +17,14 @@ import { MaquinariaStackParamList } from "src/navigation/types";
 import { useHubDiarioData } from "../hooks/useHubDiarioData";
 import MaquinariaCard from "../components/MaquinariaCard";
 import HubResumenHeader, { HubFilter } from "../components/HubResumenHeader";
-import SinOperarSheet from "../components/SinOperarSheet";
-import ReportarJornadaSheet from "../components/ReportarJornadaSheet";
+import JornadaSheet from "../components/JornadaSheet";
 import SalidaObraSheet from "../components/SalidaObraSheet";
 import ReconciliacionModal from "../components/ReconciliacionModal";
 import IngresoMaquinariaModal from "../components/IngresoMaquinariaModal";
 import { usePendingJornadaQueue } from "src/hooks/maquinaria/usePendingJornadaQueue";
 import { usePendingMaquinariaQueue } from "src/hooks/maquinaria/usePendingMaquinariaQueue";
 import {
+  congelarFila,
   filaDeCola,
   filaDeServidor,
   type FilaMaquinaria,
@@ -33,7 +33,7 @@ import { PendingJornadaSubmission } from "src/realm/pendingJornada/PendingJornad
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
 import styles from "../styles/HubDiarioScreen.styles";
 
-type ActiveSheet = "sinOperar" | "reportar" | "salida" | null;
+type ActiveSheet = "jornada" | "salida" | null;
 
 const HubDiarioScreen: React.FC = () => {
   const navigation =
@@ -50,7 +50,7 @@ const HubDiarioScreen: React.FC = () => {
     reintentarJornada,
     descartarJornada,
   } = usePendingJornadaQueue();
-  const { sinSincronizar } = usePendingMaquinariaQueue();
+  const { altasParaLaLista } = usePendingMaquinariaQueue();
   const sinSenal = useNetworkStatus() === false;
 
   /**
@@ -101,23 +101,21 @@ const HubDiarioScreen: React.FC = () => {
     setSelectedItem(null);
   }, []);
 
-  const handleReportar = useCallback((item: FilaMaquinaria) => {
-    setSelectedItem(item);
-    setActiveSheet("reportar");
-  }, []);
-
-  const handleSinOperar = useCallback((item: FilaMaquinaria) => {
-    setSelectedItem(item);
-    setActiveSheet("sinOperar");
+  // `congelarFila` y no la fila tal cual: lo que entra a estado de React
+  // sobrevive a refrescos del hub, y un objeto vivo de Realm no. Ver
+  // `congelarFila`.
+  const handleAbrirJornada = useCallback((item: FilaMaquinaria) => {
+    setSelectedItem(congelarFila(item));
+    setActiveSheet("jornada");
   }, []);
 
   const handleSalida = useCallback((item: FilaMaquinaria) => {
-    setSelectedItem(item);
+    setSelectedItem(congelarFila(item));
     setActiveSheet("salida");
   }, []);
 
   const handleReconciliar = useCallback((item: FilaMaquinaria) => {
-    setReconciliacionItem(item);
+    setReconciliacionItem(congelarFila(item));
   }, []);
 
   const renderItem = useCallback(
@@ -130,8 +128,7 @@ const HubDiarioScreen: React.FC = () => {
             : porEstancia.get(item.estancia_id)
         }
         sinSenal={sinSenal}
-        onReportar={handleReportar}
-        onSinOperar={handleSinOperar}
+        onAbrirJornada={handleAbrirJornada}
         onSalida={handleSalida}
         onReconciliar={handleReconciliar}
         onResolverCola={handleResolverCola}
@@ -141,8 +138,7 @@ const HubDiarioScreen: React.FC = () => {
       porEstancia,
       porMaquinariaLocal,
       sinSenal,
-      handleReportar,
-      handleSinOperar,
+      handleAbrirJornada,
       handleSalida,
       handleReconciliar,
       handleResolverCola,
@@ -190,8 +186,36 @@ const HubDiarioScreen: React.FC = () => {
    * usuario está buscando en ese momento. Si se mezclaran al final de una
    * lista de veinte máquinas, registrar una se sentiría como que no pasó nada.
    */
+  /**
+   * Una máquina deja de pintarse como local cuando **el servidor ya la trae**,
+   * no cuando su POST responde.
+   *
+   * El alta se marca `done` apenas el servidor contesta, pero el hub tarda un
+   * refetch más en incluirla. Soltarla en ese momento la hacía desaparecer de
+   * la pantalla y volver un segundo después; esperar a verla en el hub cierra
+   * la ventana sin duplicar la fila.
+   *
+   * `maquinariaId` es nulo mientras el alta no se haya enviado, y ésas siempre
+   * se pintan: son justamente las que el servidor no conoce.
+   */
+  const idsEnElServidor = useMemo(
+    () =>
+      new Set(
+        hub?.maquinarias ? Array.from(hub.maquinarias).map((m) => m.id) : [],
+      ),
+    [hub],
+  );
+  const locales = useMemo(
+    () =>
+      Array.from(altasParaLaLista).filter(
+        (alta) =>
+          alta.maquinariaId === null || !idsEnElServidor.has(alta.maquinariaId),
+      ),
+    [altasParaLaLista, idsEnElServidor],
+  );
+
   const all = [
-    ...sinSincronizar.map(filaDeCola),
+    ...locales.map(filaDeCola),
     ...(hub?.maquinarias ? Array.from(hub.maquinarias).map(filaDeServidor) : []),
   ];
   const maquinarias = !activeFilter
@@ -217,7 +241,17 @@ const HubDiarioScreen: React.FC = () => {
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <FlatList
         data={maquinarias}
-        keyExtractor={(item) => String(item.id)}
+        // La llave decide si React ACTUALIZA una fila o la destruye y crea
+        // otra. Usar `item.id` tenía dos defectos: todas las máquinas locales
+        // valen 0 —dos registradas sin señal compartían llave— y al
+        // sincronizar la llave saltaba de 0 al id real, así que la fila se
+        // desmontaba y volvía a montar. Eso era el parpadeo.
+        //
+        // Con el id del servidor en cuanto existe, la fila local y la del hub
+        // comparten llave y la transición es una simple actualización.
+        keyExtractor={(item) =>
+          item.id > 0 ? `m-${item.id}` : `local-${item.maquinariaLocalId}`
+        }
         renderItem={renderItem}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmpty}
@@ -244,15 +278,8 @@ const HubDiarioScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ReportarJornadaSheet
-        isVisible={activeSheet === "reportar"}
-        onClose={closeSheet}
-        item={selectedItem}
-        constructionId={constructionId}
-      />
-
-      <SinOperarSheet
-        isVisible={activeSheet === "sinOperar"}
+      <JornadaSheet
+        isVisible={activeSheet === "jornada"}
         onClose={closeSheet}
         item={selectedItem}
         constructionId={constructionId}

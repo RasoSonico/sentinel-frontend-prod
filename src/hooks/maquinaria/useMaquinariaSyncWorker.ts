@@ -6,7 +6,6 @@ import { useAppSelector } from "src/redux/hooks";
 import { ApiError } from "src/services/api/apiClient";
 import {
   createJornada,
-  createJornadaTransitoria,
   createMaquinaria,
 } from "src/hooks/data/api/maquinariaApi";
 import { MAQUINARIA_QUERY_KEYS } from "src/hooks/data/query/maquinariaQueries.const";
@@ -188,40 +187,38 @@ export function useMaquinariaSyncWorker() {
       markAsSyncing(item._id);
 
       try {
-        const respuesta = item.esTransitoria
-          ? await createJornadaTransitoria({
-              client_id: item._id,
-              maquinaria_id: item.maquinariaId,
-              catalog_id: item.catalogId as number,
-              concept_id: item.conceptId ?? undefined,
-              fecha: item.fecha,
-              observaciones: item.observaciones || undefined,
-              horometro_inicial: item.horometroInicial ?? undefined,
-              horometro_final: item.horometroFinal ?? undefined,
-            })
-          : await createJornada(
-              (item.estado === "TRABAJANDO"
-                ? {
-                    client_id: item._id,
-                    estancia: item.estanciaId,
-                    fecha: item.fecha,
-                    estado: "TRABAJANDO",
-                    catalog: item.catalogId as number,
-                    concept: item.conceptId ?? undefined,
-                    observaciones: item.observaciones || undefined,
-                    horometro_inicial: item.horometroInicial ?? undefined,
-                    horometro_final: item.horometroFinal ?? undefined,
-                  }
-                : {
-                    client_id: item._id,
-                    estancia: item.estanciaId,
-                    fecha: item.fecha,
-                    estado: "SIN_OPERAR",
-                    motivo_inactividad:
-                      item.motivoInactividad as MotivoInactividad,
-                    observaciones: item.observaciones || undefined,
-                  }) as CreateJornadaBody,
-            );
+        // Ordenados por `orden` y no por el orden de la lista: el servidor
+        // numera por POSICIÓN en el arreglo, así que mandarlos revueltos
+        // renumeraría las actividades del supervisor.
+        const detalles = Array.from(item.detalles)
+          .sort((a, b) => a.orden - b.orden)
+          .map((d) => ({
+            concept_id: d.concept ?? undefined,
+            descripcion: d.descripcion || undefined,
+            horas_estimadas: d.horas_estimadas ?? undefined,
+          }));
+
+        const respuesta = await createJornada(
+          (item.estado === "TRABAJANDO"
+            ? {
+                client_id: item._id,
+                estancia: item.estanciaId,
+                fecha: item.fecha,
+                estado: "TRABAJANDO",
+                detalles,
+                observaciones: item.observaciones || undefined,
+                horometro_inicial: item.horometroInicial ?? undefined,
+                horometro_final: item.horometroFinal ?? undefined,
+              }
+            : {
+                client_id: item._id,
+                estancia: item.estanciaId,
+                fecha: item.fecha,
+                estado: "SIN_OPERAR",
+                motivo_inactividad: item.motivoInactividad as MotivoInactividad,
+                observaciones: item.observaciones || undefined,
+              }) as CreateJornadaBody,
+        );
 
         markAsDone(item._id, respuesta.id);
         return true;

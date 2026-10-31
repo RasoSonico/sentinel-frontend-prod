@@ -24,11 +24,24 @@ export function usePendingMaquinariaQueue() {
   const realm = useRealm();
   const todas = useQuery(PendingMaquinariaSubmission);
 
-  /** Las que todavía no están en el servidor: el hub las pinta como locales. */
-  const sinSincronizar = useMemo(
-    () => todas.filter((m) => m.status !== "done"),
-    [todas],
-  );
+  /**
+   * Las altas que la lista del hub PUEDE necesitar pintar. Incluidas las
+   * `done`, y eso es el punto.
+   *
+   * Antes esto filtraba `status !== "done"` y producía un parpadeo: en cuanto
+   * el POST respondía, la máquina salía de aquí; el refetch del hub tardaba un
+   * poco más en aterrizar, y en esa ventana la máquina **no estaba en ninguna
+   * de las dos listas**. El supervisor veía desaparecer una máquina que acababa
+   * de registrar y reaparecer un segundo después.
+   *
+   * Es el mismo hueco que hacía que una tarjeta volviera a "Sin reportar hoy",
+   * y se tapa igual: lo enviado se sigue pintando hasta que el servidor lo
+   * confirme de verdad.
+   *
+   * **Quién sobra no se decide aquí.** Este hook no sabe qué máquinas trae el
+   * hub; sólo la pantalla tiene las dos mitades. Ver `HubDiarioScreen`.
+   */
+  const altasParaLaLista = todas;
 
   const pendingCount = useMemo(
     () => todas.filter((m) => m.status === "pending").length,
@@ -230,7 +243,7 @@ export function usePendingMaquinariaQueue() {
 
   return {
     todas,
-    sinSincronizar,
+    altasParaLaLista,
     pendingCount,
     totalCount,
     getItemById,

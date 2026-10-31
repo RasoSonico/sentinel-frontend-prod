@@ -21,7 +21,7 @@ import {
   altaMaquinariaDefaultValues,
   AltaMaquinariaFormData,
 } from "./util/altaMaquinariaValidation";
-import { PropietarioTipo, TipoPermanencia } from "src/types/maquinaria";
+import { PropietarioTipo } from "src/types/maquinaria";
 import { useMemo } from "react";
 import { MARCAS_MAQUINARIA } from "../constants/marcasMaquinaria";
 import { useModal } from "src/modules/modals/ModalContext";
@@ -36,15 +36,6 @@ const PROPIETARIO_OPTIONS: { value: PropietarioTipo; label: string }[] = [
   { value: "PROPIA", label: "Propia" },
   { value: "RENTADA", label: "Rentada" },
   { value: "SUBCONTRATISTA", label: "Subcontratista" },
-];
-
-const PERMANENCIA_OPTIONS: {
-  value: TipoPermanencia;
-  label: string;
-  desc: string;
-}[] = [
-  { value: "RESIDENTE", label: "Residente", desc: "Permanece en la obra" },
-  { value: "TRANSITORIA", label: "Transitoria", desc: "Visita puntual" },
 ];
 
 const FieldError: React.FC<{ message?: string }> = ({ message }) =>
@@ -205,39 +196,9 @@ const AltaMaquinariaForm: React.FC<Props> = ({ constructionId, onSuccess }) => {
         </View>
       </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Permanencia en obra</Text>
-        <Controller
-          control={control}
-          name="tipo_permanencia"
-          render={({ field: { value, onChange } }) => (
-            <View style={styles.permRow}>
-              {PERMANENCIA_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={[
-                    styles.permBtn,
-                    value === opt.value && styles.permBtnActive,
-                  ]}
-                  onPress={() => onChange(opt.value)}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.permTitle,
-                      value === opt.value && styles.permTitleActive,
-                    ]}
-                  >
-                    {opt.label}
-                  </Text>
-                  <Text style={styles.permDesc}>{opt.desc}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        />
-        <FieldError message={errors.tipo_permanencia?.message} />
-      </View>
+      {/* "Permanencia en obra" se retiró (ADR-007 D13): toda máquina se
+          registra como residente y una renta corta es una estancia que se
+          cierra al registrar la salida. */}
 
       <View style={styles.field}>
         <Text style={styles.label}>Tipo de propiedad</Text>

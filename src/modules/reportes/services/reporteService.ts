@@ -28,7 +28,7 @@ const { proveedores, reportes } = API_CONFIG.endpoints;
  * Contratistas activos de la obra. Alimenta la selección previa (P-00).
  *
  * Pega a `/api/proveedores/` y no a `/api/reportes/...`: el catálogo de
- * empresas es del negocio, no del formato UIN-TOP-F-002. Vive en este archivo
+ * empresas es del negocio, no del formato UIN-RP-F-002. Vive en este archivo
  * porque hoy el reporte diario es su único consumidor; cuando haya otro, la
  * función se muda a un servicio propio.
  */

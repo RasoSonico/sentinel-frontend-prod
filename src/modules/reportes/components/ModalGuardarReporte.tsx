@@ -6,20 +6,26 @@ import {
   Text,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-
 import { DesignTokens } from "src/styles/designTokens";
 import { fs, lh, sp } from "src/styles/escala";
 
 import { BotonWizard } from "./BotonWizard";
 
 /**
- * Confirmación de guardado y su resultado (ADR-006, Decisión 7).
+ * Confirmación de guardado (ADR-006, Decisión 7).
  *
  * **El modal está justificado por la finalidad, no por cortesía.** Es la única
  * confirmación del módulo y existe porque después de guardar no hay vuelta
  * atrás dentro de la app. Queda escrito para que nadie lo conserve por inercia:
  * **si algún día se implementa edición post-guardado, este modal se retira.**
+ *
+ * El modal de RESULTADO que vivía aquí se retiró. Prometía "Guardado y
+ * enviado" con un botón "Generar Excel" en el instante en que el reporte
+ * apenas entraba a la cola: el error estaba en el diseño, no en el código —en
+ * ese momento no hay archivo que generar ni entrega que confirmar—. Al
+ * quitarle esa opción ya no quedaba nada que elegir, y un segundo modal solo
+ * repetiría, a cambio de un toque por guardado, lo que la lista dice mejor y
+ * sola. Ahora "Guardar reporte" lleva directo a REPORTES DE LA OBRA.
  */
 
 interface PropsConfirmacion {
@@ -68,79 +74,6 @@ export function ModalConfirmarGuardado({
   );
 }
 
-interface PropsResultado {
-  visible: boolean;
-  /** Con red el reporte va camino al servidor; sin red se queda en el teléfono. */
-  enviado: boolean;
-  onGenerarExcel: () => void;
-  onIrAMisReportes: () => void;
-}
-
-export function ModalResultadoGuardado({
-  visible,
-  enviado,
-  onGenerarExcel,
-  onIrAMisReportes,
-}: PropsResultado) {
-  return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={estilos.telon}>
-        <View style={estilos.tarjeta}>
-          <View
-            style={[
-              estilos.emblema,
-              enviado ? estilos.emblemaExito : estilos.emblemaEspera,
-            ]}
-          >
-            <Ionicons
-              name={enviado ? "checkmark" : "cloud-offline-outline"}
-              size={fs(26)}
-              color={DesignTokens.colors.background.primary}
-            />
-          </View>
-
-          <Text style={estilos.titulo}>
-            {enviado ? "Guardado y enviado" : "Guardado en el teléfono"}
-          </Text>
-
-          {enviado ? (
-            <Text style={estilos.texto}>
-              Ya está en el historial de la obra. Cualquier miembro puede
-              consultarlo y generar su archivo.
-            </Text>
-          ) : (
-            <>
-              <View style={estilos.chip}>
-                <Text style={estilos.chipTexto}>Por enviar</Text>
-              </View>
-              <Text style={estilos.texto}>
-                Se enviará solo al recuperar la señal. Los archivos se generan
-                cuando el reporte llegue al servidor.
-              </Text>
-            </>
-          )}
-
-          <View style={estilos.accionesColumna}>
-            {enviado ? (
-              <BotonWizard
-                etiqueta="Generar Excel"
-                onPress={onGenerarExcel}
-                ancho
-              />
-            ) : null}
-            <BotonWizard
-              etiqueta="Ir a mis reportes"
-              variante={enviado ? "contorno" : "navy"}
-              onPress={onIrAMisReportes}
-              ancho
-            />
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 const sinPaddingAndroid =
   Platform.OS === "android"
     ? { includeFontPadding: false, textAlignVertical: "center" as const }
@@ -163,17 +96,6 @@ const estilos = StyleSheet.create({
     gap: sp(10),
     ...DesignTokens.shadows.lg,
   },
-  emblema: {
-    alignSelf: "center",
-    width: sp(52),
-    height: sp(52),
-    borderRadius: sp(26),
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: sp(4),
-  },
-  emblemaExito: { backgroundColor: DesignTokens.colors.success[600] },
-  emblemaEspera: { backgroundColor: DesignTokens.colors.executive.light },
   titulo: {
     textAlign: "center",
     fontSize: fs(DesignTokens.typography.fontSize.lg),
@@ -192,19 +114,5 @@ const estilos = StyleSheet.create({
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.neutral[800],
   },
-  chip: {
-    alignSelf: "center",
-    paddingHorizontal: sp(10),
-    paddingVertical: sp(3),
-    borderRadius: DesignTokens.borderRadius.full,
-    backgroundColor: DesignTokens.colors.warning[100],
-  },
-  chipTexto: {
-    fontSize: fs(DesignTokens.typography.fontSize.xs),
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-    color: DesignTokens.colors.warning[800],
-    ...sinPaddingAndroid,
-  },
   acciones: { flexDirection: "row", gap: sp(12), marginTop: sp(8) },
-  accionesColumna: { gap: sp(10), marginTop: sp(8) },
 });

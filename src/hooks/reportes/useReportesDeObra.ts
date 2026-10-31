@@ -5,6 +5,7 @@ import {
   getReporteDetalle,
   getReportesPorObra,
 } from "src/modules/reportes/services/reporteService";
+import { useAppSelector } from "src/redux/hooks";
 import type { ReporteListItem } from "src/types/reporte";
 
 import { REPORTE_QUERY_KEYS } from "../data/query/reporteQueries.const";
@@ -56,6 +57,17 @@ export interface FilaReporte {
    * para llegar a la misma conclusión.
    */
   disponible: boolean;
+  /**
+   * Si quien mira es quien lo reportó.
+   *
+   * Se calcula aquí y no en la pantalla porque la respuesta depende de dos
+   * fuentes —la cola y el id del servidor— y tenía que ser la misma en las
+   * dos. La pantalla lo deducía de `porEnviar`, así que el usuario dejaba de
+   * ser autor de su propio reporte en cuanto se enviaba: la telemetría
+   * `reporte_archivo_generated` venía con `es_autor: false` para todo archivo
+   * generado de un reporte ya entregado.
+   */
+  esAutor: boolean;
   createdAt: Date;
 }
 
@@ -67,6 +79,11 @@ export function useReportesDeObra(constructionId: number | null) {
   });
 
   const { reportesEnCola } = usePendingReporteQueue();
+
+  // El id de `/usuarios/me/` es la PK de Django en texto, y `reportado_por` es
+  // esa misma PK como número: se compara en string para no depender de un
+  // `Number()` sobre un campo que el backend declara como texto.
+  const usuarioId = useAppSelector((state) => state.auth.user?.id) ?? null;
 
   const filas = useMemo<FilaReporte[]>(() => {
     const crudo = consulta.data;
@@ -99,6 +116,8 @@ export function useReportesDeObra(constructionId: number | null) {
         // muestre: no es "por enviar", solo va por delante del refetch.
         porEnviar: r.status !== "done",
         fallo: r.status === "failed",
+        // Un reporte en cola existe solo en el teléfono de su autor.
+        esAutor: true,
         // En la cola, disponible = el POST ya respondió Y sus fotos cerraron.
         disponible: r.status === "done" && r.fotosPendientes === 0,
         intentosAgotados: r.intentosAgotados,
@@ -116,6 +135,7 @@ export function useReportesDeObra(constructionId: number | null) {
       fotosCount: r.fotos_count,
       porEnviar: false,
       fallo: false,
+      esAutor: usuarioId !== null && String(r.reportado_por) === usuarioId,
       // Del servidor: ya está ahí, así que solo falta que cierren las fotos.
       disponible: (r.fotos_pendientes ?? 0) === 0,
       intentosAgotados: false,
@@ -132,7 +152,7 @@ export function useReportesDeObra(constructionId: number | null) {
         b.createdAt.getTime() - a.createdAt.getTime(),
       ),
     ];
-  }, [consulta.data, reportesEnCola, constructionId]);
+  }, [consulta.data, reportesEnCola, constructionId, usuarioId]);
 
   return { ...consulta, filas };
 }

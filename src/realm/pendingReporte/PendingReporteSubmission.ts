@@ -36,6 +36,19 @@ export class PendingReporteSubmission extends Realm.Object<PendingReporteSubmiss
   fotosJson!: string;
   /** `[ids]` de TODO lo palomeado en P-00: contratistas y supervisión */
   proveedorIdsJson!: string;
+  /**
+   * La firma, serializada: `{ancho, alto, trazos}`.
+   *
+   * **Viaja aquí dentro y no como un archivo aparte.** Firmar es obligatorio
+   * para cerrar (ADR-006 del backend, decisión 6), así que una subida separada
+   * convertiría la falta de señal en un bloqueo para cerrar el reporte — justo
+   * lo que esta cola existe para evitar. Son unos 4 KB de texto.
+   *
+   * Se guarda SIEMPRE, también cuando salió del perfil: un reporte capturado
+   * el lunes puede sincronizarse el jueves, y para entonces su autor pudo
+   * haber borrado la firma de su perfil. Así la captura se basta sola.
+   */
+  firmaJson!: string;
 
   // Contexto de presentación, para pintar la fila "Por enviar" sin red
   constructionName!: string;
@@ -72,6 +85,7 @@ export class PendingReporteSubmission extends Realm.Object<PendingReporteSubmiss
       actividadesJson: "string",
       fotosJson: "string",
       proveedorIdsJson: "string",
+      firmaJson: { type: "string", default: "" },
 
       constructionName: "string",
       contratistasJson: "string",

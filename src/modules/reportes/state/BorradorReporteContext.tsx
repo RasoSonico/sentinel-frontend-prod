@@ -8,7 +8,7 @@ import React, {
 import { uuid } from "expo-modules-core";
 
 import { hoyLocal } from "src/hooks/data/query/useAvance/utils/programaCalculos";
-import type { Proveedor } from "src/types/reporte";
+import type { FirmaPayload, Proveedor } from "src/types/reporte";
 
 import type { AreaReporte } from "../constantes";
 
@@ -78,6 +78,15 @@ export interface BorradorReporte {
   actividades: ActividadBorrador[];
   fotos: FotoBorrador[];
   conclusion: string;
+  /**
+   * La firma de quien cierra. `null` hasta que se firma, y firmar es
+   * obligatorio: sin esto el botón de cerrar no se habilita.
+   *
+   * Se guarda la GEOMETRÍA, también cuando salió del perfil, para que el
+   * reporte encolado se baste solo: puede sincronizarse días después, y para
+   * entonces su autor pudo haber cambiado o borrado la firma de su perfil.
+   */
+  firma: FirmaPayload | null;
 }
 
 const borradorVacio = (): BorradorReporte => ({
@@ -89,6 +98,7 @@ const borradorVacio = (): BorradorReporte => ({
   actividades: [],
   fotos: [],
   conclusion: "",
+  firma: null,
 });
 
 type Accion =
@@ -103,6 +113,7 @@ type Accion =
   | { tipo: "foto/eliminar"; id: string }
   | { tipo: "fotos/reordenar"; ids: string[] }
   | { tipo: "conclusion"; texto: string }
+  | { tipo: "firma"; firma: FirmaPayload | null }
   | { tipo: "reiniciar" };
 
 const porIds = <T extends { id: string }>(items: T[], ids: string[]): T[] => {
@@ -189,6 +200,9 @@ function reducer(estado: BorradorReporte, accion: Accion): BorradorReporte {
     case "conclusion":
       return { ...estado, conclusion: accion.texto };
 
+    case "firma":
+      return { ...estado, firma: accion.firma };
+
     case "reiniciar":
       return borradorVacio();
 
@@ -210,6 +224,8 @@ interface ContextoBorrador {
   eliminarFoto: (id: string) => void;
   reordenarFotos: (ids: string[]) => void;
   setConclusion: (texto: string) => void;
+  /** `null` la borra, para volver a firmar. */
+  setFirma: (firma: FirmaPayload | null) => void;
   reiniciar: () => void;
   /** Hay trabajo que se perdería al salir: lo que confirma el ✕. */
   tieneTrabajoSinGuardar: boolean;
@@ -269,6 +285,10 @@ export function BorradorReporteProvider({
     (texto: string) => despachar({ tipo: "conclusion", texto }),
     [],
   );
+  const setFirma = useCallback(
+    (firma: FirmaPayload | null) => despachar({ tipo: "firma", firma }),
+    [],
+  );
   const reiniciar = useCallback(() => despachar({ tipo: "reiniciar" }), []);
 
   const tieneTrabajoSinGuardar =
@@ -290,6 +310,7 @@ export function BorradorReporteProvider({
       eliminarFoto,
       reordenarFotos,
       setConclusion,
+      setFirma,
       reiniciar,
       tieneTrabajoSinGuardar,
     }),
@@ -306,6 +327,7 @@ export function BorradorReporteProvider({
       eliminarFoto,
       reordenarFotos,
       setConclusion,
+      setFirma,
       reiniciar,
       tieneTrabajoSinGuardar,
     ],

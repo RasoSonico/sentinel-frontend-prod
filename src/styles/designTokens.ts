@@ -90,6 +90,41 @@ export const DesignTokens = {
       accent: "#0F172A", // Slate 900 - Azul gris muy oscuro
       light: "#475569", // Slate 600 - Para elementos secundarios
     },
+
+    // Patrón "cerrado" (ADR-007 D11) — ESTÁNDAR DE TODA LA APP.
+    //
+    // Un elemento que el usuario YA COMPLETÓ en la pantalla actual se pinta
+    // con contorno oscuro y relleno azul tenue. Significa "esto ya quedó; si
+    // quieres cambiarlo, tócalo". El contorno sale de `executive.secondary`;
+    // estos son los rellenos.
+    //
+    // Son DOS a propósito: en un control pequeño el slate 50 casi no se
+    // distingue del blanco, así que ahí se usa el 100.
+    //
+    // No confundir con el estado de ENVÍO. "Cerrado" es completo en esta
+    // pantalla, no sincronizado; lo segundo tiene su propio lenguaje (nube,
+    // "Por enviar") y los dos conviven en el mismo bloque.
+    cerrado: {
+      fondo: "#F8FAFC", // Slate 50 — bloques compactados
+      fondoControl: "#F1F5F9", // Slate 100 — opción elegida
+    },
+
+    // Resaltado de LLEGADA (ADR-006 F33).
+    //
+    // Marca por unos segundos la fila que el usuario acaba de crear: dice
+    // "este es el tuyo", nada más. **No comunica estado** —de eso se encarga
+    // el chip— y por eso no depende del color: la señal principal es que la
+    // fila aparece arriba, y el tinte solo la refuerza.
+    //
+    // Es FONDO y nada más: sin contorno, sombra, halo ni borde lateral.
+    // Contorno y halo son lenguaje de selección y de foco.
+    //
+    // **No es el patrón "cerrado" y no puede parecerlo.** D11 significa "esto
+    // ya quedó en esta pantalla; tócalo para cambiarlo" y se declara
+    // exclusivo; una fila recién guardada ni está completa en esta pantalla
+    // ni se reabre con un toque. De ahí que el tono salga de la familia
+    // primaria y no del slate, y que no coincida con ningún chip de estado.
+    llegada: "#EBF4FF", // = primary[50]
   },
 
   // ESPACIADO

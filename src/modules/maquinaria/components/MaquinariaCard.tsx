@@ -18,8 +18,13 @@ interface Props {
   enCola?: PendingJornadaSubmission;
   /** Leído UNA vez en la pantalla: N tarjetas no deben suscribirse a NetInfo. */
   sinSenal: boolean;
-  onReportar: (item: FilaMaquinaria) => void;
-  onSinOperar: (item: FilaMaquinaria) => void;
+  /**
+    * Un gesto, un destino (ADR-007 D1). Antes eran dos botones con colores de
+    * semáforo —"Reportar jornada" en verde, "Sin operar" en ámbar— y el
+    * usuario tenía que traducir que "Sin operar" también es un reporte válido.
+    * La pregunta "¿trabajó hoy?" vive ahora dentro de la hoja.
+    */
+  onAbrirJornada: (item: FilaMaquinaria) => void;
   onSalida: (item: FilaMaquinaria) => void;
   onReconciliar: (item: FilaMaquinaria) => void;
   /**
@@ -127,8 +132,7 @@ const MaquinariaCard: React.FC<Props> = ({
   item,
   enCola,
   sinSenal,
-  onReportar,
-  onSinOperar,
+  onAbrirJornada,
   onSalida,
   onReconciliar,
   onResolverCola,
@@ -242,48 +246,33 @@ const MaquinariaCard: React.FC<Props> = ({
         )}
       </View>
 
-      {!hasJornada && (
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => onReportar(item)}
-            activeOpacity={0.7}
+      {/* Siempre visible, también con la jornada ya reportada: el
+          diagnóstico del módulo fue que "lo capturado no vuelve a verse" (H4),
+          y sin una puerta de regreso no hay forma de corregir un error.
+
+          Sin color semántico: con un solo destino no hay semáforo que
+          interpretar. */}
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => onAbrirJornada(item)}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name={hasJornada ? "create-outline" : "clipboard-outline"}
+            size={16}
+            color={DesignTokens.colors.executive.secondary}
+          />
+          <Text
+            style={[
+              styles.actionBtnText,
+              { color: DesignTokens.colors.executive.secondary },
+            ]}
           >
-            <Ionicons
-              name="checkmark-circle-outline"
-              size={16}
-              color={DesignTokens.colors.success[600]}
-            />
-            <Text
-              style={[
-                styles.actionBtnText,
-                { color: DesignTokens.colors.success[600] },
-              ]}
-            >
-              Reportar jornada
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnDivider]}
-            onPress={() => onSinOperar(item)}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="pause-circle-outline"
-              size={16}
-              color={DesignTokens.colors.warning[600]}
-            />
-            <Text
-              style={[
-                styles.actionBtnText,
-                { color: DesignTokens.colors.warning[600] },
-              ]}
-            >
-              Sin operar
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            {hasJornada ? "Ver jornada" : "Reportar jornada"}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
