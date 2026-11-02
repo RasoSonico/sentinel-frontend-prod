@@ -454,9 +454,14 @@ const SabanaScreen: React.FC = () => {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>
+              {/* Sin catálogo y catálogo vacío son cosas distintas: la
+                  primera la resuelve quien da de alta la obra, la segunda
+                  quien carga sus conceptos. */}
               {query
                 ? `Sin resultados para "${query}"`
-                : "Sin conceptos en este catálogo."}
+                : catalogs.length === 0
+                  ? "Sin catálogo asignado"
+                  : "Sin conceptos en este catálogo."}
             </Text>
           </View>
         }
