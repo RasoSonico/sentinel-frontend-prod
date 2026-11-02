@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   FlatList,
@@ -7,6 +7,7 @@ import {
   Text,
   ActivityIndicator,
   Alert,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,81 +15,52 @@ import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { DesignTokens } from "src/styles/designTokens";
 import { MaquinariaStackParamList } from "src/navigation/types";
-import { useHubDiarioData } from "../hooks/useHubDiarioData";
+import { usePendingCapturaQueue } from "src/hooks/maquinaria/usePendingCapturaQueue";
+import { useVistasMaquinaria } from "../hooks/useVistasMaquinaria";
 import MaquinariaCard from "../components/MaquinariaCard";
-import HubResumenHeader, { HubFilter } from "../components/HubResumenHeader";
+import HubResumenHeader from "../components/HubResumenHeader";
 import JornadaSheet from "../components/JornadaSheet";
 import SalidaObraSheet from "../components/SalidaObraSheet";
 import ReconciliacionModal from "../components/ReconciliacionModal";
 import IngresoMaquinariaModal from "../components/IngresoMaquinariaModal";
-import { usePendingJornadaQueue } from "src/hooks/maquinaria/usePendingJornadaQueue";
-import { usePendingMaquinariaQueue } from "src/hooks/maquinaria/usePendingMaquinariaQueue";
-import {
-  congelarFila,
-  filaDeCola,
-  filaDeServidor,
-  type FilaMaquinaria,
-} from "../filaMaquinaria";
-import { PendingJornadaSubmission } from "src/realm/pendingJornada/PendingJornadaSubmission";
-import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import type { Seccion, VistaMaquina } from "../diaMaquina";
 import styles from "../styles/HubDiarioScreen.styles";
 
 type ActiveSheet = "jornada" | "salida" | null;
+
+/** Orden FIJO de las secciones (ADR-009 D8). Una vacía no aparece. */
+const SECCIONES: { seccion: Seccion; titulo: string }[] = [
+  { seccion: "ATENCION", titulo: "Requiere atención" },
+  { seccion: "SIN_TRABAJAR", titulo: "Sin trabajar" },
+  { seccion: "TRABAJANDO", titulo: "Trabajando" },
+];
+
+interface Bloque {
+  seccion: Seccion;
+  titulo: string;
+  vistas: VistaMaquina[];
+}
 
 const HubDiarioScreen: React.FC = () => {
   const navigation =
     useNavigation<StackNavigationProp<MaquinariaStackParamList>>();
 
-  const { hub, constructionId, isLoading, refetch } = useHubDiarioData();
+  const { hub, vistas, hoy, constructionId, isLoading, refetch } =
+    useVistasMaquinaria();
+  const { reintentarCaptura, descartarCaptura } = usePendingCapturaQueue();
 
-  // La cola, para que la tarjeta refleje lo capturado antes de que el servidor
-  // lo confirme. Y la señal leída UNA vez aquí: llamarla dentro de la tarjeta
-  // serían N suscripciones a NetInfo para el mismo valor.
-  const {
-    porEstancia,
-    porMaquinariaLocal,
-    reintentarJornada,
-    descartarJornada,
-  } = usePendingJornadaQueue();
-  const { altasParaLaLista } = usePendingMaquinariaQueue();
-  const sinSenal = useNetworkStatus() === false;
-
-  /**
-   * Rescate de una jornada fallida: reintentar o descartar.
-   *
-   * "Reintentar" devuelve el presupuesto COMPLETO de intentos. Que lo pida una
-   * persona cambia el significado: sabe algo que el teléfono no, como que el
-   * servidor ya se arregló. Mismo criterio que el detalle del reporte.
-   */
-  const handleResolverCola = useCallback(
-    (enCola: PendingJornadaSubmission) => {
-      const id = enCola._id;
-      const etiqueta = enCola.maquinariaEtiqueta || "esta jornada";
-      Alert.alert(
-        "No se envió",
-        `${enCola.errorMessage ?? "El envío falló."}\n\n${etiqueta}`,
-        [
-          { text: "Cancelar", style: "cancel" },
-          { text: "Reintentar", onPress: () => reintentarJornada(id) },
-          {
-            text: "Descartar",
-            style: "destructive",
-            onPress: () => descartarJornada(id),
-          },
-        ],
-      );
-    },
-    [reintentarJornada, descartarJornada],
-  );
-
+  // Se guarda la LLAVE de la máquina, nunca la vista ni la fila: la vista se
+  // recalcula en cada render con lo que haya en ese momento, así que la hoja
+  // ve sus propias capturas al guardarlas y nunca retiene un objeto de Realm
+  // que el siguiente refresco del hub invalide.
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
-  const [selectedItem, setSelectedItem] =
-    useState<FilaMaquinaria | null>(null);
-  const [reconciliacionItem, setReconciliacionItem] =
-    useState<FilaMaquinaria | null>(null);
+  const [llaveElegida, setLlaveElegida] = useState<string | null>(null);
+  const [llaveReconciliacion, setLlaveReconciliacion] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showIngresoModal, setShowIngresoModal] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<HubFilter>(null);
+
+  const elegida = vistas.find((v) => v.llave === llaveElegida) ?? null;
+  const reconciliacion = vistas.find((v) => v.llave === llaveReconciliacion) ?? null;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -96,71 +68,101 @@ const HubDiarioScreen: React.FC = () => {
     setRefreshing(false);
   }, [refetch]);
 
-  const closeSheet = useCallback(() => {
-    setActiveSheet(null);
-    setSelectedItem(null);
+  /**
+   * Cada hoja avisa al cerrarse —también cuando se cierra porque otra tomó su
+   * lugar—, así que solo se apaga si la que se cierra es la activa. Sin esto,
+   * pasar de la jornada a "Registrar salida" cerraba las dos.
+   *
+   * La llave elegida no se limpia: cada hoja se reinicia sola al abrirse, y
+   * la llave solo se lee mientras alguna está abierta.
+   */
+  const cerrarSi = useCallback((hoja: Exclude<ActiveSheet, null>) => {
+    setActiveSheet((activa) => (activa === hoja ? null : activa));
   }, []);
+  const cerrarJornada = useCallback(() => cerrarSi("jornada"), [cerrarSi]);
+  const cerrarSalida = useCallback(() => cerrarSi("salida"), [cerrarSi]);
 
-  // `congelarFila` y no la fila tal cual: lo que entra a estado de React
-  // sobrevive a refrescos del hub, y un objeto vivo de Realm no. Ver
-  // `congelarFila`.
-  const handleAbrirJornada = useCallback((item: FilaMaquinaria) => {
-    setSelectedItem(congelarFila(item));
-    setActiveSheet("jornada");
-  }, []);
+  /**
+   * Rescate de una captura que no se pudo enviar: reintentar o descartar.
+   *
+   * "Reintentar" devuelve el presupuesto COMPLETO de intentos: que lo pida
+   * una persona cambia el significado. Descartarla libera las capturas que
+   * esperaban detrás de ella.
+   */
+  const resolverFallida = useCallback(
+    (vista: VistaMaquina) => {
+      if (vista.atencion?.motivo !== "FALLIDA") return;
+      const { capturaId, mensaje } = vista.atencion;
+      const etiqueta = `${vista.maquina.tipo} · ${vista.maquina.marca} ${vista.maquina.modelo}`;
+      Alert.alert("No se envió", `${mensaje}\n\n${etiqueta}`, [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Reintentar", onPress: () => reintentarCaptura(capturaId) },
+        {
+          text: "Descartar",
+          style: "destructive",
+          onPress: () => descartarCaptura(capturaId),
+        },
+      ]);
+    },
+    [reintentarCaptura, descartarCaptura],
+  );
 
-  const handleSalida = useCallback((item: FilaMaquinaria) => {
-    setSelectedItem(congelarFila(item));
+  /** Toda la tarjeta es el destino; "Resolver" despacha según el motivo. */
+  const onTarjeta = useCallback(
+    (vista: VistaMaquina) => {
+      if (vista.atencion?.motivo === "FALLIDA") {
+        resolverFallida(vista);
+        return;
+      }
+      if (vista.atencion?.motivo === "RECONCILIACION") {
+        setLlaveReconciliacion(vista.llave);
+        return;
+      }
+      // El cierre olvidado también va a la hoja: ella sabe pedirlo.
+      setLlaveElegida(vista.llave);
+      setActiveSheet("jornada");
+    },
+    [resolverFallida],
+  );
+
+  const onRegistrarSalida = useCallback(() => {
     setActiveSheet("salida");
   }, []);
 
-  const handleReconciliar = useCallback((item: FilaMaquinaria) => {
-    setReconciliacionItem(congelarFila(item));
-  }, []);
+  const bloques: Bloque[] = SECCIONES.map(({ seccion, titulo }) => ({
+    seccion,
+    titulo,
+    vistas: vistas.filter((v) => v.seccion === seccion),
+  })).filter((b) => b.vistas.length > 0);
 
-  const renderItem = useCallback(
-    ({ item }: { item: FilaMaquinaria }) => (
-      <MaquinariaCard
-        item={item}
-        enCola={
-          item.maquinariaLocalId
-            ? porMaquinariaLocal.get(item.maquinariaLocalId)
-            : porEstancia.get(item.estancia_id)
-        }
-        sinSenal={sinSenal}
-        onAbrirJornada={handleAbrirJornada}
-        onSalida={handleSalida}
-        onReconciliar={handleReconciliar}
-        onResolverCola={handleResolverCola}
-      />
-    ),
-    [
-      porEstancia,
-      porMaquinariaLocal,
-      sinSenal,
-      handleAbrirJornada,
-      handleSalida,
-      handleReconciliar,
-      handleResolverCola,
-    ],
+  const reportadas = vistas.filter((v) => v.reportada).length;
+
+  const renderBloque = useCallback(
+    ({ item }: { item: Bloque }) => {
+      const atencion = item.seccion === "ATENCION";
+      return (
+        <View>
+          <View style={locales.seccionFila}>
+            <Text style={locales.seccionTitulo}>{item.titulo}</Text>
+            <Text style={locales.seccionCuenta}>{item.vistas.length}</Text>
+          </View>
+          {/* "Requiere atención" va todo en rojo, empezando por el contorno. */}
+          <View style={[locales.grupo, atencion && locales.grupoAtencion]}>
+            {item.vistas.map((vista, i) => (
+              <MaquinariaCard
+                key={vista.llave}
+                vista={vista}
+                hoy={hoy}
+                primera={i === 0}
+                onPress={onTarjeta}
+              />
+            ))}
+          </View>
+        </View>
+      );
+    },
+    [hoy, onTarjeta],
   );
-
-  const renderHeader = useCallback(() => {
-    if (!hub) return null;
-    return (
-      <HubResumenHeader
-        resumen={{
-          total_en_sitio: hub.total_en_sitio,
-          reportadas_hoy: hub.reportadas_hoy,
-          sin_reportar: hub.sin_reportar,
-          sin_operar: hub.sin_operar,
-        }}
-        fecha={hub.fecha}
-        activeFilter={activeFilter}
-        onFilterPress={setActiveFilter}
-      />
-    );
-  }, [hub, activeFilter]);
 
   const renderEmpty = useCallback(() => {
     if (isLoading) return null;
@@ -179,54 +181,7 @@ const HubDiarioScreen: React.FC = () => {
     );
   }, [isLoading]);
 
-  /**
-   * Las del servidor MÁS las que todavía viven en el teléfono.
-   *
-   * Las locales van primero: son las que acaban de darse de alta y las que el
-   * usuario está buscando en ese momento. Si se mezclaran al final de una
-   * lista de veinte máquinas, registrar una se sentiría como que no pasó nada.
-   */
-  /**
-   * Una máquina deja de pintarse como local cuando **el servidor ya la trae**,
-   * no cuando su POST responde.
-   *
-   * El alta se marca `done` apenas el servidor contesta, pero el hub tarda un
-   * refetch más en incluirla. Soltarla en ese momento la hacía desaparecer de
-   * la pantalla y volver un segundo después; esperar a verla en el hub cierra
-   * la ventana sin duplicar la fila.
-   *
-   * `maquinariaId` es nulo mientras el alta no se haya enviado, y ésas siempre
-   * se pintan: son justamente las que el servidor no conoce.
-   */
-  const idsEnElServidor = useMemo(
-    () =>
-      new Set(
-        hub?.maquinarias ? Array.from(hub.maquinarias).map((m) => m.id) : [],
-      ),
-    [hub],
-  );
-  const locales = useMemo(
-    () =>
-      Array.from(altasParaLaLista).filter(
-        (alta) =>
-          alta.maquinariaId === null || !idsEnElServidor.has(alta.maquinariaId),
-      ),
-    [altasParaLaLista, idsEnElServidor],
-  );
-
-  const all = [
-    ...locales.map(filaDeCola),
-    ...(hub?.maquinarias ? Array.from(hub.maquinarias).map(filaDeServidor) : []),
-  ];
-  const maquinarias = !activeFilter
-    ? all
-    : activeFilter === "reportadas"
-      ? all.filter((m) => !!m.jornada_id)
-      : activeFilter === "sin_reportar"
-        ? all.filter((m) => !m.jornada_id)
-        : all.filter((m) => m.jornada_estado === "SIN_OPERAR");
-
-  if (isLoading && !hub) {
+  if (isLoading && !hub && vistas.length === 0) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator
@@ -240,20 +195,16 @@ const HubDiarioScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <FlatList
-        data={maquinarias}
-        // La llave decide si React ACTUALIZA una fila o la destruye y crea
-        // otra. Usar `item.id` tenía dos defectos: todas las máquinas locales
-        // valen 0 —dos registradas sin señal compartían llave— y al
-        // sincronizar la llave saltaba de 0 al id real, así que la fila se
-        // desmontaba y volvía a montar. Eso era el parpadeo.
-        //
-        // Con el id del servidor en cuanto existe, la fila local y la del hub
-        // comparten llave y la transición es una simple actualización.
-        keyExtractor={(item) =>
-          item.id > 0 ? `m-${item.id}` : `local-${item.maquinariaLocalId}`
+        data={bloques}
+        keyExtractor={(b) => b.seccion}
+        renderItem={renderBloque}
+        ListHeaderComponent={
+          <HubResumenHeader
+            fecha={hoy}
+            reportadas={reportadas}
+            total={vistas.length}
+          />
         }
-        renderItem={renderItem}
-        ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={styles.listContent}
         refreshControl={
@@ -280,21 +231,23 @@ const HubDiarioScreen: React.FC = () => {
 
       <JornadaSheet
         isVisible={activeSheet === "jornada"}
-        onClose={closeSheet}
-        item={selectedItem}
+        onClose={cerrarJornada}
+        vista={elegida}
+        hoy={hoy}
         constructionId={constructionId}
+        onRegistrarSalida={onRegistrarSalida}
       />
 
       <SalidaObraSheet
         isVisible={activeSheet === "salida"}
-        onClose={closeSheet}
-        item={selectedItem}
+        onClose={cerrarSalida}
+        item={elegida}
       />
 
       <ReconciliacionModal
-        isVisible={!!reconciliacionItem}
-        onClose={() => setReconciliacionItem(null)}
-        item={reconciliacionItem}
+        isVisible={!!reconciliacion}
+        onClose={() => setLlaveReconciliacion(null)}
+        item={reconciliacion}
       />
 
       <IngresoMaquinariaModal
@@ -316,5 +269,42 @@ const HubDiarioScreen: React.FC = () => {
     </SafeAreaView>
   );
 };
+
+const locales = StyleSheet.create({
+  // Títulos de sección: un punto más notorios que el resto de rótulos del
+  // módulo —son lo que ordena la lectura del hub—, pero sin pasar a ser
+  // encabezados: siguen en versalitas pequeñas para no competir con las
+  // tarjetas.
+  seccionFila: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    marginTop: 18,
+    marginBottom: 8,
+    marginHorizontal: 2,
+  },
+  seccionTitulo: {
+    fontSize: 11.5,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: "#334155",
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+  seccionCuenta: {
+    fontSize: 11.5,
+    color: "#334155",
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+  // Blanco y con contorno fino: el hub no usa el patrón "cerrado", porque son
+  // datos del servidor y no algo que se reabre a editar.
+  grupo: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: DesignTokens.colors.background.primary,
+  },
+  grupoAtencion: { borderWidth: 1.5, borderColor: DesignTokens.colors.error[500] },
+});
 
 export default HubDiarioScreen;

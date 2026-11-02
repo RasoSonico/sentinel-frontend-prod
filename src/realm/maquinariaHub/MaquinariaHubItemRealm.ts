@@ -1,7 +1,21 @@
 import Realm from "realm";
 
-import { DetalleJornadaRealm } from "./DetalleJornadaRealm";
+import type { DetalleJornadaRealm } from "./DetalleJornadaRealm";
+import type { JornadaHubRealm } from "./JornadaHubRealm";
+import type { TurnoAbiertoRealm } from "./TurnoAbiertoRealm";
 
+/**
+ * Una máquina del hub, como la deja el último refetch con señal.
+ *
+ * Desde la reforma de capturas (ADR-009) lleva la jornada de hoy COMPLETA
+ * —turnos, renglones, autores y horas— y no unos cuantos campos aplanados: la
+ * hoja de jornada se vuelve a abrir para leer lo registrado y completar lo
+ * que falta, y eso se hace en obra, sin red.
+ *
+ * Lo que diga aquí es la versión del SERVIDOR. Lo capturado en el teléfono y
+ * todavía no enviado se funde encima en `diaMaquina.ts`; ninguna pantalla lee
+ * esto a solas.
+ */
 export class MaquinariaHubItemRealm extends Realm.Object<MaquinariaHubItemRealm> {
   id!: number;
   tipo!: string;
@@ -11,48 +25,22 @@ export class MaquinariaHubItemRealm extends Realm.Object<MaquinariaHubItemRealm>
   tipo_permanencia!: string;
   estancia_id!: number;
   estancia_fecha_ingreso!: string;
-  jornada_id!: number | null;
-  jornada_estado!: string | null;
-  jornada_motivo_inactividad!: string | null;
-  jornada_observaciones!: string | null;
-  /**
-   * Lo que la máquina hizo HOY, si ya se reportó.
-   *
-   * Sustituye a `jornada_catalog`/`jornada_concept`, que solo admitían una
-   * actividad por día. Vive aquí —y no solo en la pantalla de captura— porque
-   * la tarjeta del hub tiene que poder mostrar lo capturado sin red: que lo
-   * reportado no vuelva a verse fue el motivo documentado de que el módulo
-   * dejara de usarse.
-   */
-  jornada_detalles!: Realm.List<DetalleJornadaRealm>;
-  /**
-   * Las dos lecturas de HOY. Distintas de `ultimo_horometro`, que es la última
-   * lectura de cierre que existe —de cualquier día— y sirve de referencia al
-   * capturar.
-   *
-   * Viven aquí porque la previsualización del reporte imprime la tabla de
-   * maquinaria completa —inicial, final y horas— y esa pantalla se usa en
-   * obra. Lo que no esté en el caché no se puede enseñar sin señal.
-   */
-  jornada_horometro_inicial!: string | null;
-  jornada_horometro_final!: string | null;
-  requiere_reconciliacion!: boolean;
+  /** SIN_REPORTAR · TRABAJANDO · NO_OPERO, según el servidor. */
+  estado_dia!: string;
+  actividades_hoy!: number;
+  falta_horometro!: boolean;
+  jornada_hoy!: JornadaHubRealm | null;
+  turno_abierto!: TurnoAbiertoRealm | null;
+  /** La jornada del turno abierto cuando es de otro día: el nocturno. */
+  jornada_turno_abierto!: JornadaHubRealm | null;
+  /** SIN_FINAL · RECONCILIACION, o nulo. */
+  requiere_atencion!: string | null;
   dias_sin_reporte!: number;
   ultima_jornada_fecha!: string | null;
-  // Última lectura de cierre del horómetro y su fecha. Viven aquí, y no se
-  // piden al abrir la hoja de captura, porque la jornada se reporta en obra
-  // —donde puede no haber señal— y sin la referencia no hay con qué comparar.
+  // Último final de turno y su fecha: la sugerencia del inicial, sin red.
   ultimo_horometro!: string | null;
   ultimo_horometro_fecha!: string | null;
-  /**
-   * El último día que esta máquina **de verdad trabajó**, con todo lo que
-   * hizo. Alimenta "Repetir lo del {fecha}".
-   *
-   * No es "ayer": las obras no tienen horario fijo y trabajar o no el domingo
-   * es variable, así que buscar el día anterior dejaría el atajo inservible
-   * después de cualquier pausa. La fecha viaja para que el botón pueda decir
-   * de cuándo viene lo que va a copiar.
-   */
+  /** El último día que de verdad trabajó: alimenta "Repetir lo del {fecha}". */
   ultima_jornada_trabajada_fecha!: string | null;
   ultima_jornada_trabajada_detalles!: Realm.List<DetalleJornadaRealm>;
 
@@ -68,14 +56,17 @@ export class MaquinariaHubItemRealm extends Realm.Object<MaquinariaHubItemRealm>
       tipo_permanencia: "string",
       estancia_id: "int",
       estancia_fecha_ingreso: "string",
-      jornada_id: "int?",
-      jornada_estado: "string?",
-      jornada_motivo_inactividad: "string?",
-      jornada_observaciones: "string?",
-      jornada_detalles: { type: "list", objectType: "DetalleJornadaRealm" },
-      jornada_horometro_inicial: "string?",
-      jornada_horometro_final: "string?",
-      requiere_reconciliacion: "bool",
+      estado_dia: { type: "string", default: "SIN_REPORTAR" },
+      actividades_hoy: { type: "int", default: 0 },
+      falta_horometro: { type: "bool", default: false },
+      jornada_hoy: { type: "object", objectType: "JornadaHubRealm", optional: true },
+      turno_abierto: { type: "object", objectType: "TurnoAbiertoRealm", optional: true },
+      jornada_turno_abierto: {
+        type: "object",
+        objectType: "JornadaHubRealm",
+        optional: true,
+      },
+      requiere_atencion: "string?",
       dias_sin_reporte: "int",
       ultima_jornada_fecha: "string?",
       ultimo_horometro: "string?",

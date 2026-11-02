@@ -212,6 +212,8 @@ export default function ReporteDetailScreen() {
           motivoInactividad: m.motivo_inactividad,
           horometroInicial: m.horometro_inicial,
           horometroFinal: m.horometro_final,
+          // Ausente en detalles cacheados antes de la reforma de turnos.
+          horas: m.horas,
         })),
       },
       fotos: data.fotos.map((f) => ({

@@ -100,19 +100,24 @@ export interface DetalleJornada {
    * El reparto que hace el supervisor **a ojo** del total del horómetro.
    *
    * Cadena, no número, por lo mismo que el horómetro: el servidor la manda
-   * así y el flotante perdería décimas. Es percepción, no medición —pero eso
-   * no la vuelve menos merecedora de llegar intacta—.
+   * así y el flotante perdería décimas.
    */
   horas_estimadas: string | null;
+  /**
+   * Cuándo se registró, en ISO con el desplazamiento de la obra. Vale la hora
+   * en que se guarda: no se pide la de ejecución (ADR-009).
+   */
+  registrado_en: string | null;
+  /** "J. Pérez". */
+  autor: string | null;
 }
 
 /**
  * Un renglón como se ENVÍA.
  *
  * `concept_id`, no `concept`: el servidor lee y escribe con nombres distintos
- * para este campo. El `orden` **no viaja** — lo asigna el servidor según la
- * posición en el arreglo, para que dos renglones no puedan pelearse el mismo
- * número.
+ * para este campo. El `orden` **no viaja**: el servidor lo continúa a partir
+ * del último renglón de la jornada.
  */
 export interface DetalleEntrada {
   concept_id?: number | null;
@@ -120,60 +125,87 @@ export interface DetalleEntrada {
   horas_estimadas?: string | null;
 }
 
-export interface JornadaResponse {
+/**
+ * Una lectura inicial y una final del horómetro (backend B2).
+ *
+ * El horómetro se lee por turno, no por día: puede haber otro turno después
+ * del cierre, o uno nocturno que cruza la medianoche. El turno es de la
+ * jornada del día en que EMPIEZA.
+ */
+export interface TurnoJornada {
   id: number;
-  estancia: number;
+  inicial: string | null;
+  final: string | null;
+  /** `final − inicial`, sin acotar a cero. Null si falta una. */
+  horas: string | null;
+  desde: string;
+  hasta: string | null;
+  autor_inicio: string | null;
+  autor_cierre: string | null;
+  /** Cierre olvidado resuelto con "Dejarlo sin final". */
+  cerrado_sin_final: boolean;
+}
+
+/**
+ * La jornada completa, con la misma forma en el hub y en la respuesta de
+ * `POST /capturas/`.
+ */
+export interface JornadaCompleta {
+  id: number;
   fecha: string;
-  estado: EstadoJornada;
+  /** Null mientras no se haya reportado: el arranque no reporta. */
+  estado: EstadoJornada | null;
   motivo_inactividad: MotivoInactividad | null;
   observaciones: string;
-  /** Vacío cuando la jornada es SIN_OPERAR. */
-  detalles: DetalleJornada[];
-  /**
-   * Lecturas del horómetro. Llegan como cadena porque DRF serializa
-   * `DecimalField` así, y convertirlas a `number` perdería la décima en los
-   * valores que el flotante no representa exacto.
-   */
-  horometro_inicial: string | null;
-  horometro_final: string | null;
-  /** Derivado en el servidor: `final - inicial`. Null si falta una lectura. */
+  turnos: TurnoJornada[];
+  /** Suma de los turnos completos. Null si ninguno lo está. */
   horas_maquina: string | null;
-  client_id: string | null;
-  reportado_por: number;
-  created_at: string;
+  detalles: DetalleJornada[];
 }
 
-export interface CreateJornadaTrabajandoBody {
-  estancia: number;
-  fecha: string;
-  estado: "TRABAJANDO";
-  /** Al menos una. El servidor rechaza una jornada TRABAJANDO sin renglones. */
-  detalles: DetalleEntrada[];
-  observaciones?: string;
-  /** Opcionales y no van en pareja: ver `Jornada` en el backend. */
-  horometro_inicial?: string | null;
-  horometro_final?: string | null;
+/** El turno sin final de una máquina, sea del día que sea. */
+export interface TurnoAbierto {
+  id: number;
+  jornada_fecha: string;
+  inicial: string | null;
+  desde: string;
   /**
-   * Clave de idempotencia, acuñada al ENCOLAR. Un segundo POST con la misma
-   * devuelve la jornada existente con 200 en vez de duplicarla.
+   * Cuándo pasa de "en curso" a "cierre olvidado". Lo calcula el servidor
+   * con su umbral, para que el teléfono no tenga que conocer el número.
    */
-  client_id?: string;
+  olvidado_en: string;
 }
 
-export interface CreateJornadaSinOperarBody {
+/**
+ * `POST /capturas/` — lo que el usuario guardó de una vez (backend B4).
+ *
+ * El servidor decide a qué jornada va cada cosa; el cliente nunca necesita un
+ * id de jornada, y por eso puede seguir capturando sin señal.
+ */
+export interface CreateCapturaBody {
+  /** Clave de idempotencia, acuñada al ENCOLAR. */
+  client_id: string;
   estancia: number;
+  /** Fecha LOCAL del teléfono al guardar. */
   fecha: string;
-  estado: "SIN_OPERAR";
-  motivo_inactividad: MotivoInactividad;
-  observaciones?: string;
+  /** Hora del teléfono al guardar: la captura puede subir horas después. */
+  registrado_en: string;
   horometro_inicial?: string | null;
   horometro_final?: string | null;
-  client_id?: string;
+  /** Resolver un cierre olvidado. Viaja SOLO, sin nada más. */
+  cerrar_anterior?: { final: string } | { sin_final: true } | null;
+  estado?: "SIN_OPERAR" | null;
+  motivo_inactividad?: MotivoInactividad | null;
+  observaciones?: string;
+  detalles?: DetalleEntrada[];
 }
 
-export type CreateJornadaBody =
-  | CreateJornadaTrabajandoBody
-  | CreateJornadaSinOperarBody;
+/** El 409 de `POST /capturas/`: choca con el estado de la máquina. */
+export interface ConflictoCaptura {
+  detail: string;
+  motivo: "SIN_FINAL" | "TURNO_ABIERTO";
+  turno_abierto: TurnoAbierto | null;
+}
 
 export interface CreateReconciliacionSigueBody {
   estancia_id: number;
@@ -201,39 +233,27 @@ export interface ReconciliacionResponse {
   resultado: ResultadoRecon;
 }
 
+/**
+ * `reportadas = trabajando + no_opero`. El arranque no reporta. El cliente
+ * le suma lo que tenga en cola.
+ */
 export interface HubResumen {
-  total_en_sitio: number;
-  reportadas_hoy: number;
+  total: number;
+  reportadas: number;
+  trabajando: number;
+  no_opero: number;
   sin_reportar: number;
-  sin_operar: number;
 }
 
-export interface JornadaHoy {
-  id: number;
-  estado: EstadoJornada;
-  motivo_inactividad: MotivoInactividad | null;
-  observaciones: string;
-  /**
-   * Las dos lecturas del día, como CADENA.
-   *
-   * No son para la tarjeta del hub, que no las muestra: son para la tabla de
-   * maquinaria del reporte, que las imprime junto con las horas derivadas. Y
-   * viajan en el hub —lo único que se cachea— porque el reporte se arma en
-   * obra: lo que no esté aquí no se puede previsualizar sin señal.
-   */
-  horometro_inicial: string | null;
-  horometro_final: string | null;
-  /** Vacío cuando SIN_OPERAR. */
-  detalles: DetalleJornada[];
+export type EstadoDia = "SIN_REPORTAR" | "TRABAJANDO" | "NO_OPERO";
+
+export interface RequiereAtencion {
+  motivo: "SIN_FINAL" | "RECONCILIACION";
 }
 
 /**
  * El último día que la máquina **de verdad trabajó**, con todo lo que hizo.
- *
- * Es lo que alimenta "Repetir lo del {fecha} · {N}". No es "ayer": las obras
- * no tienen horario fijo, así que el servidor busca la última jornada
- * TRABAJANDO anterior a hoy, sea de cuando sea. La fecha viaja para que el
- * botón pueda decir de cuándo viene lo que va a copiar.
+ * Alimenta "Repetir lo del {fecha} · {N}".
  */
 export interface UltimaJornadaTrabajada {
   fecha: string;
@@ -253,20 +273,20 @@ export interface MaquinariaHubItem {
   propietario_tipo: PropietarioTipo;
   tipo_permanencia: TipoPermanencia;
   estancia_actual: EstanciaActual;
-  jornada_hoy: JornadaHoy | null;
-  requiere_reconciliacion: boolean;
+  /** Del día que se pidió, según el servidor. El cliente lo funde con la cola. */
+  estado_dia: EstadoDia;
+  actividades_hoy: number;
+  falta_horometro: boolean;
+  jornada_hoy: JornadaCompleta | null;
+  turno_abierto: TurnoAbierto | null;
+  /** La jornada del turno abierto cuando no es la de hoy (el nocturno). */
+  jornada_turno_abierto: JornadaCompleta | null;
+  requiere_atencion: RequiereAtencion | null;
   dias_sin_reporte: number;
   ultima_jornada_fecha: string | null;
   /**
-   * Última lectura de cierre del horómetro que EXISTE para esta estancia, con
-   * la fecha en que se tomó.
-   *
-   * Viaja en el hub —y por lo tanto queda en el caché de Realm— para que la
-   * pantalla de captura pueda comparar contra ella sin pedir nada por red.
-   * Importa porque se captura en obra, que es donde no hay señal.
-   *
-   * La fecha viene aparte a propósito: "cierre de ayer" sería mentira en una
-   * máquina que lleva tres días sin reportarse.
+   * Último final de turno con valor, y de qué día. Viaja en el hub —y por lo
+   * tanto en el caché de Realm— para sugerir el inicial sin red.
    */
   ultimo_horometro: string | null;
   ultimo_horometro_fecha: string | null;

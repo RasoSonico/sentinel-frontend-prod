@@ -60,12 +60,17 @@ export const API_CONFIG = {
       fotoUpload: "/api/reportes/fotos/upload/",
       fotoConfirmUpload: "/api/reportes/fotos/confirm-upload/",
     },
+    // "Descargar datos" de Perfil: Excel sin formato de la obra.
+    tablas: {
+      excel: "/api/tablas/excel/",
+    },
     maquinaria: {
       hub: "/api/maquinaria/hub-diario/",
       tipos: "/api/maquinaria/tipos/",
       maquinarias: "/api/maquinaria/maquinarias/",
       estancias: "/api/maquinaria/estancias/",
       jornadas: "/api/maquinaria/jornadas/",
+      capturas: "/api/maquinaria/capturas/",
       reconciliaciones: "/api/maquinaria/reconciliaciones/",
     },
   },

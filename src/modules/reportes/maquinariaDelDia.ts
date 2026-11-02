@@ -26,6 +26,16 @@ export interface MaquinaDelDia {
   /** Las lecturas como CADENA: son la base sobre la que factura una renta. */
   horometroInicial: string | null;
   horometroFinal: string | null;
+  /**
+   * Espejo de `MaquinariaReporte.horas`: la SUMA de los turnos completos del
+   * día (P3 de la reforma de maquinaria). Con varios turnos ya no es la resta
+   * del primer inicial y el último final —un hueco entre turnos o un turno
+   * sin final la descuadran—, así que viaja aparte.
+   *
+   * `undefined` solo en un detalle cacheado por la versión anterior de la
+   * app, que no la traía: ahí se deriva de las lecturas, como antes.
+   */
+  horas?: string | null;
 }
 
 /**
@@ -147,13 +157,19 @@ export const estadoImpreso = (maquina: MaquinaDelDia): string => {
 };
 
 /** La tabla completa, un renglón por máquina y en el mismo orden que entró. */
+/** Las horas de una máquina en décimas: las guardadas, o la resta si no vinieron. */
+const horasDe = (maquina: MaquinaDelDia): number | null =>
+  maquina.horas !== undefined
+    ? decimas(maquina.horas)
+    : horasEnDecimas(maquina.horometroInicial, maquina.horometroFinal);
+
 export const renglonesMaquinaria = (
   maquinas: MaquinaDelDia[],
 ): RenglonMaquinaria[] =>
   maquinas.map((maquina) => {
     const i = decimas(maquina.horometroInicial);
     const f = decimas(maquina.horometroFinal);
-    const h = resta(i, f);
+    const h = horasDe(maquina);
     return {
       equipo: maquina.equipo,
       estado: estadoImpreso(maquina),
@@ -173,7 +189,7 @@ export const renglonesMaquinaria = (
 export const totalHorasMaquina = (maquinas: MaquinaDelDia[]): string => {
   if (maquinas.length === 0) return SIN_DATO;
   const total = maquinas.reduce((suma, maquina) => {
-    const h = horasEnDecimas(maquina.horometroInicial, maquina.horometroFinal);
+    const h = horasDe(maquina);
     return h === null ? suma : suma + h;
   }, 0);
   return horas(total);

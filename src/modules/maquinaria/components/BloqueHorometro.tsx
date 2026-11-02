@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
+import { Ionicons } from "@expo/vector-icons";
 
 import { DesignTokens } from "src/styles/designTokens";
 import { bloque } from "src/styles/patrones/estiloCerrado";
@@ -22,6 +23,17 @@ interface Props {
   cerrado: boolean;
   onCambiar: (parcial: { inicial?: string; final?: string }) => void;
   onAbrir: () => void;
+  /**
+   * El inicial YA registrado del turno abierto (ADR-009 D3): se lee como
+   * texto —sin caja, porque no se reabre— con su hora y autor debajo, y solo
+   * el final queda por capturar.
+   */
+  inicialRegistrado?: { valor: string; pie: string; enCola: boolean } | null;
+  /**
+   * Texto bajo la sugerencia cuando no es "la última lectura": "Cierre de las
+   * 18:05" al iniciar otro turno.
+   */
+  etiquetaSugerencia?: string | null;
 }
 
 /**
@@ -56,11 +68,17 @@ const BloqueHorometro: React.FC<Props> = ({
   cerrado,
   onCambiar,
   onAbrir,
+  inicialRegistrado = null,
+  etiquetaSugerencia = null,
 }) => {
-
   const sugerenciaNum = numeroDe(sugerencia);
-  const usaSugerencia = inicial.trim() === "" && sugerenciaNum !== null;
-  const inicialEfectivo = usaSugerencia ? sugerenciaNum : numeroDe(inicial);
+  const usaSugerencia =
+    !inicialRegistrado && inicial.trim() === "" && sugerenciaNum !== null;
+  const inicialEfectivo = inicialRegistrado
+    ? numeroDe(inicialRegistrado.valor)
+    : usaSugerencia
+      ? sugerenciaNum
+      : numeroDe(inicial);
   const finalNum = numeroDe(final);
   const horas =
     inicialEfectivo !== null && finalNum !== null
@@ -98,29 +116,53 @@ const BloqueHorometro: React.FC<Props> = ({
       <View style={estilos.fila}>
         <View style={estilos.columna}>
           <Text style={estilos.etiqueta}>Inicial</Text>
-          <BottomSheetTextInput
-            style={estilos.entrada}
-            value={inicial}
-            onChangeText={(t) => onCambiar({ inicial: soloLectura(t) })}
-            onFocus={onAbrir}
-            // Sin `!`: `sugerencia` es texto que vino del servidor y no
-            // tiene por qué ser un número. Un `toLocaleString` sobre null
-            // tumba la pantalla entera.
-            placeholder={
-              sugerenciaNum !== null ? formatoLectura(sugerenciaNum) : "—"
-            }
-            placeholderTextColor={DesignTokens.colors.neutral[400]}
-            inputMode="decimal"
-          />
-          <Text style={[estilos.pie, usaSugerencia && estilos.pieSugerencia]}>
-            {usaSugerencia
-              ? `Última lectura · ${fechaSugerencia ? fechaCortaLocal(fechaSugerencia) : "—"}`
-              : inicial
-                ? "Editado"
-                : "Léelo en la máquina"}
-          </Text>
+          {inicialRegistrado ? (
+            // Lo registrado es texto sin caja: no lleva el patrón "cerrado"
+            // porque no se reabre (corregir está fuera de esta iteración).
+            <>
+              <Text style={estilos.registrado}>
+                {formatoLectura(numeroDe(inicialRegistrado.valor) ?? 0)}
+              </Text>
+              <View style={estilos.pieFila}>
+                <Text style={estilos.pie}>{inicialRegistrado.pie}</Text>
+                {inicialRegistrado.enCola && (
+                  <Ionicons
+                    name="cloud-upload-outline"
+                    size={13}
+                    color="#64748B"
+                  />
+                )}
+              </View>
+            </>
+          ) : (
+            <>
+              <BottomSheetTextInput
+                style={estilos.entrada}
+                value={inicial}
+                onChangeText={(t) => onCambiar({ inicial: soloLectura(t) })}
+                onFocus={onAbrir}
+                // Sin `!`: `sugerencia` es texto que vino del servidor y no
+                // tiene por qué ser un número. Un `toLocaleString` sobre null
+                // tumba la pantalla entera.
+                placeholder={
+                  sugerenciaNum !== null ? formatoLectura(sugerenciaNum) : "—"
+                }
+                placeholderTextColor={DesignTokens.colors.neutral[400]}
+                inputMode="decimal"
+              />
+              <Text
+                style={[estilos.pie, usaSugerencia && estilos.pieSugerencia]}
+              >
+                {usaSugerencia
+                  ? (etiquetaSugerencia ??
+                    `Última lectura · ${fechaSugerencia ? fechaCortaLocal(fechaSugerencia) : "—"}`)
+                  : inicial
+                    ? "Editado"
+                    : "Léelo en la máquina"}
+              </Text>
+            </>
+          )}
         </View>
-
         <View style={estilos.columna}>
           <Text style={estilos.etiqueta}>Final</Text>
           <BottomSheetTextInput
@@ -214,6 +256,13 @@ const estilos = StyleSheet.create({
   },
   pieSugerencia: {
     fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+  pieFila: { flexDirection: "row", alignItems: "center", gap: 4 },
+  registrado: {
+    paddingTop: 7,
+    fontSize: 17,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.neutral[900],
   },
 
   vivo: {

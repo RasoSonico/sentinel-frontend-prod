@@ -14,57 +14,38 @@ const sp = (base: number) => {
 export default StyleSheet.create({
   container: {
     backgroundColor: DesignTokens.colors.executive.primary,
-    paddingHorizontal: sp(DesignTokens.spacing.lg),
-    paddingVertical: sp(DesignTokens.spacing.md),
-    marginBottom: sp(DesignTokens.spacing.sm),
+    paddingHorizontal: sp(15),
+    paddingTop: sp(13),
+    paddingBottom: sp(14),
     marginHorizontal: -sp(DesignTokens.spacing.md),
   },
   title: {
     color: DesignTokens.colors.background.primary,
-    fontSize: 13,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    marginBottom: sp(DesignTokens.spacing.sm),
-    opacity: 0.8,
+    fontSize: 13.5,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
   },
-  statsRow: {
+  barraFila: {
     flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  stat: {
     alignItems: "center",
+    gap: 10,
+    marginTop: 9,
+  },
+  barra: {
     flex: 1,
-    borderRadius: DesignTokens.borderRadius.md,
-    paddingVertical: sp(6),
-  },
-  statActive: {
+    height: 6,
+    borderRadius: 3,
     backgroundColor: "rgba(255,255,255,0.18)",
+    overflow: "hidden",
   },
-  statInactive: {
-    opacity: 0.4,
+  barraRelleno: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: DesignTokens.colors.background.primary,
   },
-  activeIndicator: {
-    width: 16,
-    height: 2,
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: 1,
-    marginTop: 4,
-  },
-  statValue: {
+  barraTexto: {
     color: DesignTokens.colors.background.primary,
-    fontSize: 22,
+    fontSize: 13,
     fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  statLabel: {
-    color: DesignTokens.colors.background.primary,
-    fontSize: 10,
-    opacity: 0.7,
-    textAlign: "center",
-    marginTop: 2,
-  },
-  divider: {
-    width: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    marginHorizontal: sp(4),
   },
   offlineBanner: {
     flexDirection: "row",

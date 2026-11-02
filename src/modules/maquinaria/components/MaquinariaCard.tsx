@@ -1,40 +1,23 @@
 import React, { memo } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+
 import { DesignTokens } from "src/styles/designTokens";
-import type { FilaMaquinaria } from "../filaMaquinaria";
-import { PendingJornadaSubmission } from "src/realm/pendingJornada/PendingJornadaSubmission";
-import styles from "./styles/MaquinariaCard.styles";
+
+import type { VistaMaquina } from "../diaMaquina";
+import { fechaCortaLocal } from "../horometro";
 
 interface Props {
-  item: FilaMaquinaria;
+  vista: VistaMaquina;
+  /** Fecha local de hoy, para decir "ayer" o el día del cierre olvidado. */
+  hoy: string;
+  /** Primera del grupo: sin la línea divisoria de arriba. */
+  primera: boolean;
   /**
-   * Jornada capturada que todavía no confirma el servidor.
-   *
-   * El hub viene del servidor, así que sin esto una jornada reportada sin
-   * señal no aparecería y la tarjeta seguiría diciendo "Sin reportar hoy" —
-   * invitando al usuario a capturarla otra vez.
+   * Toda la tarjeta es el destino (D8, "›"). Qué abre lo decide la pantalla
+   * según el motivo: la hoja, el rescate de la cola o la reconciliación.
    */
-  enCola?: PendingJornadaSubmission;
-  /** Leído UNA vez en la pantalla: N tarjetas no deben suscribirse a NetInfo. */
-  sinSenal: boolean;
-  /**
-    * Un gesto, un destino (ADR-007 D1). Antes eran dos botones con colores de
-    * semáforo —"Reportar jornada" en verde, "Sin operar" en ámbar— y el
-    * usuario tenía que traducir que "Sin operar" también es un reporte válido.
-    * La pregunta "¿trabajó hoy?" vive ahora dentro de la hoja.
-    */
-  onAbrirJornada: (item: FilaMaquinaria) => void;
-  onSalida: (item: FilaMaquinaria) => void;
-  onReconciliar: (item: FilaMaquinaria) => void;
-  /**
-   * Rescate de una jornada que no pudo enviarse.
-   *
-   * Sin esto la tarjeta sería un callejón sin salida: una encolada cuenta como
-   * reportada —así que los botones se esconden— y una fallida se quedaría ahí
-   * para siempre, visible y sin manera de resolverla.
-   */
-  onResolverCola: (enCola: PendingJornadaSubmission) => void;
+  onPress: (vista: VistaMaquina) => void;
 }
 
 const PROPIETARIO_LABELS: Record<string, string> = {
@@ -43,7 +26,7 @@ const PROPIETARIO_LABELS: Record<string, string> = {
   SUBCONTRATISTA: "Subcontrato",
 };
 
-const MOTIVO_LABELS: Record<string, string> = {
+export const MOTIVO_LABELS: Record<string, string> = {
   FALLA_MECANICA: "Falla mecánica",
   SIN_OPERADOR: "Sin operador",
   SIN_FRENTE: "Sin frente",
@@ -51,230 +34,216 @@ const MOTIVO_LABELS: Record<string, string> = {
   OTRO: "Otro",
 };
 
+const VERDE = "#10B981";
+const ROJO = DesignTokens.colors.error[500];
+const AMBAR = DesignTokens.colors.warning[400];
+const ROJO_TEXTO = "#991B1B";
+const PIZARRA = "#64748B";
+
+/** "Ayer quedó sin final", o el día cuando no fue ayer. */
+const textoSinFinal = (jornadaFecha: string, hoy: string): string => {
+  const [a, m, d] = hoy.split("-").map(Number);
+  const ayer = new Date(Date.UTC(a, m - 1, d - 1)).toISOString().slice(0, 10);
+  return jornadaFecha === ayer
+    ? "Ayer quedó sin final"
+    : `El ${fechaCortaLocal(jornadaFecha)} quedó sin final`;
+};
+
+/** Posición 4: el estatus, con su punto. En atención, solo el problema. */
+const estatus = (
+  vista: VistaMaquina,
+  hoy: string,
+): { texto: string; color: string; problema: boolean } => {
+  const a = vista.atencion;
+  if (a?.motivo === "FALLIDA") {
+    return { texto: "No se envió", color: ROJO, problema: true };
+  }
+  if (a?.motivo === "SIN_FINAL") {
+    return { texto: textoSinFinal(a.jornadaFecha, hoy), color: ROJO, problema: true };
+  }
+  if (a?.motivo === "RECONCILIACION") {
+    return { texto: `${a.dias} días sin reporte`, color: ROJO, problema: true };
+  }
+  if (vista.seccion === "TRABAJANDO") {
+    const n = vista.actividades;
+    return {
+      texto: n === 1 ? "1 actividad" : `${n} actividades`,
+      color: VERDE,
+      problema: false,
+    };
+  }
+  if (vista.estadoDia === "NO_OPERO") {
+    const motivo = vista.hoy.motivo ? MOTIVO_LABELS[vista.hoy.motivo] ?? "" : "";
+    return {
+      texto: motivo ? `No operó · ${motivo}` : "No operó",
+      color: ROJO,
+      problema: false,
+    };
+  }
+  return { texto: "Sin reportar", color: AMBAR, problema: false };
+};
+
 /**
- * La cola manda sobre el servidor mientras no haya confirmación.
+ * Tarjeta del hub — ADR-009 D8: siete posiciones, todas las tarjetas iguales.
  *
- * Mismo vocabulario que el chip de Reportes: "Por enviar" sin señal,
- * "Enviando" con ella, "No se envió" cuando se agotaron los intentos. Dos
- * módulos que dicen lo mismo con palabras distintas se aprenden dos veces.
+ * ```
+ * [1 Tipo]  [2 Marca]  [3 Modelo]
+ * [4 Estatus]   [5 Faltante]          [6 Acción]    ›
+ * [7 Propiedad]                                ☁
+ * ```
+ *
+ * Cada dato vive siempre en el mismo lugar, así que el supervisor deja de
+ * inspeccionar tarjeta por tarjeta: la sección dice el estado y la tarjeta
+ * solo lo concreta. Sin botones ni avisos internos —toda la tarjeta abre— y
+ * sin el patrón "cerrado": esto es dato del servidor, no algo que se edita.
  */
-const estadoDeCola = (
-  item: FilaMaquinaria,
-  enCola: PendingJornadaSubmission | undefined,
-) => {
-  if (!enCola) return null;
-  // **El servidor gana en cuanto tiene la jornada.** La copia en cola sigue en
-  // Realm hasta que la purga corra, pero deja de mandar en el momento en que
-  // el hub ya la trae: así no se pisan dos verdades sobre el mismo hecho.
-  if (item.jornada_id) return null;
-  if (enCola.status === "failed") {
-    return enCola.retryCount >= enCola.maxRetries ? "fallida" : "reintentando";
-  }
-  // `done` sin jornada en el hub = ya salió, el hub todavía no se entera.
-  if (enCola.status === "done") return "enviada";
-  return "porEnviar";
-};
-
-const getBorderColor = (
-  item: FilaMaquinaria,
-  cola: ReturnType<typeof estadoDeCola>,
-): string => {
-  if (cola === "fallida") return DesignTokens.colors.error[500];
-  if (item.requiere_reconciliacion) return DesignTokens.colors.error[500];
-  if (cola) return DesignTokens.colors.primary[500];
-  if (!item.jornada_id) return DesignTokens.colors.warning[400];
-  if (item.jornada_estado === "TRABAJANDO")
-    return DesignTokens.colors.success[500];
-  if (item.jornada_estado === "SIN_OPERAR")
-    return DesignTokens.colors.warning[500];
-  return DesignTokens.colors.neutral[200];
-};
-
-const getStatusDot = (
-  item: FilaMaquinaria,
-  cola: ReturnType<typeof estadoDeCola>,
-) => {
-  if (cola === "fallida") return DesignTokens.colors.error[500];
-  if (cola) return DesignTokens.colors.primary[500];
-  if (!item.jornada_id) return DesignTokens.colors.warning[400];
-  if (item.jornada_estado === "TRABAJANDO")
-    return DesignTokens.colors.success[500];
-  return DesignTokens.colors.warning[500];
-};
-
-const etiquetaDeEstado = (estado: string | null, motivo: string | null) => {
-  if (estado === "TRABAJANDO") return "Trabajando";
-  if (estado === "SIN_OPERAR") {
-    const texto = motivo ? (MOTIVO_LABELS[motivo] ?? motivo) : "";
-    return `Sin operar${texto ? ` · ${texto}` : ""}`;
-  }
-  return "";
-};
-
-const getStatusLabel = (
-  item: FilaMaquinaria,
-  enCola: PendingJornadaSubmission | undefined,
-  cola: ReturnType<typeof estadoDeCola>,
-  sinSenal: boolean,
-): string => {
-  if (cola && enCola) {
-    const que = etiquetaDeEstado(enCola.estado, enCola.motivoInactividad);
-    if (cola === "fallida") return `No se envió · ${que}`;
-    if (cola === "reintentando") return `Reintentando · ${que}`;
-    if (cola === "enviada") return `Enviando · ${que}`;
-    return `${sinSenal ? "Por enviar" : "Enviando"} · ${que}`;
-  }
-  if (!item.jornada_id) return "Sin reportar hoy";
-  return etiquetaDeEstado(item.jornada_estado, item.jornada_motivo_inactividad);
-};
-
-const MaquinariaCard: React.FC<Props> = ({
-  item,
-  enCola,
-  sinSenal,
-  onAbrirJornada,
-  onSalida,
-  onReconciliar,
-  onResolverCola,
-}) => {
-  const cola = estadoDeCola(item, enCola);
-  // Una jornada encolada cuenta como reportada para efectos de la interfaz:
-  // volver a capturarla chocaría contra `unique(estancia, fecha)` del servidor
-  // y le diría al usuario "ya existe una jornada" sin que él vea ninguna.
-  const hasJornada = !!item.jornada_id || !!cola;
+const MaquinariaCard: React.FC<Props> = ({ vista, hoy, primera, onPress }) => {
+  const { maquina } = vista;
+  const e = estatus(vista, hoy);
+  const accion =
+    vista.seccion === "ATENCION"
+      ? "Resolver"
+      : vista.seccion === "SIN_TRABAJAR" && vista.estadoDia === "SIN_REPORTAR"
+        ? "Reportar"
+        : null;
+  // Nunca coincide con la acción: solo existe en "Trabajando".
+  const faltante = vista.seccion === "TRABAJANDO" && vista.faltaHorometro;
 
   return (
-    <View
-      style={[styles.card, { borderLeftColor: getBorderColor(item, cola) }]}
+    <TouchableOpacity
+      style={[estilos.tarjeta, !primera && estilos.divisoria]}
+      onPress={() => onPress(vista)}
+      activeOpacity={0.7}
     >
-      <View style={styles.cardContent}>
-        <View style={styles.header}>
-          <View style={styles.titleBlock}>
-            <Text style={styles.tipoMarca} numberOfLines={1}>
-              {item.tipo} · {item.marca}
-            </Text>
-            {!!item.modelo && <Text style={styles.modelo}>{item.modelo}</Text>}
-          </View>
-          <View style={styles.badgeRow}>
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: DesignTokens.colors.neutral[100] },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.badgeText,
-                  { color: DesignTokens.colors.neutral[600] },
-                ]}
-              >
-                {PROPIETARIO_LABELS[item.propietario_tipo] ??
-                  item.propietario_tipo}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => onSalida(item)}>
-              <Ionicons
-                name="exit-outline"
-                size={18}
-                color={DesignTokens.colors.neutral[400]}
-              />
-            </TouchableOpacity>
-          </View>
+      <View style={estilos.cuerpo}>
+        {/* 1 · 2 · 3 — si no cabe, se recorta SOLO la marca. */}
+        <View style={estilos.fila1}>
+          <Text style={estilos.tipo}>{maquina.tipo}</Text>
+          <Text style={estilos.marca} numberOfLines={1}>
+            {maquina.marca}
+          </Text>
+          {!!maquina.modelo && <Text style={estilos.modelo}>{maquina.modelo}</Text>}
         </View>
 
-        <View style={styles.statusRow}>
-          <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: getStatusDot(item, cola) },
-            ]}
-          />
-          <Text style={styles.statusText}>
-            {getStatusLabel(item, enCola, cola, sinSenal)}
+        {/* 4 · 5 · 6 */}
+        <View style={estilos.fila2}>
+          <View style={[estilos.punto, { backgroundColor: e.color }]} />
+          <Text
+            style={[estilos.estatus, e.problema && estilos.estatusProblema]}
+            numberOfLines={1}
+          >
+            {e.texto}
           </Text>
-          {item.dias_sin_reporte > 0 && !hasJornada && (
+          {faltante && (
+            <Text style={estilos.faltante} numberOfLines={1}>
+              Sin horómetro
+            </Text>
+          )}
+          <View style={estilos.espaciador} />
+          {accion && (
             <Text
-              style={{ fontSize: 11, color: DesignTokens.colors.warning[600] }}
+              style={[estilos.accion, accion === "Resolver" && estilos.accionRoja]}
             >
-              {item.dias_sin_reporte}d sin reporte
+              {accion}
             </Text>
           )}
         </View>
 
-        {cola === "fallida" && enCola && (
-          <TouchableOpacity
-            style={styles.reconciliacionBanner}
-            onPress={() => onResolverCola(enCola)}
-            activeOpacity={0.75}
-          >
-            <Ionicons
-              name="cloud-offline"
-              size={16}
-              color={DesignTokens.colors.error[500]}
-            />
-            <Text style={styles.reconciliacionText} numberOfLines={2}>
-              {enCola.errorMessage ?? "No se pudo enviar"} · Toca para resolver
-            </Text>
-            <Ionicons
-              name="chevron-forward"
-              size={14}
-              color={DesignTokens.colors.error[500]}
-            />
-          </TouchableOpacity>
-        )}
-
-        {item.requiere_reconciliacion && (
-          <TouchableOpacity
-            style={styles.reconciliacionBanner}
-            onPress={() => onReconciliar(item)}
-            activeOpacity={0.75}
-          >
-            <Ionicons
-              name="alert-circle"
-              size={16}
-              color={DesignTokens.colors.error[500]}
-            />
-            <Text style={styles.reconciliacionText}>
-              {item.dias_sin_reporte} días sin reporte · Confirmar estado
-            </Text>
-            <Ionicons
-              name="chevron-forward"
-              size={14}
-              color={DesignTokens.colors.error[500]}
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Siempre visible, también con la jornada ya reportada: el
-          diagnóstico del módulo fue que "lo capturado no vuelve a verse" (H4),
-          y sin una puerta de regreso no hay forma de corregir un error.
-
-          Sin color semántico: con un solo destino no hay semáforo que
-          interpretar. */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity
-          style={styles.actionBtn}
-          onPress={() => onAbrirJornada(item)}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={hasJornada ? "create-outline" : "clipboard-outline"}
-            size={16}
-            color={DesignTokens.colors.executive.secondary}
-          />
-          <Text
-            style={[
-              styles.actionBtnText,
-              { color: DesignTokens.colors.executive.secondary },
-            ]}
-          >
-            {hasJornada ? "Ver jornada" : "Reportar jornada"}
+        {/* 7 · ☁ */}
+        <View style={estilos.fila3}>
+          <Text style={estilos.propiedad}>
+            {PROPIETARIO_LABELS[maquina.propietario] ?? maquina.propietario}
           </Text>
-        </TouchableOpacity>
+          {/* Solo el ícono de la cola, sin texto y en gris pizarra: el ámbar
+              competiría con el punto de "Sin reportar". */}
+          {vista.enCola && (
+            <Ionicons name="cloud-upload-outline" size={15} color={PIZARRA} />
+          )}
+        </View>
       </View>
-    </View>
+      <Text style={estilos.chevron}>›</Text>
+    </TouchableOpacity>
   );
 };
+
+const estilos = StyleSheet.create({
+  tarjeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 7,
+    paddingBottom: 7,
+    paddingLeft: 12,
+    paddingRight: 10,
+    backgroundColor: DesignTokens.colors.background.primary,
+  },
+  divisoria: { borderTopWidth: 1, borderTopColor: "#EEF0F3" },
+  cuerpo: { flex: 1, minWidth: 0 },
+
+  fila1: { flexDirection: "row", alignItems: "baseline", gap: 6, overflow: "hidden" },
+  tipo: {
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: "#0F172A",
+    flexShrink: 0,
+  },
+  marca: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: "#334155",
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  modelo: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: "#334155",
+    flexShrink: 0,
+  },
+
+  fila2: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  punto: { width: 7, height: 7, borderRadius: 4, marginRight: -3 },
+  estatus: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: "#0F172A",
+    flexShrink: 0,
+  },
+  estatusProblema: { color: ROJO_TEXTO },
+  faltante: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: "#475569",
+    flexShrink: 1,
+  },
+  espaciador: { flex: 1 },
+  accion: {
+    fontSize: 12.5,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: "#0F172A",
+    paddingLeft: 6,
+  },
+  accionRoja: { color: "#B91C1C" },
+
+  fila3: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 1,
+    minHeight: 15,
+  },
+  propiedad: { fontSize: 11, lineHeight: 15, color: "#6B7280" },
+
+  chevron: {
+    fontSize: 18,
+    color: "#94A3B8",
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+});
 
 export default memo(MaquinariaCard);

@@ -20,7 +20,7 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import BottomSheetBackdrop from "src/components/ui/BottomSheetBackdrop";
 import { DesignTokens } from "src/styles/designTokens";
-import type { FilaMaquinaria } from "../filaMaquinaria";
+import type { VistaMaquina } from "../diaMaquina";
 import { useCloseEstancia } from "src/hooks/data/query/useMaquinaria";
 import DateInput from "src/components/ui/DateInput";
 import { TipoSalida, MotivoSalida } from "src/types/maquinaria";
@@ -29,7 +29,7 @@ import { DateUtils } from "src/utils/dateUtils";
 interface Props {
   isVisible: boolean;
   onClose: () => void;
-  item: FilaMaquinaria | null;
+  item: VistaMaquina | null;
 }
 
 const MOTIVOS_SALIDA: { value: MotivoSalida; label: string }[] = [
@@ -53,7 +53,7 @@ const SalidaObraSheet: React.FC<Props> = ({ isVisible, onClose, item }) => {
   const [lastItemId, setLastItemId] = useState<number | null>(null);
 
   // Normalize to null so undefined (item=null) and null (initial) are equal
-  const currentItemId = item?.estancia_id ?? null;
+  const currentItemId = item?.maquina.estanciaId ?? null;
   if (currentItemId !== lastItemId) {
     setLastItemId(currentItemId);
     setTipoSalida("DEFINITIVA");
@@ -89,7 +89,7 @@ const SalidaObraSheet: React.FC<Props> = ({ isVisible, onClose, item }) => {
 
     closeEstancia.mutate(
       {
-        estanciaId: item.estancia_id,
+        estanciaId: item.maquina.estanciaId,
         body: {
           fecha_salida: fechaSalida,
           tipo_salida: tipoSalida,
@@ -126,7 +126,7 @@ const SalidaObraSheet: React.FC<Props> = ({ isVisible, onClose, item }) => {
         <Text style={styles.title}>Salida de obra</Text>
         {item && (
           <Text style={styles.machine}>
-            {item.tipo} · {item.marca} {item.modelo}
+            {item.maquina.tipo} · {item.maquina.marca} {item.maquina.modelo}
           </Text>
         )}
 

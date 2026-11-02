@@ -1,52 +1,27 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
-import { HubResumen } from "src/types/maquinaria";
 import styles from "./styles/HubResumenHeader.styles";
 
-export type HubFilter = "reportadas" | "sin_reportar" | "sin_operar" | null;
-
 interface Props {
-  resumen: HubResumen;
   fecha: string;
-  activeFilter: HubFilter;
-  onFilterPress: (filter: HubFilter) => void;
+  /** Trabajó o no operó, enviado o en cola. El arranque no cuenta. */
+  reportadas: number;
+  total: number;
 }
 
-interface StatItem {
-  filter: HubFilter;
-  value: number;
-  label: string;
-}
-
-const HubResumenHeader: React.FC<Props> = ({
-  resumen,
-  fecha,
-  activeFilter,
-  onFilterPress,
-}) => {
+/**
+ * Encabezado del hub: la fecha y la barra "N de M reportadas" (ADR-009 D8).
+ *
+ * Reemplaza a los cuatro contadores-filtro. La barra mide lo que el
+ * supervisor controla —reportar—, y lo empuja a reportar también lo que no
+ * trabajó: si no se sube, no hay certeza, solo se asume por omisión. Una
+ * barra de máquinas trabajando premiaría algo que él no decide.
+ */
+const HubResumenHeader: React.FC<Props> = ({ fecha, reportadas, total }) => {
   const isOnline = useNetworkStatus();
-
-  const stats: StatItem[] = [
-    { filter: null, value: resumen.total_en_sitio, label: "En sitio" },
-    {
-      filter: "reportadas",
-      value: resumen.reportadas_hoy,
-      label: "Reportadas",
-    },
-    {
-      filter: "sin_reportar",
-      value: resumen.sin_reportar,
-      label: "Sin reportar",
-    },
-    { filter: "sin_operar", value: resumen.sin_operar, label: "Sin operar" },
-  ];
-
-  const handlePress = (filter: HubFilter) => {
-    // null = "En sitio" always clears; others toggle
-    onFilterPress(filter === null || activeFilter === filter ? null : filter);
-  };
+  const avance = total > 0 ? Math.min(1, reportadas / total) : 0;
 
   return (
     <View style={styles.container}>
@@ -55,33 +30,16 @@ const HubResumenHeader: React.FC<Props> = ({
         {new Date(fecha + "T12:00:00").toLocaleDateString("es-MX", {
           weekday: "long",
           day: "numeric",
-          month: "short",
+          month: "long",
         })}
       </Text>
-      <View style={styles.statsRow}>
-        {stats.map((stat, index) => {
-          const isActive = activeFilter === stat.filter && stat.filter !== null;
-          const isInactive = activeFilter !== null && !isActive;
-
-          return (
-            <React.Fragment key={stat.label}>
-              {index > 0 && <View style={styles.divider} />}
-              <TouchableOpacity
-                style={[
-                  styles.stat,
-                  isActive && styles.statActive,
-                  isInactive && styles.statInactive,
-                ]}
-                onPress={() => handlePress(stat.filter)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-                {isActive && <View style={styles.activeIndicator} />}
-              </TouchableOpacity>
-            </React.Fragment>
-          );
-        })}
+      <View style={styles.barraFila}>
+        <View style={styles.barra}>
+          <View style={[styles.barraRelleno, { width: `${avance * 100}%` }]} />
+        </View>
+        <Text style={styles.barraTexto}>
+          {reportadas} de {total} reportadas
+        </Text>
       </View>
       {isOnline === false && (
         <View style={styles.offlineBanner}>

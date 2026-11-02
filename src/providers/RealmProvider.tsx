@@ -29,11 +29,14 @@ import { PendingAdvanceSubmission } from "src/realm/pendingAdvance/PendingAdvanc
 import { PendingPhotoSubmission } from "src/realm/pendingAdvance/PendingPhotoSubmission";
 import { PendingReporteSubmission } from "src/realm/pendingReporte/PendingReporteSubmission";
 import { PendingReportePhotoSubmission } from "src/realm/pendingReporte/PendingReportePhotoSubmission";
-import { PendingJornadaSubmission } from "src/realm/pendingJornada/PendingJornadaSubmission";
+import { PendingCapturaSubmission } from "src/realm/pendingJornada/PendingCapturaSubmission";
 import { PendingMaquinariaSubmission } from "src/realm/pendingMaquinaria/PendingMaquinariaSubmission";
 import { MaquinariaHubResponse } from "src/realm/maquinariaHub/Response";
 import { MaquinariaHubItemRealm } from "src/realm/maquinariaHub/MaquinariaHubItemRealm";
 import { DetalleJornadaRealm } from "src/realm/maquinariaHub/DetalleJornadaRealm";
+import { TurnoRealm } from "src/realm/maquinariaHub/TurnoRealm";
+import { JornadaHubRealm } from "src/realm/maquinariaHub/JornadaHubRealm";
+import { TurnoAbiertoRealm } from "src/realm/maquinariaHub/TurnoAbiertoRealm";
 import { TiposMaquinariaResponse } from "src/realm/tiposMaquinaria/Response";
 import { TipoMaquinariaRealm } from "src/realm/tiposMaquinaria/TipoMaquinariaRealm";
 
@@ -80,8 +83,9 @@ const SENTINEL_SCHEMA = [
   // Cola del reporte de actividades diario (schemaVersion 13, ADR-006 D7)
   PendingReporteSubmission,
   PendingReportePhotoSubmission,
-  // Cola de la jornada de maquinaria (schemaVersion 16)
-  PendingJornadaSubmission,
+  // Cola de capturas de la hoja de jornada (schemaVersion 21, ADR-009 D1).
+  // Sustituye a la cola de jornadas de la versión 16.
+  PendingCapturaSubmission,
   // Cola del alta de maquinaria (schemaVersion 17)
   PendingMaquinariaSubmission,
   // Maquinaria schemas
@@ -90,6 +94,10 @@ const SENTINEL_SCHEMA = [
   // Renglones de la jornada (schemaVersion 18). Embebido y compartido por el
   // caché del hub y la cola de envío: es el mismo dato en dos momentos.
   DetalleJornadaRealm,
+  // Turnos y jornada completa en el caché del hub (schemaVersion 21, ADR-009)
+  TurnoRealm,
+  JornadaHubRealm,
+  TurnoAbiertoRealm,
   TiposMaquinariaResponse,
   TipoMaquinariaRealm,
 ];
@@ -233,6 +241,85 @@ const handleMigration = (oldRealm: Realm, newRealm: Realm) => {
   // El primer refresco del hub las trae; hasta entonces la tabla imprime "—"
   // en esas columnas, que es lo mismo que hace el documento cuando no hay
   // lectura. Nada que inventar y nada que corregir.
+
+  // schemaVersion 21 (ADR-009): la jornada se captura en varias veces.
+  //
+  // La cola cambia de unidad —de jornada a captura— y el caché del hub pasa
+  // a guardar la jornada completa, con turnos.
+  if (oldRealm.schemaVersion < 21) {
+    // 1. El caché del hub se tira: es de solo lectura y el primer refetch con
+    //    señal lo reconstruye con la forma nueva.
+    newRealm.delete(newRealm.objects("MaquinariaHubResponse"));
+
+    // 2. La cola NO se tira: cada jornada sin enviar se vuelve UNA captura con
+    //    lo mismo que traía. El servidor la reparte igual que si la hubiera
+    //    capturado la hoja nueva de una sola vez. Las ya confirmadas no se
+    //    mudan: el hub las trae.
+    const viejas = oldRealm.objects("PendingJornadaSubmission");
+    for (let i = 0; i < viejas.length; i += 1) {
+      const vieja = viejas[i] as unknown as {
+        _id: string;
+        estanciaId: number;
+        maquinariaId: number;
+        maquinariaLocalId: string | null;
+        fecha: string;
+        estado: string;
+        detalles: {
+          orden: number;
+          concept: number | null;
+          descripcion: string;
+          horas_estimadas: string | null;
+        }[];
+        motivoInactividad: string | null;
+        observaciones: string;
+        horometroInicial: string | null;
+        horometroFinal: string | null;
+        constructionId: number;
+        maquinariaEtiqueta: string;
+        status: string;
+        createdAt: Date;
+      };
+      if (vieja.status === "done") continue;
+      newRealm.create("PendingCapturaSubmission", {
+        _id: vieja._id,
+        estanciaId: vieja.estanciaId,
+        maquinariaId: vieja.maquinariaId,
+        maquinariaLocalId: vieja.maquinariaLocalId,
+        fecha: vieja.fecha,
+        registradoEn: vieja.createdAt.toISOString(),
+        autor: "",
+        horometroInicial: vieja.horometroInicial,
+        horometroFinal: vieja.horometroFinal,
+        cerrarAnteriorFinal: null,
+        cerrarAnteriorSinFinal: false,
+        estado: vieja.estado === "SIN_OPERAR" ? "SIN_OPERAR" : null,
+        motivoInactividad: vieja.motivoInactividad,
+        observaciones: vieja.observaciones ?? "",
+        detalles: Array.from(vieja.detalles).map((d) => ({
+          orden: d.orden,
+          concept: d.concept,
+          descripcion: d.descripcion,
+          horas_estimadas: d.horas_estimadas,
+          registrado_en: null,
+          autor: null,
+        })),
+        constructionId: vieja.constructionId,
+        maquinariaEtiqueta: vieja.maquinariaEtiqueta,
+        // Presupuesto de intentos completo: el contrato cambió, y lo que haya
+        // fallado contra el viejo merece otra oportunidad contra el nuevo.
+        status: "pending",
+        createdAt: vieja.createdAt,
+        lastAttemptAt: null,
+        failedAt: null,
+        retryCount: 0,
+        maxRetries: 3,
+        errorMessage: null,
+        errorMotivo: null,
+        jornadaFecha: null,
+        syncedAt: null,
+      });
+    }
+  }
 };
 
 export default function RealmProviderWrapper({
@@ -243,7 +330,7 @@ export default function RealmProviderWrapper({
   return (
     <RealmProvider
       schema={SENTINEL_SCHEMA}
-      schemaVersion={20}
+      schemaVersion={21}
       onMigration={handleMigration}
     >
       {children}

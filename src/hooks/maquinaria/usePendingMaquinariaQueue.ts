@@ -7,7 +7,7 @@ import {
   PendingMaquinariaSubmission,
   type PendingMaquinariaStatus,
 } from "src/realm/pendingMaquinaria/PendingMaquinariaSubmission";
-import { PendingJornadaSubmission } from "src/realm/pendingJornada/PendingJornadaSubmission";
+import { PendingCapturaSubmission } from "src/realm/pendingJornada/PendingCapturaSubmission";
 
 export interface MaquinariaParaEncolar {
   constructionId: number;
@@ -138,7 +138,7 @@ export function usePendingMaquinariaQueue() {
   );
 
   /**
-   * Cierra el alta **y reescribe las jornadas que la esperaban**, en UNA sola
+   * Cierra el alta **y reescribe las capturas que la esperaban**, en UNA sola
    * transacción de Realm.
    *
    * Que sea atómico no es estética: si el alta quedara marcada como `done` y
@@ -155,7 +155,7 @@ export function usePendingMaquinariaQueue() {
       if (!item) return 0;
 
       const esperando = realm
-        .objects(PendingJornadaSubmission)
+        .objects(PendingCapturaSubmission)
         .filtered("maquinariaLocalId == $0", id);
 
       let enlazadas = 0;
@@ -166,12 +166,12 @@ export function usePendingMaquinariaQueue() {
         item.syncedAt = new Date();
         item.errorMessage = null;
 
-        for (const jornada of esperando) {
-          jornada.estanciaId = estanciaId;
-          jornada.maquinariaId = maquinariaId;
+        for (const captura of esperando) {
+          captura.estanciaId = estanciaId;
+          captura.maquinariaId = maquinariaId;
           // Limpiar el enlace es lo que la habilita para enviarse: mientras
           // no sea null, el worker la salta.
-          jornada.maquinariaLocalId = null;
+          captura.maquinariaLocalId = null;
           enlazadas += 1;
         }
       });
@@ -196,7 +196,7 @@ export function usePendingMaquinariaQueue() {
   );
 
   /**
-   * Descartar un alta se lleva sus jornadas.
+   * Descartar un alta se lleva sus capturas.
    *
    * Dejarlas sería peor que borrarlas: quedarían esperando un alta que ya no
    * existe, invisibles y sin manera de resolverse. Quien descarta el alta está
@@ -207,7 +207,7 @@ export function usePendingMaquinariaQueue() {
       const item = realm.objectForPrimaryKey(PendingMaquinariaSubmission, id);
       if (!item) return 0;
       const huerfanas = realm
-        .objects(PendingJornadaSubmission)
+        .objects(PendingCapturaSubmission)
         .filtered("maquinariaLocalId == $0", id);
       const total = huerfanas.length;
       realm.write(() => {

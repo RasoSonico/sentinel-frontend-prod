@@ -1,36 +1,38 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useRealm } from "@realm/react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useAppSelector } from "src/redux/hooks";
 import { ApiError } from "src/services/api/apiClient";
 import {
-  createJornada,
+  createCaptura,
   createMaquinaria,
 } from "src/hooks/data/api/maquinariaApi";
 import { MAQUINARIA_QUERY_KEYS } from "src/hooks/data/query/maquinariaQueries.const";
 import type {
-  CreateJornadaBody,
+  ConflictoCaptura,
+  CreateCapturaBody,
   MotivoInactividad,
 } from "src/types/maquinaria";
-import type { PendingJornadaSubmission } from "src/realm/pendingJornada/PendingJornadaSubmission";
+import type { PendingCapturaSubmission } from "src/realm/pendingJornada/PendingCapturaSubmission";
 import type { PendingMaquinariaSubmission } from "src/realm/pendingMaquinaria/PendingMaquinariaSubmission";
 
 import { useNetworkStatus } from "../utils/useNetworkStatus";
-import { usePendingJornadaQueue } from "./usePendingJornadaQueue";
+import { llaveMaquina, usePendingCapturaQueue } from "./usePendingCapturaQueue";
 import { usePendingMaquinariaQueue } from "./usePendingMaquinariaQueue";
 
 const DEBOUNCE_MS = 500;
 const RETRY_DELAY_BASE_MS = 1000;
 
 /**
- * Drena las DOS colas de maquinaria: altas y jornadas, **en ese orden**.
+ * Drena las DOS colas de maquinaria: altas y capturas, **en ese orden**.
  *
  * El orden es el punto y es la razón de que vivan en un solo worker. Una
- * jornada de una máquina dada de alta sin señal no puede enviarse antes que su
+ * captura de una máquina dada de alta sin señal no puede enviarse antes que su
  * alta: no existe la estancia a la que colgarla. El lazo de altas corre
- * primero, copia el `estancia_id` que responde el servidor a las jornadas que
- * lo esperaban, y recién entonces corre el lazo de jornadas.
+ * primero, copia el `estancia_id` que responde el servidor a las capturas que
+ * lo esperaban, y recién entonces corre el lazo de capturas.
  *
  * Partirlos en dos workers dejaría ese orden al azar de dos temporizadores.
  *
@@ -41,6 +43,7 @@ const RETRY_DELAY_BASE_MS = 1000;
  */
 export function useMaquinariaSyncWorker() {
   const queryClient = useQueryClient();
+  const realm = useRealm();
   const isOnline = useNetworkStatus();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
 
@@ -53,8 +56,8 @@ export function useMaquinariaSyncWorker() {
     markAsFailed,
     markAsDone,
     resetStuckSyncingItems,
-    removeDoneJornadas,
-  } = usePendingJornadaQueue();
+    removeDoneCapturas,
+  } = usePendingCapturaQueue();
 
   const {
     pendingCount: altasPendientes,
@@ -85,7 +88,7 @@ export function useMaquinariaSyncWorker() {
     const altas = rescatarAltasEncalladas();
     if (rescatadas > 0 || altas > 0) {
       console.log(
-        `[MaquinariaSync] liberadas: ${altas} alta(s), ${rescatadas} jornada(s)`,
+        `[MaquinariaSync] liberadas: ${altas} alta(s), ${rescatadas} captura(s)`,
       );
     }
     // Solo al montar: rescata lo que quedó a medias de una sesión anterior.
@@ -129,7 +132,7 @@ export function useMaquinariaSyncWorker() {
         if (respuesta.estancia_id == null) {
           // No debería ocurrir —el servidor abre la estancia en la misma
           // transacción— pero si ocurriera, marcarla `done` dejaría sus
-          // jornadas esperando un enlace que nunca llega. Mejor fallar fuerte.
+          // capturas esperando un enlace que nunca llega. Mejor fallar fuerte.
           marcarAltaFallida(
             item._id,
             "El servidor no devolvió la estancia del alta",
@@ -138,7 +141,7 @@ export function useMaquinariaSyncWorker() {
           return false;
         }
 
-        // Atómico: cierra el alta Y reescribe las jornadas que la esperaban.
+        // Atómico: cierra el alta Y reescribe las capturas que la esperaban.
         const enlazadas = completarAltaYEnlazar(
           item._id,
           respuesta.id,
@@ -146,7 +149,7 @@ export function useMaquinariaSyncWorker() {
         );
         if (enlazadas > 0) {
           console.log(
-            `[MaquinariaSync] ${enlazadas} jornada(s) enlazadas a la estancia ${respuesta.estancia_id}`,
+            `[MaquinariaSync] ${enlazadas} captura(s) enlazadas a la estancia ${respuesta.estancia_id}`,
           );
         }
         return true;
@@ -182,77 +185,92 @@ export function useMaquinariaSyncWorker() {
     ],
   );
 
-  const enviarJornada = useCallback(
-    async (item: PendingJornadaSubmission): Promise<boolean> => {
+  /**
+   * El cuerpo de `POST /capturas/` desde la fila de la cola.
+   *
+   * Los renglones van ordenados por `orden`: el servidor numera por POSICIÓN
+   * en el arreglo, y mandarlos revueltos renumeraría las actividades.
+   */
+  const cuerpoDe = (item: PendingCapturaSubmission): CreateCapturaBody => {
+    const cuerpo: CreateCapturaBody = {
+      client_id: item._id,
+      estancia: item.estanciaId,
+      fecha: item.fecha,
+      registrado_en: item.registradoEn,
+    };
+    if (item.cerrarAnteriorFinal !== null) {
+      cuerpo.cerrar_anterior = { final: item.cerrarAnteriorFinal };
+      return cuerpo;
+    }
+    if (item.cerrarAnteriorSinFinal) {
+      cuerpo.cerrar_anterior = { sin_final: true };
+      return cuerpo;
+    }
+    if (item.estado === "SIN_OPERAR") {
+      cuerpo.estado = "SIN_OPERAR";
+      cuerpo.motivo_inactividad = item.motivoInactividad as MotivoInactividad;
+      cuerpo.observaciones = item.observaciones || undefined;
+      return cuerpo;
+    }
+    if (item.horometroInicial) cuerpo.horometro_inicial = item.horometroInicial;
+    if (item.horometroFinal) cuerpo.horometro_final = item.horometroFinal;
+    if (item.observaciones) cuerpo.observaciones = item.observaciones;
+    const detalles = Array.from(item.detalles).sort((a, b) => a.orden - b.orden);
+    if (detalles.length) {
+      cuerpo.detalles = detalles.map((d) => ({
+        concept_id: d.concept ?? undefined,
+        descripcion: d.descripcion || undefined,
+        horas_estimadas: d.horas_estimadas ?? undefined,
+      }));
+    }
+    return cuerpo;
+  };
+
+  const enviarCaptura = useCallback(
+    async (item: PendingCapturaSubmission): Promise<boolean> => {
       markAsSyncing(item._id);
 
       try {
-        // Ordenados por `orden` y no por el orden de la lista: el servidor
-        // numera por POSICIÓN en el arreglo, así que mandarlos revueltos
-        // renumeraría las actividades del supervisor.
-        const detalles = Array.from(item.detalles)
-          .sort((a, b) => a.orden - b.orden)
-          .map((d) => ({
-            concept_id: d.concept ?? undefined,
-            descripcion: d.descripcion || undefined,
-            horas_estimadas: d.horas_estimadas ?? undefined,
-          }));
-
-        const respuesta = await createJornada(
-          (item.estado === "TRABAJANDO"
-            ? {
-                client_id: item._id,
-                estancia: item.estanciaId,
-                fecha: item.fecha,
-                estado: "TRABAJANDO",
-                detalles,
-                observaciones: item.observaciones || undefined,
-                horometro_inicial: item.horometroInicial ?? undefined,
-                horometro_final: item.horometroFinal ?? undefined,
-              }
-            : {
-                client_id: item._id,
-                estancia: item.estanciaId,
-                fecha: item.fecha,
-                estado: "SIN_OPERAR",
-                motivo_inactividad: item.motivoInactividad as MotivoInactividad,
-                observaciones: item.observaciones || undefined,
-              }) as CreateJornadaBody,
-        );
-
-        markAsDone(item._id, respuesta.id);
+        const jornada = await createCaptura(cuerpoDe(item));
+        markAsDone(item._id, jornada.fecha);
         return true;
       } catch (error) {
         const status = error instanceof ApiError ? error.status : undefined;
 
         /**
-         * Un 4xx NO se arregla reintentando: el servidor entendió y rechazó, y
-         * el mismo cuerpo producirá el mismo rechazo. Un 5xx, un timeout o un
-         * corte sí. 408 y 429 son 4xx pero significan "vuelve a intentar".
+         * Un 4xx NO se arregla reintentando: el servidor entendió y rechazó,
+         * y el mismo cuerpo producirá el mismo rechazo. Un 5xx, un timeout o
+         * un corte sí. 408 y 429 son 4xx pero significan "vuelve a intentar".
          *
-         * Gastar los tres intentos en siete segundos contra un error temporal
-         * convierte una falla pasajera en pérdida permanente.
+         * El 409 es el caso que vale nombrar: la máquina tiene un turno sin
+         * cerrar o un cierre olvidado, quizá capturado desde otro teléfono.
+         * Su `motivo` viaja a la tarjeta para que "Requiere atención" diga
+         * algo útil.
          */
-        const permanente =
-          status !== undefined &&
-          status >= 400 &&
-          status < 500 &&
-          status !== 408 &&
-          status !== 429;
+        const permanente = esPermanente(status);
+        const conflicto =
+          status === 409 && error instanceof ApiError
+            ? ((
+                error.originalError as {
+                  response?: { data?: ConflictoCaptura };
+                }
+              )?.response?.data ?? null)
+            : null;
 
-        const mensaje = permanente
-          ? `El servidor rechazó la jornada (${status}). ${
-              error instanceof Error ? error.message : ""
-            }`.trim()
-          : error instanceof Error
-            ? error.message
-            : "Error desconocido al enviar la jornada";
+        const mensaje = conflicto?.detail
+          ? conflicto.detail
+          : permanente
+            ? `El servidor rechazó la captura (${status}). ${
+                error instanceof Error ? error.message : ""
+              }`.trim()
+            : error instanceof Error
+              ? error.message
+              : "Error desconocido al enviar la captura";
 
-        markAsFailed(item._id, mensaje, permanente);
+        markAsFailed(item._id, mensaje, permanente, conflicto?.motivo ?? null);
 
         // Sin `+ 1`: `markAsFailed` ya incrementó, y `item` es un objeto VIVO
-        // de Realm. Sumar otra vez contaba el intento dos veces y dejaba la
-        // jornada en 2 de 3 para siempre, "reintentando" sin reintentar nada.
+        // de Realm.
         if (!permanente && item.retryCount < item.maxRetries) {
           const espera = RETRY_DELAY_BASE_MS * Math.pow(2, item.retryCount);
           await new Promise((resolve) => setTimeout(resolve, espera));
@@ -274,42 +292,45 @@ export function useMaquinariaSyncWorker() {
     enCursoRef.current = true;
     setIsSyncing(true);
 
-    // La purga de lo confirmado corre AL EMPEZAR, no al cerrar.
-    //
-    // Antes iba al final del mismo ciclo que las enviaba, y eso dejaba una
-    // trampa: si el refetch del hub no aterrizaba —en dispositivo, por un
-    // error al guardarlo en Realm— se borraba la copia local de una jornada
-    // que el hub todavía no traía, y la tarjeta volvía a "Sin reportar hoy"
-    // sobre algo que YA estaba en el servidor.
-    //
-    // Al moverla aquí, lo enviado sobrevive un ciclo completo. Si el hub falló,
-    // la tarjeta sigue diciendo "Enviando" en vez de mentir.
-    removeDoneJornadas();
+    // La purga de lo confirmado corre AL EMPEZAR, y solo de lo que el caché
+    // del hub YA trae: lo confirmado antes de su última escritura. Purgar lo
+    // demás dejaría un hueco en la hoja —la captura enviada y el hub todavía
+    // sin ella— hasta el siguiente refetch.
+    const hubEscritoEn = realm
+      .objects("MaquinariaHubResponse")
+      .max("updatedAt") as Date | undefined;
+    removeDoneCapturas(hubEscritoEn ?? null);
     removeDoneMaquinarias();
 
     let enviadas = 0;
 
     try {
       // ── 1 · Las altas PRIMERO ────────────────────────────────────────
-      // De su `estancia_id` dependen las jornadas que esperan. Si este lazo no
-      // corriera antes, esas jornadas se saltarían un ciclo completo.
+      // De su `estancia_id` dependen las capturas que esperan. Si este lazo no
+      // corriera antes, esas capturas se saltarían un ciclo completo.
       for (const alta of [...leerAltasPendientes()]) {
         if (!montadoRef.current) break;
         if (await enviarAlta(alta)) enviadas += 1;
       }
 
-      // ── 2 · Y después las jornadas ───────────────────────────────────
-      // Se RELEEN de Realm, no se usa el snapshot que capturó este callback:
-      // las que acaban de recibir su `estanciaId` en el lazo de arriba todavía
-      // valían `maquinariaLocalId != null` en aquella copia, así que el filtro
-      // las habría excluido. Es el mismo bug que dejaba fotos esperando.
+      // ── 2 · Y después las capturas ───────────────────────────────────
+      // Se RELEEN de Realm: las que acaban de recibir su `estanciaId` en el
+      // lazo de arriba todavía esperaban su alta en la copia vieja.
+      //
+      // Por máquina y en orden: si una falla en este ciclo, las siguientes de
+      // ESA máquina no salen. Un cierre detrás de un arranque fallido solo
+      // produciría otro error.
+      const caidas = new Set<string>();
       for (const item of [...leerTrabajoPendiente()]) {
         if (!montadoRef.current) break;
-        if (await enviarJornada(item)) enviadas += 1;
+        const llave = llaveMaquina(item);
+        if (caidas.has(llave)) continue;
+        if (await enviarCaptura(item)) enviadas += 1;
+        else caidas.add(llave);
       }
 
       if (enviadas > 0) {
-        // El hub se invalida DESPUÉS de enviar todo, no por jornada: con cinco
+        // El hub se invalida DESPUÉS de enviar todo, no por captura: con cinco
         // máquinas serían cinco refetch del mismo endpoint.
         //
         // Las `done` NO se purgan aquí: se quedan hasta el ciclo siguiente
@@ -333,10 +354,11 @@ export function useMaquinariaSyncWorker() {
     altasPendientes,
     leerTrabajoPendiente,
     leerAltasPendientes,
-    enviarJornada,
+    enviarCaptura,
     enviarAlta,
     queryClient,
-    removeDoneJornadas,
+    realm,
+    removeDoneCapturas,
     removeDoneMaquinarias,
   ]);
 

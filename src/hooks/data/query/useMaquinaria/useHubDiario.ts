@@ -7,6 +7,7 @@ import { MaquinariaHubResponse } from "src/realm/maquinariaHub/Response";
 import { MaquinariaHubItem } from "src/types/maquinaria";
 import { MAQUINARIA_QUERY_KEYS } from "../maquinariaQueries.const";
 import { DateUtils } from "src/utils/dateUtils";
+import { useFechaOperativa } from "src/hooks/utils/useFechaOperativa";
 import {
   logApiFetchStart,
   logApiResponse,
@@ -23,6 +24,14 @@ import {
 const realmKey = (constructionId: number, localDate: string) =>
   `${MAQUINARIA_QUERY_KEYS.HUB_DIARIO}-${constructionId}-${localDate}`;
 
+/**
+ * Del JSON a la forma de Realm.
+ *
+ * Casi sin traducir: los nombres del esquema local son los del servidor
+ * justamente para que este paso no convierta nada. Traducir aquí es donde se
+ * cuela un tipo que no es el que Realm declara, y una escritura rechazada
+ * deja la pantalla con datos viejos sin decir nada.
+ */
 const flattenHubItem = (item: MaquinariaHubItem) => ({
   id: item.id,
   tipo: item.tipo,
@@ -32,18 +41,13 @@ const flattenHubItem = (item: MaquinariaHubItem) => ({
   tipo_permanencia: item.tipo_permanencia,
   estancia_id: item.estancia_actual.id,
   estancia_fecha_ingreso: item.estancia_actual.fecha_ingreso,
-  jornada_id: item.jornada_hoy?.id ?? null,
-  jornada_estado: item.jornada_hoy?.estado ?? null,
-  jornada_motivo_inactividad: item.jornada_hoy?.motivo_inactividad ?? null,
-  jornada_observaciones: item.jornada_hoy?.observaciones ?? null,
-  // Los renglones pasan TAL CUAL: los nombres del esquema local son los del
-  // servidor justamente para que este paso no traduzca nada. Traducir aquí es
-  // donde se cuela un tipo que no es el que Realm declara, y una escritura
-  // rechazada deja la pantalla con datos viejos sin decir nada.
-  jornada_detalles: item.jornada_hoy?.detalles ?? [],
-  jornada_horometro_inicial: item.jornada_hoy?.horometro_inicial ?? null,
-  jornada_horometro_final: item.jornada_hoy?.horometro_final ?? null,
-  requiere_reconciliacion: item.requiere_reconciliacion,
+  estado_dia: item.estado_dia,
+  actividades_hoy: item.actividades_hoy,
+  falta_horometro: item.falta_horometro,
+  jornada_hoy: item.jornada_hoy ?? null,
+  turno_abierto: item.turno_abierto ?? null,
+  jornada_turno_abierto: item.jornada_turno_abierto ?? null,
+  requiere_atencion: item.requiere_atencion?.motivo ?? null,
   dias_sin_reporte: item.dias_sin_reporte,
   ultima_jornada_fecha: item.ultima_jornada_fecha ?? null,
   ultimo_horometro: item.ultimo_horometro ?? null,
@@ -85,10 +89,6 @@ export const hubDiarioOptions = (
             {
               _id: realmKey(constructionId!, localDate),
               fecha: data.fecha,
-              total_en_sitio: data.resumen.total_en_sitio,
-              reportadas_hoy: data.resumen.reportadas_hoy,
-              sin_reportar: data.resumen.sin_reportar,
-              sin_operar: data.resumen.sin_operar,
               maquinarias: flatItems,
               updatedAt: new Date(),
             },
@@ -116,7 +116,11 @@ export const hubDiarioOptions = (
 export const useHubDiario = (constructionId: number | undefined) => {
   const realm = useRealm();
   const isOnline = useNetworkStatus();
-  const localDate = DateUtils.localDateToUTC(new Date());
+  // El día OPERATIVO, que cambia solo a medianoche y al volver a primer
+  // plano. Calcularlo en cada render dejaba la pantalla —y la llave de la
+  // query, así que también el refetch— en el día anterior si la app seguía
+  // abierta al cruzar la medianoche o volvía del segundo plano sin pintar.
+  const localDate = useFechaOperativa();
 
   const cached = useObject(
     MaquinariaHubResponse,

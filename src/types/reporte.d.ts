@@ -118,6 +118,8 @@ export interface MaquinariaReporte {
   motivo_inactividad: string;
   horometro_inicial: string | null;
   horometro_final: string | null;
+  /** Suma de los turnos completos. Ausente en reportes cacheados de antes. */
+  horas?: string | null;
   actividades: {
     orden: number;
     texto: string;

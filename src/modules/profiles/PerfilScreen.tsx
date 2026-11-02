@@ -10,24 +10,28 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Avatar, Card, Chip } from "react-native-paper";
+import { Avatar, Card /* , Chip */ } from "react-native-paper";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 
 import {
   selectUserName,
   selectUserEmail,
-  selectUser,
+  // selectUser, — del chip de rol (oculto por ahora)
+  selectIsContratista,
 } from "../../redux/selectors/authSelectors";
 import { useAuth } from "../../hooks/useAuth";
 import { useBarraDeEstado } from "src/hooks/ui/useBarraDeEstado";
 import { DesignTokens } from "../../styles/designTokens";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { useAssignedConstruction } from "src/hooks/data/query/useAvance";
 import { usePendingAdvanceQueue } from "src/hooks/avance/usePendingAdvanceQueue";
 import { usePendingReporteQueue } from "src/hooks/reportes/usePendingReporteQueue";
-import { usePendingJornadaQueue } from "src/hooks/maquinaria/usePendingJornadaQueue";
+import { usePendingCapturaQueue } from "src/hooks/maquinaria/usePendingCapturaQueue";
 import PantallaMiFirma from "src/modules/firma/PantallaMiFirma";
+import PantallaDescargarDatos from "src/modules/descargas/PantallaDescargarDatos";
+import { formatoPesos, hayMonto } from "src/utils/formatoPesos";
+import { duracionObra } from "./duracionObra";
 
 const PerfilScreen = () => {
   const auth = useAuth();
@@ -37,10 +41,15 @@ const PerfilScreen = () => {
   // de firma, que se abren desde aquí y también son blancas.
   useBarraDeEstado("claro");
   const [firmaAbierta, setFirmaAbierta] = useState(false);
+  const [descargaAbierta, setDescargaAbierta] = useState(false);
   const { pendingCount, failedCount, syncingCount } = usePendingAdvanceQueue();
   const { totalCount: reportesSinEnviar } = usePendingReporteQueue();
-  const { totalCount: jornadasSinEnviar } = usePendingJornadaQueue();
-  const user = useAppSelector(selectUser);
+  const { totalCount: jornadasSinEnviar } = usePendingCapturaQueue();
+  // Solo lo usaba el chip de rol (oculto por ahora).
+  // const user = useAppSelector(selectUser);
+  // "Descargar datos" es del contratista: es quien tiene una obra asignada y
+  // las tabs donde se capturan reportes y maquinaria.
+  const esContratista = useAppSelector(selectIsContratista);
   const userName = useAppSelector(selectUserName) || "Usuario";
   const userEmail = useAppSelector(selectUserEmail) || "usuario@ejemplo.com";
 
@@ -57,18 +66,18 @@ const PerfilScreen = () => {
       .join("");
   }, [userName]);
 
-  // Obtener rol principal
-  const primaryRole = useMemo(() => {
-    if (!user?.roles || user.roles.length === 0) return "Sin rol";
-    const roleMap = {
-      CONTRATISTA: "Contratista",
-      INSPECTOR: "Inspector",
-      DESARROLLADOR: "Desarrollador",
-      INVERSIONISTA: "Inversionista",
-      ADMIN: "Administrador",
-    };
-    return roleMap[user.roles[0]] || user.roles[0];
-  }, [user?.roles]);
+  // Rol principal, para el chip del encabezado (oculto por ahora).
+  // const primaryRole = useMemo(() => {
+  //   if (!user?.roles || user.roles.length === 0) return "Sin rol";
+  //   const roleMap = {
+  //     CONTRATISTA: "Contratista",
+  //     INSPECTOR: "Inspector",
+  //     DESARROLLADOR: "Desarrollador",
+  //     INVERSIONISTA: "Inversionista",
+  //     ADMIN: "Administrador",
+  //   };
+  //   return roleMap[user.roles[0]] || user.roles[0];
+  // }, [user?.roles]);
 
   // Calcular métricas básicas (mock data por ahora)
   const userStats = useMemo(() => {
@@ -137,6 +146,20 @@ const PerfilScreen = () => {
     );
   };
 
+  // Datos de la tarjeta "Información de obra", ya listos para pintarse.
+  const fechaTexto = (fecha?: string | null) =>
+    fecha ? format(parseISO(fecha), "dd MMM yyyy", { locale: es }) : null;
+  const fechaInicio = fechaTexto(assignedConstruction?.start_date);
+  const fechaFin = fechaTexto(assignedConstruction?.end_date);
+  const duracion = duracionObra(
+    assignedConstruction?.start_date,
+    assignedConstruction?.end_date,
+  );
+  // "0.00" es el default de la base, no un presupuesto: se dice "No definido".
+  const presupuesto = hayMonto(assignedConstruction?.budget)
+    ? formatoPesos(assignedConstruction?.budget)
+    : null;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -150,6 +173,9 @@ const PerfilScreen = () => {
           />
           <Text style={styles.userName}>{userName}</Text>
           <Text style={styles.userEmail}>{userEmail}</Text>
+          {/* Oculto (2-nov): el rol no le dice nada al usuario sobre sí
+              mismo. Se conserva por si se vuelve a usar; al reactivarlo,
+              descomentar también `Chip` en el import y `primaryRole`.
           <Chip
             mode="outlined"
             style={styles.roleChip}
@@ -157,6 +183,7 @@ const PerfilScreen = () => {
           >
             {primaryRole}
           </Chip>
+          */}
         </View>
 
         {/* Obra Asignada */}
@@ -167,9 +194,9 @@ const PerfilScreen = () => {
                 <Ionicons
                   name="business"
                   size={24}
-                  color={DesignTokens.colors.construction}
+                  color={DesignTokens.colors.primary[600]}
                 />
-                <Text style={styles.cardTitle}>Obra Activa</Text>
+                <Text style={styles.cardTitle}>Información de obra</Text>
               </View>
 
               <Text style={styles.constructionName}>
@@ -202,43 +229,67 @@ const PerfilScreen = () => {
                 </View>
               )}
 
-              {/* Fechas y Presupuesto */}
-              <View style={styles.detailsContainer}>
-                <View style={styles.detailItem}>
+              {/* Inicio, fin y duración en tres columnas. La duración va en
+                  DÍAS NATURALES, extremos incluidos: así se mide el plazo en
+                  contrato (ver `duracionObra.ts`).
+
+                  Con `parseISO` y NO con `new Date(...)`: el constructor lee
+                  "2026-01-01" como medianoche UTC, que en México todavía es el
+                  31 de diciembre — la obra aparecía empezando un día antes, y
+                  de otro año. `parseISO` lee una fecha sola como medianoche
+                  LOCAL. */}
+              <View style={styles.fechasFila}>
+                <View style={styles.fechaColumna}>
                   <Text style={styles.detailLabel}>Inicio</Text>
-                  <Text style={styles.detailValue}>
-                    {assignedConstruction.start_date
-                      ? format(
-                          new Date(assignedConstruction.start_date),
-                          "dd MMM yyyy",
-                          { locale: es },
-                        )
-                      : "No definido"}
-                  </Text>
+                  {fechaInicio ? (
+                    <Text style={styles.detailValue}>{fechaInicio}</Text>
+                  ) : (
+                    <Text style={styles.noDefinido}>No definido</Text>
+                  )}
                 </View>
-
-                <View style={styles.detailItem}>
+                <View style={[styles.fechaColumna, styles.columnaSeparada]}>
                   <Text style={styles.detailLabel}>Fin</Text>
-                  <Text style={styles.detailValue}>
-                    {assignedConstruction.end_date
-                      ? format(
-                          new Date(assignedConstruction.end_date),
-                          "dd MMM yyyy",
-                          { locale: es },
-                        )
-                      : "No definido"}
-                  </Text>
+                  {fechaFin ? (
+                    <Text style={styles.detailValue}>{fechaFin}</Text>
+                  ) : (
+                    <Text style={styles.noDefinido}>No definido</Text>
+                  )}
                 </View>
+                <View style={[styles.fechaColumna, styles.columnaSeparada]}>
+                  <Text style={styles.detailLabel}>Duración</Text>
+                  {duracion ? (
+                    <Text style={styles.detailValue}>{duracion}</Text>
+                  ) : (
+                    <Text style={styles.noDefinido}>No definido</Text>
+                  )}
+                </View>
+              </View>
 
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Presupuesto</Text>
-                  <Text style={styles.detailValue}>
-                    {assignedConstruction.budget
-                      ? `$${(
-                          parseFloat(assignedConstruction.budget) / 1000000
-                        ).toFixed(2)} M`
-                      : "No definido"}
+              {/* Presupuesto en su propio renglón, COMPLETO y exacto
+                  (UX-SPEC-05, opción A). Antes iba en una tercera columna,
+                  dividido entre un millón ("$1284.57 M"): no cabía el monto y
+                  la abreviatura no decía cuánto era.
+
+                  Si no cabe junto a la etiqueta, el `flexWrap` lo baja al
+                  renglón siguiente, alineado a la derecha. Nunca se recorta,
+                  se abrevia ni se achica la letra. */}
+              <View style={styles.presupuestoBloque}>
+                <View style={styles.presupuestoFila}>
+                  <Text style={[styles.detailLabel, styles.sinMargen]}>
+                    Presupuesto
                   </Text>
+                  {presupuesto ? (
+                    <View style={styles.montoCaja}>
+                      <Text style={styles.monto} numberOfLines={1}>
+                        {presupuesto}
+                      </Text>
+                      <Text style={styles.moneda}>MXN</Text>
+                    </View>
+                  ) : (
+                    <Text style={[styles.noDefinido, styles.alFinal]}>
+                      No definido
+                    </Text>
+                  )}
                 </View>
               </View>
             </Card.Content>
@@ -304,6 +355,30 @@ const PerfilScreen = () => {
               />
             </TouchableOpacity>
 
+            {esContratista && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => setDescargaAbierta(true)}
+              >
+                <Ionicons
+                  name="download-outline"
+                  size={24}
+                  color={DesignTokens.colors.neutral[600]}
+                />
+                <Text style={styles.menuItemText}>Descargar datos</Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={DesignTokens.colors.neutral[400]}
+                />
+              </TouchableOpacity>
+            )}
+
+            {/* Ocultas mientras no tengan a dónde llevar (2-nov): una fila
+                que no responde al tocarla parece rota. Se conservan para
+                cuando existan sus pantallas; al reactivarlas, darles su
+                `onPress`.
+
             <TouchableOpacity style={styles.menuItem}>
               <Ionicons
                 name="person-outline"
@@ -345,6 +420,7 @@ const PerfilScreen = () => {
                 color={DesignTokens.colors.neutral[400]}
               />
             </TouchableOpacity>
+            */}
           </Card.Content>
         </Card>
 
@@ -360,6 +436,10 @@ const PerfilScreen = () => {
       <PantallaMiFirma
         visible={firmaAbierta}
         onCerrar={() => setFirmaAbierta(false)}
+      />
+      <PantallaDescargarDatos
+        visible={descargaAbierta}
+        onCerrar={() => setDescargaAbierta(false)}
       />
     </SafeAreaView>
   );
@@ -395,6 +475,9 @@ const styles = StyleSheet.create({
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.neutral[900],
     marginBottom: DesignTokens.spacing.xs,
+    // El encabezado ya centra la caja; esto centra cada renglón cuando un
+    // nombre largo se parte en dos.
+    textAlign: "center",
   },
   userEmail: {
     fontSize: DesignTokens.typography.fontSize.base,
@@ -453,17 +536,64 @@ const styles = StyleSheet.create({
     color: DesignTokens.colors.neutral[600],
     marginLeft: DesignTokens.spacing.xs,
   },
-  detailsContainer: {
+  fechasFila: {
     flexDirection: "row",
-    justifyContent: "space-between",
     marginTop: DesignTokens.spacing.md,
     paddingTop: DesignTokens.spacing.md,
     borderTopWidth: 1,
     borderTopColor: DesignTokens.colors.neutral[200],
   },
-  detailItem: {
+  fechaColumna: {
     flex: 1,
-    alignItems: "center",
+  },
+  columnaSeparada: {
+    borderLeftWidth: 1,
+    borderLeftColor: DesignTokens.colors.neutral[200],
+    paddingLeft: DesignTokens.spacing.md,
+  },
+  presupuestoBloque: {
+    marginTop: DesignTokens.spacing.md,
+    paddingTop: DesignTokens.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.neutral[200],
+  },
+  presupuestoFila: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    flexWrap: "wrap",
+  },
+  sinMargen: {
+    marginBottom: 0,
+  },
+  // El monto y "MXN" en su propia caja: un `Text` anidado no admite margen.
+  // `marginLeft: "auto"` lo mantiene a la derecha también cuando baja de
+  // renglón.
+  montoCaja: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginLeft: "auto",
+  },
+  monto: {
+    fontSize: 17,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.neutral[900],
+    fontVariant: ["tabular-nums"],
+  },
+  moneda: {
+    fontSize: 11,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.neutral[500],
+    marginLeft: 4,
+    letterSpacing: 0.4,
+  },
+  noDefinido: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.neutral[400],
+  },
+  alFinal: {
+    marginLeft: "auto",
   },
   detailLabel: {
     fontSize: DesignTokens.typography.fontSize.xs,
@@ -475,7 +605,6 @@ const styles = StyleSheet.create({
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.neutral[800],
     fontWeight: DesignTokens.typography.fontWeight.semibold,
-    textAlign: "center",
   },
   statsRow: {
     flexDirection: "row",

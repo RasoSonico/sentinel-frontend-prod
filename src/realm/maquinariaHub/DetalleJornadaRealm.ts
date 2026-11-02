@@ -24,6 +24,12 @@ export class DetalleJornadaRealm extends Realm.Object<DetalleJornadaRealm> {
   /** Texto libre. Vacío cuando la actividad es un concepto. */
   descripcion!: string;
   horas_estimadas!: string | null;
+  /**
+   * Cuándo se registró y quién. En el hub vienen del servidor; en la cola
+   * quedan nulos —la captura misma lleva la hora y el autor—.
+   */
+  registrado_en!: string | null;
+  autor!: string | null;
 
   static schema: Realm.ObjectSchema = {
     name: "DetalleJornadaRealm",
@@ -33,6 +39,8 @@ export class DetalleJornadaRealm extends Realm.Object<DetalleJornadaRealm> {
       concept: "int?",
       descripcion: { type: "string", default: "" },
       horas_estimadas: "string?",
+      registrado_en: "string?",
+      autor: "string?",
     },
   };
 }

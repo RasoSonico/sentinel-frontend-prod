@@ -189,7 +189,7 @@ Ninguna. El módulo usa el mismo `apiClient` y credenciales Azure AD ya configur
 
 ## 4. Technical Debt & TODOs
 
-- **Sin cola offline para mutaciones**: A diferencia del módulo de Avances (que tiene `PendingAdvanceSubmission` en Realm y un sync worker), las mutaciones de maquinaria requieren conexión. Si el ingeniero intenta reportar sin internet, la mutación falla sin feedback claro. Pendiente: implementar `PendingMaquinariaSubmission` + worker similar al de Avances.
+- ~~**Sin cola offline para mutaciones**~~: resuelto. El alta y las capturas de la jornada van por cola (`PendingMaquinariaSubmission`, `PendingCapturaSubmission`) y un solo worker. **Siguen requiriendo conexión** la salida de obra, la reactivación y la reconciliación. Desde ADR-009 la jornada se captura en varias veces; ese ADR es la referencia vigente de la hoja y del hub.
 
 - **`RealmWipeHandler` en RealmProvider**: El bloque comentado en `src/providers/RealmProvider.tsx` debe eliminarse una vez confirmado el despliegue sin problemas de la migración v9. Aplica al módulo de Maquinaria y a cualquier módulo futuro.
 

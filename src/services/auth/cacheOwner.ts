@@ -151,7 +151,7 @@ export async function ensureCacheOwner(
   const pendingAdvances = realm.objects("PendingAdvanceSubmission").length;
   const pendingPhotos = realm.objects("PendingPhotoSubmission").length;
   const pendingReportes = realm.objects("PendingReporteSubmission").length;
-  const pendingJornadas = realm.objects("PendingJornadaSubmission").length;
+  const pendingJornadas = realm.objects("PendingCapturaSubmission").length;
 
   console.log("[CacheOwner] Cambio de identidad — borrando cache local");
   await wipeLocalCaches(realm);

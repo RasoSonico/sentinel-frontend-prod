@@ -51,6 +51,39 @@ export const fechaCortaLocal = (iso: string): string => {
   return `${d} ${MESES[m - 1]}`;
 };
 
+const DIAS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+
+/** `2026-10-15` → `jue 15`. Por componentes, como `fechaCortaLocal`. */
+export const diaCorto = (iso: string): string => {
+  const [a, m, d] = iso.split("-").map(Number);
+  if (!a || !m || !d) return iso;
+  return `${DIAS[new Date(Date.UTC(a, m - 1, d)).getUTCDay()]} ${d}`;
+};
+
+/** `2026-10-15` → `jue 15 oct`. Encabezado de la hoja. */
+export const diaYMes = (iso: string): string => {
+  const [, m] = iso.split("-").map(Number);
+  return `${diaCorto(iso)} ${MESES[(m || 1) - 1]}`;
+};
+
+/**
+ * Un instante ISO —el `registrado_en` de una captura— en la hora del
+ * teléfono. Aquí SÍ se usa `Date`: es un instante con desplazamiento, no una
+ * fecha de calendario.
+ */
+export const horaCorta = (instante: string): string => {
+  const d = new Date(instante);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+
+/** La fecha de calendario LOCAL de un instante, `YYYY-MM-DD`. */
+export const fechaDeInstante = (instante: string): string => {
+  const d = new Date(instante);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 /** Tope por encima del cual una jornada deja de ser creíble. */
 export const HORAS_SOSPECHOSAS = 16;
 

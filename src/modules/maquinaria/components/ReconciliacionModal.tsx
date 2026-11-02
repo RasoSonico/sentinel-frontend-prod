@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { DesignTokens } from "src/styles/designTokens";
-import type { FilaMaquinaria } from "../filaMaquinaria";
+import type { VistaMaquina } from "../diaMaquina";
 import { useCreateReconciliacion } from "src/hooks/data/query/useMaquinaria";
 import DateInput from "src/components/ui/DateInput";
 import { ResultadoRecon } from "src/types/maquinaria";
@@ -19,7 +19,7 @@ import { DateUtils } from "src/utils/dateUtils";
 interface Props {
   isVisible: boolean;
   onClose: () => void;
-  item: FilaMaquinaria | null;
+  item: VistaMaquina | null;
 }
 
 const ReconciliacionModal: React.FC<Props> = ({ isVisible, onClose, item }) => {
@@ -35,12 +35,12 @@ const ReconciliacionModal: React.FC<Props> = ({ isVisible, onClose, item }) => {
     let body: Parameters<typeof createReconciliacion.mutate>[0];
     if (selected === "SALIO") {
       body = {
-        estancia_id: item.estancia_id,
+        estancia_id: item.maquina.estanciaId,
         resultado: "SALIO",
         fecha_salida_indicada: fechaSalida,
       };
     } else {
-      body = { estancia_id: item.estancia_id, resultado: selected };
+      body = { estancia_id: item.maquina.estanciaId, resultado: selected };
     }
 
     createReconciliacion.mutate(body, {
@@ -78,12 +78,12 @@ const ReconciliacionModal: React.FC<Props> = ({ isVisible, onClose, item }) => {
 
           <Text style={styles.title}>¿Sigue en obra?</Text>
           <Text style={styles.machine}>
-            {item.tipo} · {item.marca} {item.modelo}
+            {item.maquina.tipo} · {item.maquina.marca} {item.maquina.modelo}
           </Text>
           <Text style={styles.description}>
             Esta máquina lleva{" "}
             <Text style={styles.daysHighlight}>
-              {item.dias_sin_reporte} días
+              {item.diasSinReporte} días
             </Text>{" "}
             sin reporte. Confirma su estado actual.
           </Text>
@@ -205,7 +205,7 @@ const ReconciliacionModal: React.FC<Props> = ({ isVisible, onClose, item }) => {
               style={styles.postponeBtn}
               onPress={() => {
                 createReconciliacion.mutate(
-                  { estancia_id: item.estancia_id, resultado: "POSPUESTO" },
+                  { estancia_id: item.maquina.estanciaId, resultado: "POSPUESTO" },
                   { onSuccess: onClose },
                 );
               }}

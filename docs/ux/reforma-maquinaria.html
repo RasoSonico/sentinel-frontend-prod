@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maquinaria · Varias capturas por jornada</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    color-scheme:light;
+    --ink:#1c2430; --ink-2:#4b5563; --ink-3:#8b95a3;
+    --paper:#fafaf8; --line:#d8dce2; --line-soft:#eceff3;
+    --teal:#0f766e; --violet:#6d5fd3; --coral:#d6554d; --navy:#1e3a5f;
+    --f-disp:'Archivo',system-ui,sans-serif;
+    --f-body:'IBM Plex Sans',system-ui,sans-serif;
+    --f-mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--paper); color:var(--ink); font-family:var(--f-body); font-size:15px; line-height:1.55;}
+  .wrap{max-width:1160px; margin:0 auto; padding:32px 16px 80px;}
+  code{font-family:var(--f-mono); font-size:.86em; background:#f1f3f6; padding:0 4px;}
+
+  .cajetin{border:1.5px solid var(--ink); background:#fff;}
+  .cj-top{display:flex; flex-wrap:wrap; border-bottom:1.5px solid var(--ink);}
+  .cj-brand{padding:18px 22px; border-right:1.5px solid var(--ink);}
+  .cj-brand h1{font-family:var(--f-disp); font-weight:700; font-size:26px; letter-spacing:.14em; text-transform:uppercase;}
+  .cj-brand small{font-family:var(--f-mono); font-size:11px; color:var(--ink-2); letter-spacing:.08em;}
+  .cj-title{padding:18px 22px; flex:1; min-width:240px;}
+  .cj-title h2{font-family:var(--f-disp); font-weight:600; font-size:17px; line-height:1.3;}
+  .cj-title p{font-size:13px; color:var(--ink-2); margin-top:4px;}
+  .cj-meta{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr));}
+  .cj-cell{padding:10px 22px; border-right:1px solid var(--line); border-top:1px solid var(--line);}
+  .cj-cell b{display:block; font-family:var(--f-mono); font-size:10px; font-weight:500; color:var(--ink-3); text-transform:uppercase; letter-spacing:.1em; margin-bottom:2px;}
+  .cj-cell span{font-size:13px; font-weight:500;}
+
+  .sec{margin-top:52px;}
+  .sec-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 14px; border-bottom:2px solid var(--acc); padding-bottom:8px; margin-bottom:6px;}
+  .sec-head .code{font-family:var(--f-mono); font-size:12px; color:#fff; background:var(--acc); padding:3px 9px; letter-spacing:.08em;}
+  .sec-head h3{font-family:var(--f-disp); font-weight:600; font-size:19px; text-transform:uppercase; letter-spacing:.06em; color:var(--acc);}
+  .sec-head p{font-size:13px; color:var(--ink-2);}
+  .sec.teal{--acc:var(--teal);} .sec.violet{--acc:var(--violet);} .sec.coral{--acc:var(--coral);} .sec.navy{--acc:var(--navy);} .sec.ink{--acc:var(--ink);}
+  .lead{font-size:14px; color:var(--ink-2); max-width:80ch; margin-top:12px;}
+  .lead b{color:var(--ink);}
+  .tblwrap{overflow-x:auto; margin-top:14px; background:#fff; border:1px solid var(--line);}
+  table{border-collapse:collapse; width:100%; min-width:640px; font-size:13px;}
+  th,td{padding:9px 12px; border-bottom:1px solid var(--line-soft); text-align:left; vertical-align:top;}
+  th{font-family:var(--f-mono); font-size:10.5px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); background:#f6f7f9;}
+  td{color:var(--ink-2);} td:first-child{font-weight:600; color:var(--ink); width:22%;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:22px; margin-top:18px; align-items:start;}
+  .colh{min-height:48px; display:flex; flex-direction:column; gap:3px; margin-bottom:10px;}
+  .colh b{font-family:var(--f-disp); font-size:15px;}
+  .colh span{font-size:12.5px; color:var(--ink-2);}
+  .notes{display:flex; flex-direction:column; gap:7px; margin-top:14px; max-width:920px;}
+  .ann{display:flex; gap:9px; background:#fff; border:1px solid var(--line-soft); padding:8px 10px;}
+  .ann .n{font-family:var(--f-mono); font-size:10.5px; color:#fff; background:var(--acc); min-width:18px; height:18px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px;}
+  .ann p{font-size:12.5px; color:var(--ink-2); line-height:1.45;} .ann b{color:var(--ink);}
+
+  /* ── Hoja (lenguaje Rev K) ── */
+  .phone{width:100%; max-width:340px; background:#64748b; border-radius:22px; border:1px solid #c8cdd5; overflow:hidden; padding-top:34px; font-size:13px; color:#1f2937;}
+  .sh{background:#fff; border-radius:18px 18px 0 0; padding:10px 15px 16px;}
+  .grab{width:36px; height:4px; background:#d1d5db; border-radius:2px; margin:0 auto 12px;}
+  .eb{font-size:9.5px; letter-spacing:.09em; text-transform:uppercase; color:#6b7280; font-weight:600;}
+  .ttl{font-size:16.5px; font-weight:700; color:#111827; margin-top:2px;}
+  .offl{font-size:11px; color:#475569; margin-top:3px;}
+  .sl{font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:#6b7280; font-weight:700; margin:14px 2px 7px; display:flex; justify-content:space-between; align-items:center;}
+  .sl .rep{text-transform:none; letter-spacing:0; font-weight:600; font-size:11.5px; color:#2563eb;}
+  .sl .ct{text-transform:none; letter-spacing:0; font-weight:500; color:#6b7280;}
+  .yn{display:flex; gap:6px;}
+  .yn span{flex:1; border:1px solid #e5e7eb; border-radius:9px; padding:7px 6px; font-size:12.5px; font-weight:600; color:#6b7280; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .yn span i{width:7px; height:7px; border-radius:4px; background:#d1d5db;}
+  .yn span.on{background:#f1f5f9; border:1.5px solid #334155; color:#0f172a;} .yn span.on i{background:#10b981;}
+
+  /* horómetro abierto (D11: gris/blanco) y compacto (cerrado en esta pantalla) */
+  .hb{border:1px solid #d1d5db; border-radius:12px; background:#fff; padding:10px 11px 11px;}
+  .hrow{display:flex; gap:8px;}
+  .hrow > div{flex:1; min-width:0;}
+  .hrow label{display:block; font-size:10px; color:#6b7280; font-weight:600; letter-spacing:.04em; text-transform:uppercase; margin-bottom:3px;}
+  .in{border:1px solid #d1d5db; border-radius:8px; padding:7px 10px; font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; color:#111827; min-height:40px;}
+  .in.ph{color:#9ca3af;} .in.empty{color:#c3c8cf; font-weight:500;}
+  .in.ro{border:none; padding:7px 0 0; min-height:0;}
+  .hh{font-size:10.5px; color:#6b7280; margin-top:4px;}
+  .hlive{display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:12px; color:#475569;}
+  .hlive b{font-size:15px; color:#0f172a; font-variant-numeric:tabular-nums;}
+  .hwarn{font-size:11px; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:7px; padding:6px 8px; margin-top:8px; line-height:1.4;}
+  .hsep{border-top:1px dashed #e5e7eb; margin:10px -11px 10px; }
+  .lect{font-size:10px; color:#6b7280; font-weight:700; letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px;}
+
+  /* registrado (solo lectura): sin contorno oscuro, sin chevron */
+  .reg{display:flex; justify-content:space-between; align-items:baseline; gap:8px; padding:2px 2px 0;}
+  .reg .v{font-size:15px; font-weight:600; color:#0f172a; font-variant-numeric:tabular-nums;}
+  .reg .m{font-size:10.5px; color:#6b7280; text-align:right;}
+  .rl{border-top:1px solid #eef0f3;}
+  .rl .e{display:flex; gap:9px; padding:7px 2px; align-items:flex-start; border-bottom:1px solid #eef0f3;}
+  .rl .t{font-size:11px; font-weight:600; color:#334155; font-variant-numeric:tabular-nums; width:40px; flex-shrink:0; padding-top:1px; line-height:1.25;}
+  .rl .t small{display:block; font-size:9.5px; font-weight:500; color:#6b7280;}
+  .rl .x{flex:1; min-width:0;}
+  .rl .x1{font-size:10px; color:#64748b;}
+  .rl .x2{font-size:12.5px; color:#0f172a; line-height:1.3;}
+  .rl .x3{font-size:10px; color:#6b7280; margin-top:1px;}
+  .rl .h{font-size:12px; font-weight:700; color:#0f172a; white-space:nowrap; padding-top:12px;}
+  .rl .cl{font-size:10px; font-weight:700; color:#b45309; white-space:nowrap; padding-top:12px;}
+  .rl .e.new{background:#eff6ff;}
+
+  /* tarjeta de actividad en captura (D5) */
+  .card{background:#fff; border:1px solid #d9c79f; border-radius:12px; padding:10px 12px 11px; margin-top:8px;}
+  .card.con{border-color:#9fb3cc;}
+  .chd{display:flex; align-items:center; gap:5px; white-space:nowrap; line-height:1.2; font-size:10px; letter-spacing:.04em; text-transform:uppercase; font-weight:700; color:#475569; margin-bottom:8px;}
+  .chd .k{color:#7a5a1d;} .card.con .chd .k{color:#1e3a5f;}
+  .chd .rr{margin-left:auto; text-transform:none; letter-spacing:0; font-size:11.5px; color:#2563eb; font-weight:600;}
+  .cdone{font-size:13px; color:#0f172a; line-height:1.4;}
+  .cdone .w{font-size:10.5px; color:#64748b; display:block;}
+  .hrs{display:flex; align-items:center; gap:8px; font-size:11.5px; color:#64748b; margin-top:9px;}
+  .hrs span.b{width:58px; border:1px solid #d1d5db; border-radius:7px; padding:4px 8px; text-align:right; color:#9ca3af;}
+  .addl{font-size:12.5px; color:#2563eb; font-weight:600; margin-top:9px; display:inline-block;}
+  .nudge{font-size:11px; color:#475569; margin-top:7px;}
+  .sum{background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:9px 11px; margin-top:12px; font-size:12px; color:#334155; line-height:1.45;}
+  .sum b{color:#0f172a;}
+  .go{height:46px; border-radius:10px; background:#1e293b; color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; margin-top:10px;}
+  .foot{margin-top:14px; border-top:1px solid #eef0f3;}
+  .fl{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0 0; font-size:12px; color:#475569; line-height:1.35;}
+  .fl b{font-weight:700; color:#0f172a; white-space:nowrap;}
+  .fl b.red{color:#b91c1c;}
+  .ask{border:1.5px solid #d97706; border-radius:10px; padding:9px 10px; margin-top:9px; font-size:12px; line-height:1.45;}
+  .ask .bt{display:flex; gap:6px; margin-top:8px;}
+  .ask .bt span{flex:1; text-align:center; border-radius:8px; padding:8px 4px; font-size:12px; font-weight:700;}
+  .ask .p{background:#1e293b; color:#fff;} .ask .s{border:1px solid #d1d5db; color:#334155;}
+  .relect{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:10px; padding-top:9px; border-top:1px dashed #e5e7eb; font-size:11.5px; color:#475569; line-height:1.35;}
+  .relect b{color:#2563eb; white-space:nowrap; font-weight:600;}
+  .hz{background:#1e293b; color:#fff; padding:13px 15px 14px;}
+  .hz .t1{font-size:13.5px; font-weight:600;}
+  .hz .pr{display:flex; align-items:center; gap:10px; margin-top:9px;}
+  .hz .pb{flex:1; height:6px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden;}
+  .hz .pb i{display:block; height:6px; border-radius:3px; background:#fff;}
+  .hz .pn{font-size:13px; font-weight:700; white-space:nowrap;}
+  .hub{background:#fff; padding-top:0;}
+  .bd{padding:4px 15px 18px;}
+  .s2{font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:#475569; font-weight:700; margin:16px 2px 7px; display:flex; justify-content:space-between;}
+  .s2 span{letter-spacing:0; text-transform:none; font-weight:600;}
+  .grp{border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; background:#fff;}
+  .grp.err{border:1.5px solid #ef4444;} .grp.attn{border:1.5px solid #d97706;}
+  .r{display:flex; align-items:center; gap:10px; padding:10px 12px; min-height:58px;}
+  .r + .r{border-top:1px solid #eef0f3;}
+  .r .tx{flex:1; min-width:0;}
+  .r .l1{font-size:14px; font-weight:600; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .r .l2{font-size:11.5px; color:#475569; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .r .go2{font-size:13px; font-weight:700; color:#0f172a; flex-shrink:0;}
+  .r .ch{font-size:16px; color:#334155; font-weight:700; flex-shrink:0;}
+  .r .q2{font-size:10.5px; font-weight:700; color:#b45309; white-space:nowrap;}
+  .dot{display:inline-block; width:7px; height:7px; border-radius:4px; margin-right:5px; vertical-align:1px;}
+  .d-ok{background:#10b981;} .d-no{background:#ef4444;}
+  .badt{color:#991b1b; font-weight:600;} .warnt{color:#92400e; font-weight:600;}
+  .prev{font-size:11.5px; color:#475569; background:#f8fafc; border:1px solid #eef0f3; border-radius:9px; padding:7px 10px; margin-top:10px;}
+  .prev b{color:#0f172a;}
+  .mc{display:flex; align-items:center; gap:8px; padding:7px 10px 7px 12px; line-height:1.35;}
+  .mc + .mc{border-top:1px solid #eef0f3;}
+  .mc .body{flex:1; min-width:0;}
+  .mc .r1{display:flex; align-items:baseline; gap:6px; white-space:nowrap; overflow:hidden;}
+  .mc .tipo{font-size:14px; font-weight:700; color:#0f172a; flex-shrink:0;}
+  .mc .marca{font-size:13px; font-weight:500; color:#334155; overflow:hidden; text-overflow:ellipsis; min-width:0;}
+  .mc .modelo{font-size:13px; font-weight:500; color:#334155; flex-shrink:0;}
+  .mc .r2{display:flex; align-items:center; gap:8px; margin-top:2px; font-size:12px;}
+  .mc .est{color:#0f172a; font-weight:600; white-space:nowrap;}
+  .mc .comp{color:#475569; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
+  .mc .comp.cl{color:#b45309; font-weight:600;}
+  .mc .acc{margin-left:auto; font-size:12.5px; font-weight:700; color:#0f172a; white-space:nowrap; padding-left:6px;}
+  .mc .acc.red{color:#b91c1c;}
+  .mc .r3{font-size:11px; color:#6b7280; margin-top:1px; display:flex; justify-content:space-between; align-items:center; min-height:15px;}
+  .mc .cld{width:15px; height:15px; color:#64748b; flex-shrink:0;}
+  .mc .comp.miss{color:#475569; font-weight:500;}
+  .mc .chev{font-size:18px; color:#94a3b8; font-weight:600; flex-shrink:0;}
+  .d-am{background:#f59e0b;}
+  .est.badt{color:#991b1b;} .est.warnt{color:#92400e;}
+  .anat{position:relative; background:#fff; border:1px solid #e5e7eb; border-radius:12px; max-width:340px;}
+  .tag{display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:8px; font-family:var(--f-mono); font-size:9.5px; color:#fff; background:#334155; margin-right:3px; vertical-align:1px; flex-shrink:0;}
+  .tag.b{background:#2563eb;}
+  .cld2{width:14px; height:14px; color:#64748b; vertical-align:-2px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="cajetin">
+  <div class="cj-top">
+    <div class="cj-brand"><h1>Sentinel</h1><small>UX-SPEC-04 · REV J</small></div>
+    <div class="cj-title"><h2>Maquinaria · Varias capturas por jornada sobre la hoja que ya existe</h2><p>Los casos del alcance del 31-oct resueltos con la hoja de jornada implementada (UX-SPEC-03 Rev K, ADR-007). Rev I: tarjeta del hub compactada; resúmenes con el texto estándar de la hoja; "por enviar" solo con la nube de la cola.</p></div>
+  </div>
+  <div class="cj-meta">
+    <div class="cj-cell"><b>Revisión</b><span>Rev J · para validar</span></div>
+    <div class="cj-cell"><b>Fecha</b><span>31-oct-2026</span></div>
+    <div class="cj-cell"><b>Base</b><span>JornadaSheet · main @f5c96a0</span></div>
+    <div class="cj-cell"><b>Hub</b><span>Tarjeta de 7 posiciones · barra de reportadas</span></div>
+  </div>
+</div>
+
+<section class="sec teal">
+  <div class="sec-head"><span class="code">H</span><h3>Hub: la tarjeta de siete posiciones</h3><p>según el croquis del 31-oct</p></div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+    <div>
+      <div class="colh"><b>Anatomía</b><span>Cada dato tiene un solo lugar, en todas las tarjetas.</span></div>
+      <div class="anat">
+        <div class="mc"><div class="body"><div class="r1"><span class="tipo"><span class="tag">1</span>Tipo</span><span class="marca"><span class="tag">2</span>Marca</span><span class="modelo"><span class="tag">3</span>Modelo</span></div><div class="r2"><span class="est"><span class="tag">4</span><span class="dot" style="background:#94a3b8"></span>Estatus</span><span class="comp miss"><span class="tag b">5</span>Faltante</span><span class="acc"><span class="tag">6</span>Acción</span></div><div class="r3"><span><span class="tag">7</span>Propiedad</span><span style="display:flex;align-items:center;gap:3px"><span class="tag b">☁</span><svg class="cld" viewBox="0 0 512 512" aria-label="Por enviar"><path d="M320 367.79h76c55 0 100-29.21 100-83.6s-53-81.47-96-83.6c-8.89-85.06-71-136.8-144-136.8-69 0-113.44 45.79-128 91.2-60 5.7-112 43.88-112 106.4s54 106.4 120 106.4h56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M320 255.79l-64-64-64 64M256 448.21V207.79"/></svg></span></div></div><span class="chev">›</span></div>
+      </div>
+      <div class="tblwrap"><table style="min-width:0">
+        <thead><tr><th>Pos.</th><th>Contenido</th></tr></thead>
+        <tbody>
+          <tr><td>1 · 2 · 3</td><td>Tipo (seminegrita) · marca · modelo. Si no cabe, se recorta solo la marca.</td></tr>
+          <tr><td>4 Estatus</td><td>● verde "N actividades" · ● rojo "No operó · motivo" · ● amarillo "Sin reportar" · en atención, solo el problema, en rojo</td></tr>
+          <tr><td>5 Faltante</td><td><b>Solo en "Trabajando"</b>, solo si falta el horómetro: "Sin horómetro". Nunca coincide con la 6.</td></tr>
+          <tr><td>6 Acción</td><td>Solo dos: <b>Reportar</b> (sin reportar) y <b>Resolver</b> (requiere atención).</td></tr>
+          <tr><td>7 Propiedad</td><td>Propia · Rentada · Subcontrato</td></tr>
+          <tr><td>☁ Por enviar</td><td>Esquina inferior derecha, solo el ícono, sin texto. Es <code>cloud-upload-outline</code>, el mismo del botón de la cola de sincronización.</td></tr>
+          <tr><td>›</td><td>Siempre. Toda la tarjeta abre la hoja de la máquina.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div>
+      <div class="colh"><b>H-1 · jueves 15, 13:00</b><span>La barra cuenta reportadas: trabajó o no operó, enviado o en cola.</span></div>
+      <div class="phone hub">
+        <div class="hz">
+          <div class="t1">Hoy · jueves 15 de octubre</div>
+          <div class="pr"><div class="pb"><i style="width:57%"></i></div><span class="pn">4 de 7 reportadas</span></div>
+        </div>
+        <div class="bd">
+          <div class="s2">Requiere atención <span>2</span></div>
+          <div class="grp err">
+            <div class="mc"><div class="body"><div class="r1"><span class="tipo">Excavadora</span><span class="marca">Caterpillar</span><span class="modelo">320</span></div><div class="r2"><span class="est badt"><span class="dot d-no"></span>No se envió</span><span class="acc red">Resolver</span></div><div class="r3"><span>Rentada</span></div></div><span class="chev">›</span></div>
+            <div class="mc"><div class="body"><div class="r1"><span class="tipo">Rodillo</span><span class="marca">Bomag</span><span class="modelo">BW211</span></div><div class="r2"><span class="est badt"><span class="dot d-no"></span>Ayer quedó sin final</span><span class="acc red">Resolver</span></div><div class="r3"><span>Propia</span></div></div><span class="chev">›</span></div>
+          </div>
+          <div class="s2">Sin trabajar <span>3</span></div>
+          <div class="grp">
+            <div class="mc"><div class="body"><div class="r1"><span class="tipo">Retroexcavadora</span><span class="marca">JCB</span><span class="modelo">3CX</span></div><div class="r2"><span class="est "><span class="dot d-am"></span>Sin reportar</span><span class="acc ">Reportar</span></div><div class="r3"><span>Propia</span></div></div><span class="chev">›</span></div>
+            <div class="mc"><div class="body"><div class="r1"><span class="tipo">Camión volteo</span><span class="marca">Kenworth</span><span class="modelo">T800</span></div><div class="r2"><span class="est "><span class="dot d-am"></span>Sin reportar</span><span class="acc ">Reportar</span></div><div class="r3"><span>Subcontrato</span><svg class="cld" viewBox="0 0 512 512" aria-label="Por enviar"><path d="M320 367.79h76c55 0 100-29.21 100-83.6s-53-81.47-96-83.6c-8.89-85.06-71-136.8-144-136.8-69 0-113.44 45.79-128 91.2-60 5.7-112 43.88-112 106.4s54 106.4 120 106.4h56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M320 255.79l-64-64-64 64M256 448.21V207.79"/></svg></div></div><span class="chev">›</span></div>
+            <div class="mc"><div class="body"><div class="r1"><span class="tipo">Pipa de agua</span><span class="marca">International</span><span class="modelo">4300</span></div><div class="r2"><span class="est "><span class="dot d-no"></span>No operó · Clima</span></div><div class="r3"><span>Rentada</span></div></div><span class="chev">›</span></div>
+          </div>
+          <div class="s2">Trabajando <span>3</span></div>
+          <div class="grp">
+            <div class="mc"><div class="body"><div class="r1"><span class="tipo">Motoconformadora</span><span class="marca">Caterpillar</span><span class="modelo">140</span></div><div class="r2"><span class="est "><span class="dot d-ok"></span>2 actividades</span></div><div class="r3"><span>Rentada</span><svg class="cld" viewBox="0 0 512 512" aria-label="Por enviar"><path d="M320 367.79h76c55 0 100-29.21 100-83.6s-53-81.47-96-83.6c-8.89-85.06-71-136.8-144-136.8-69 0-113.44 45.79-128 91.2-60 5.7-112 43.88-112 106.4s54 106.4 120 106.4h56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M320 255.79l-64-64-64 64M256 448.21V207.79"/></svg></div></div><span class="chev">›</span></div>
+            <div class="mc"><div class="body"><div class="r1"><span class="tipo">Bomba de concreto</span><span class="marca">Putzmeister</span><span class="modelo">BSA 1409</span></div><div class="r2"><span class="est "><span class="dot d-ok"></span>3 actividades</span><span class="comp miss">Sin horómetro</span></div><div class="r3"><span>Subcontrato</span></div></div><span class="chev">›</span></div>
+            <div class="mc"><div class="body"><div class="r1"><span class="tipo">Compactador</span><span class="marca">Dynapac</span><span class="modelo">CA250</span></div><div class="r2"><span class="est "><span class="dot d-ok"></span>1 actividad</span><span class="comp miss">Sin horómetro</span></div><div class="r3"><span>Subcontrato</span></div></div><span class="chev">›</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="--acc:var(--teal)">
+    <div class="ann"><span class="n">1</span><p><b>Lo guardado sin señal cuenta igual que lo enviado.</b> La motoconformadora registró una actividad sin red: ya está en "Trabajando" y la barra la cuenta. La nube solo dice que falta subirla. El arranque solo, en cambio, no reporta: el Kenworth sigue "Sin reportar" aunque su arranque esté en cola.</p></div>
+    <div class="ann"><span class="n">2</span><p><b>"Requiere atención" va en rojo</b>: contorno del grupo, punto, texto y "Resolver". Un solo color para todo lo que pide atención.</p></div>
+    <div class="ann"><span class="n">3</span><p><b>Nube en gris pizarra</b>, no en ámbar: el punto amarillo ya significa "Sin reportar" y el ámbar competiría con él. Lo que identifica "por enviar" es la forma del ícono, igual que en el resto de la app.</p></div>
+    <div class="ann"><span class="n">4</span><p><b>La nube reemplaza al ícono que hoy usa la tarjeta</b> (<code>cloud-offline</code> en <code>MaquinariaCard</code>), que no es el de la cola. Hoy conviven tres nubes en la app; esta tarjeta se alinea con la de la cola.</p></div>
+    <div class="ann"><span class="n">5</span><p><b>Máquinas sin horómetro</b> (bombas, revolvedoras): sin el dato "¿Tiene horómetro?" en el alta, la hoja les muestra el bloque y la tarjeta dice "Sin horómetro" cada día que trabajan. Aceptado para esta iteración; se resuelve con la Deuda #2 de ADR-007.</p></div>
+  </div>
+</section>
+
+<section class="sec ink">
+  <div class="sec-head"><span class="code">≡</span><h3>Qué cambia en la hoja implementada</h3><p>poco, a propósito</p></div>
+  <p class="lead">La hoja es la misma: <b>¿Trabajó hoy?, Horómetro del día, Actividades, resumen y botón</b>, con el patrón "cerrado", la regla del tap, "Repetir" y la compacta B. El usuario captura lecturas y actividades; <b>el sistema arma los turnos con ellas</b>. Los cambios son cuatro. "Turno" solo aparece en una acción: "Iniciar otro turno".</p>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Hoy (implementado)</th><th>Con varias capturas</th></tr></thead>
+    <tbody>
+      <tr><td>Una vez enviada, la hoja dice "Ya reportada hoy" y no deja guardar</td><td>La hoja se vuelve a abrir: <b>lo enviado se lee</b> (con hora y autor) y <b>lo que falta se captura</b></td></tr>
+      <tr><td>"Guardar arranque" exige al menos una actividad</td><td>"Guardar arranque" basta con el horómetro inicial <b>o</b> con una actividad</td></tr>
+      <tr><td>Un par de lecturas por día</td><td>Después del cierre: <b>"¿Volvió a trabajar? Iniciar otro turno"</b>, que abre la hoja vacía</td></tr>
+      <tr><td>"¿Trabajó hoy?" siempre visible</td><td>Solo mientras no hay nada enviado; después, la primera actividad decide "Trabajando"</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- BASE -->
+<section class="sec navy">
+  <div class="sec-head"><span class="code">B</span><h3>Caso base: la misma hoja, cuatro veces en el día</h3><p>Motoconformadora Caterpillar 140 · jueves 15</p></div>
+  <div class="grid">
+
+    <div>
+      <div class="colh"><b>B-1 · 07:02 · Solo el inicial</b><span>Se sube a la máquina, lee, guarda y sigue su día.</span></div>
+      <div class="phone"><div class="sh">
+        <div class="grab"></div>
+        <div class="eb">Jornada · jue 15 oct</div>
+        <div class="ttl">Motoconformadora · Caterpillar 140</div>
+        <div class="sl">¿Trabajó hoy?</div>
+        <div class="yn"><span class="on"><i></i>Sí, trabajó</span><span><i></i>No operó</span></div>
+        <div class="sl">Horómetro del día</div>
+        <div class="hb">
+          <div class="hrow">
+            <div><label>Inicial</label><div class="in">8,871.5</div><div class="hh">Editado</div></div>
+            <div><label>Final</label><div class="in empty">—</div><div class="hh">Léelo en la máquina</div></div>
+          </div>
+        </div>
+        <div class="sl"><span>Actividades</span><span class="rep">⧉ Repetir lo del mié 14 · 2</span></div>
+        <div class="card" style="border-color:#e5e7eb"><div class="chd">Actividad 1</div><div class="cdone" style="color:#9ca3af">⌕ Concepto del catálogo · ó · ✎ Escribe qué hizo</div></div>
+        <div class="sum">Se registrará: <b>arranque de la motoconformadora en 8,871.5</b>.</div>
+        <div class="go">Guardar arranque</div>
+      </div></div>
+    </div>
+
+    <div>
+      <div class="colh"><b>B-2 · 13:10 · Vuelve a abrirla</b><span>Lo de la mañana se lee; agrega una actividad.</span></div>
+      <div class="phone"><div class="sh">
+        <div class="grab"></div>
+        <div class="eb">Jornada · jue 15 oct</div>
+        <div class="ttl">Motoconformadora · Caterpillar 140</div>
+        <div class="sl">Horómetro del día</div>
+        <div class="hb">
+          <div class="hrow">
+            <div><label>Inicial</label><div class="in ro">8,871.5</div><div class="hh">07:02 · J. Pérez</div></div>
+            <div><label>Final</label><div class="in empty">—</div><div class="hh">Léelo en la máquina</div></div>
+          </div>
+        </div>
+        <div class="sl"><span>Actividades</span><span class="ct">1 registrada</span></div>
+        <div class="rl">
+          <div class="e"><span class="t">09:40</span><div class="x"><div class="x1">⌕ Plataforma › Terracerías · 1.2.07</div><div class="x2">Formación de terraplén compactado al 95%</div><div class="x3">J. Pérez</div></div></div>
+        </div>
+        <div class="card"><div class="chd">Actividad 2 <span class="k">· ✎ Escrita</span><span class="rr">cambiar</span></div><div class="cdone">Nivelación de patio de maniobras</div><div class="hrs">Horas · opcional <span class="b">—</span></div></div>
+        <div class="sum">Se registrará: Motoconformadora Caterpillar 140 trabajó hoy, con arranque en 8,871.5 y el cierre pendiente, en 1 actividad.</div>
+        <div class="go">Registrar actividad</div>
+      </div></div>
+    </div>
+
+    <div>
+      <div class="colh"><b>B-3 · 18:05 · El final</b><span>Sin actividad nueva; solo la lectura de cierre.</span></div>
+      <div class="phone"><div class="sh">
+        <div class="grab"></div>
+        <div class="eb">Jornada · jue 15 oct</div>
+        <div class="ttl">Motoconformadora · Caterpillar 140</div>
+        <div class="sl">Horómetro del día</div>
+        <div class="hb">
+          <div class="hrow">
+            <div><label>Inicial</label><div class="in ro">8,871.5</div><div class="hh">07:02 · J. Pérez</div></div>
+            <div><label>Final</label><div class="in">8,879.5</div><div class="hh">Editado</div></div>
+          </div>
+          <div class="hlive"><span>Trabajó</span><b>8.0 h</b></div>
+        </div>
+        <div class="sl"><span>Actividades</span><span class="ct">2 registradas</span></div>
+        <div class="rl">
+          <div class="e"><span class="t">09:40</span><div class="x"><div class="x1">⌕ Plataforma › Terracerías · 1.2.07</div><div class="x2">Formación de terraplén compactado…</div><div class="x3">J. Pérez</div></div></div>
+          <div class="e"><span class="t">13:10</span><div class="x"><div class="x1">✎ Escrita</div><div class="x2">Nivelación de patio de maniobras</div><div class="x3">L. Ruiz</div></div></div>
+        </div>
+        <span class="addl">+ Agregar actividad</span>
+        <div class="sum">Se registrará: <b>cierre en 8,879.5 · 8.0 h</b> de horómetro.</div>
+        <div class="go">Registrar cierre</div>
+      </div></div>
+    </div>
+
+    <div>
+      <div class="colh"><b>B-4 · 18:20 · Ya registrado todo</b><span>Lo que ve quien la abre después del cierre.</span></div>
+      <div class="phone"><div class="sh">
+        <div class="grab"></div>
+        <div class="eb">Jornada · jue 15 oct</div>
+        <div class="ttl">Motoconformadora · Caterpillar 140</div>
+        <div class="sl">Horómetro del día</div>
+        <div class="hb">
+          <div class="reg"><span class="v">8,871.5 → 8,879.5</span><span class="v">8.0 h</span></div>
+          <div class="reg"><span class="m" style="text-align:left">07:02 J. Pérez · 18:05 L. Ruiz</span></div>
+        </div>
+        <div class="sl"><span>Actividades</span><span class="ct">2 registradas</span></div>
+        <div class="rl">
+          <div class="e"><span class="t">09:40</span><div class="x"><div class="x1">⌕ Plataforma › Terracerías · 1.2.07</div><div class="x2">Formación de terraplén compactado…</div><div class="x3">J. Pérez</div></div></div>
+          <div class="e"><span class="t">13:10</span><div class="x"><div class="x1">✎ Escrita</div><div class="x2">Nivelación de patio de maniobras</div><div class="x3">L. Ruiz</div></div></div>
+        </div>
+        <span class="addl">+ Agregar actividad</span>
+        <div class="foot">
+          <div class="fl"><span>¿Volvió a trabajar?</span><b style="color:#2563eb">Iniciar otro turno</b></div>
+          <div class="fl"><span>¿La máquina ya se fue de la obra?</span><b class="red">Registrar salida</b></div>
+        </div>
+      </div></div>
+    </div>
+
+  </div>
+  <div class="notes" style="--acc:var(--navy)">
+    <div class="ann"><span class="n">1</span><p><b>El horómetro se ve como hoy</b>: "Horómetro del día", "Inicial", "Final". El turno lo arma el par de lecturas; la palabra solo aparece en "Iniciar otro turno".</p></div>
+    <div class="ann"><span class="n">2</span><p><b>Lo registrado se distingue de lo que se captura.</b> Lo enviado es texto sin caja: la lectura sin borde de campo, las actividades como lista con hora y autor. No lleva el patrón "cerrado" porque no se reabre (D11, regla 2). Lo nuevo usa los mismos campos y tarjetas de siempre.</p></div>
+    <div class="ann"><span class="n">3</span><p><b>El resumen usa el texto estándar que ya existe</b> para actividades ("Se registrará: {tipo} {marca} {modelo} trabajó hoy, …, en N actividades"); arranque y cierre tienen su propia línea. Es el mismo en todos los casos. <b>El botón dice lo que se va a registrar</b>: "Guardar arranque", "Registrar actividad", "Registrar cierre", o "Registrar actividad y cierre". Si no hay nada nuevo, no hay botón.</p></div>
+    <div class="ann"><span class="n">4</span><p><b>Las dos preguntas del pie aparecen después del cierre</b>: "¿Volvió a trabajar? Iniciar otro turno" y "¿La máquina ya se fue de la obra? Registrar salida". Antes del cierre solo está la salida. Corregir una lectura queda fuera de esta iteración y no aparece.</p></div>
+    <div class="ann"><span class="n">5</span><p><b>"¿Trabajó hoy?" desaparece en cuanto hay algo enviado.</b> Solo una actividad pasa la máquina a "Trabajando"; el arranque solo es la lectura inicial y la deja en "Sin trabajar". Aun así, ya no se ofrece "No operó" a una máquina a la que le leyeron el horómetro.</p></div>
+  </div>
+</section>
+
+<!-- FUERA DEL BASE -->
+<section class="sec violet">
+  <div class="sec-head"><span class="code">E</span><h3>Casos fuera del base, con la misma hoja</h3></div>
+  <div class="grid">
+
+    <div>
+      <div class="colh"><b>E-1 · 19:30 · Iniciar otro turno</b><span>Después de tocarlo en B-4: la hoja vacía, como B-1.</span></div>
+      <div class="phone"><div class="sh">
+        <div class="grab"></div>
+        <div class="eb">Jornada · jue 15 oct</div>
+        <div class="ttl">Motoconformadora · Caterpillar 140</div>
+        <div class="prev">Turno anterior: <b>8,871.5 → 8,879.5 · 8.0 h</b> · 2 actividades</div>
+        <div class="sl">Horómetro del día</div>
+        <div class="hb">
+          <div class="hrow">
+            <div><label>Inicial</label><div class="in ph">8,879.5</div><div class="hh">Cierre de las 18:05</div></div>
+            <div><label>Final</label><div class="in empty">—</div><div class="hh">Léelo en la máquina</div></div>
+          </div>
+        </div>
+        <div class="sl"><span>Actividades</span><span class="rep">⧉ Repetir lo del turno anterior · 2</span></div>
+        <div class="card" style="border-color:#e5e7eb"><div class="chd">Actividad 1</div><div class="cdone" style="color:#9ca3af">⌕ Concepto del catálogo · ó · ✎ Escribe qué hizo</div></div>
+        <div class="sum">Se registrará: <b>arranque de la motoconformadora en 8,879.5</b>.</div>
+        <div class="go">Guardar arranque</div>
+      </div></div>
+    </div>
+
+    <div>
+      <div class="colh"><b>E-2 · Nocturno · vie 16, 03:05</b><span>Arrancó el jue 15 a las 21:00 y sigue abierta.</span></div>
+      <div class="phone"><div class="sh">
+        <div class="grab"></div>
+        <div class="eb">Jornada · jue 15 oct</div>
+        <div class="ttl">Excavadora · Caterpillar 320</div>
+        <div class="sl">Horómetro del día</div>
+        <div class="hb">
+          <div class="hrow">
+            <div><label>Inicial</label><div class="in ro">4,210.0</div><div class="hh">jue 15 21:00 · M. Soto</div></div>
+            <div><label>Final</label><div class="in empty">—</div><div class="hh">Léelo en la máquina</div></div>
+          </div>
+        </div>
+        <div class="sl"><span>Actividades</span><span class="ct">1 registrada</span></div>
+        <div class="rl">
+          <div class="e"><span class="t">22:10<small>jue 15</small></span><div class="x"><div class="x1">⌕ Drenaje pluvial › Colector norte · 2.1.02</div><div class="x2">Excavación para tubería de PEAD de 30 cm</div><div class="x3">M. Soto</div></div></div>
+        </div>
+        <div class="card"><div class="chd">Actividad 2 <span class="k">· ✎ Escrita</span><span class="rr">cambiar</span></div><div class="cdone">Carga de material producto de excavación</div></div>
+        <div class="sum">Se registrará: Excavadora Caterpillar 320 trabajó hoy, con arranque en 4,210.0 y el cierre pendiente, en 1 actividad.</div>
+        <div class="go">Registrar actividad</div>
+      </div></div>
+    </div>
+
+    <div>
+      <div class="colh"><b>E-3 · Sin señal · jue 15, 13:10</b><span>Lo guardado espera en el teléfono y ya se ve en la hoja.</span></div>
+      <div class="phone"><div class="sh">
+        <div class="grab"></div>
+        <div class="eb">Jornada · jue 15 oct</div>
+        <div class="ttl">Camión volteo · Kenworth T800</div>
+        <div class="offl">Sin conexión · se envía solo al recuperarla</div>
+        <div class="sl">Horómetro del día</div>
+        <div class="hb">
+          <div class="hrow">
+            <div><label>Inicial</label><div class="in ro">12,036.0</div><div class="hh">08:15 <svg class="cld2" viewBox="0 0 512 512" aria-label="Por enviar"><path d="M320 367.79h76c55 0 100-29.21 100-83.6s-53-81.47-96-83.6c-8.89-85.06-71-136.8-144-136.8-69 0-113.44 45.79-128 91.2-60 5.7-112 43.88-112 106.4s54 106.4 120 106.4h56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M320 255.79l-64-64-64 64M256 448.21V207.79"/></svg></div></div>
+            <div><label>Final</label><div class="in empty">—</div><div class="hh">Léelo en la máquina</div></div>
+          </div>
+        </div>
+        <div class="sl"><span>Actividades</span><span class="ct">1 registrada</span></div>
+        <div class="rl">
+          <div class="e new"><span class="t">13:10</span><div class="x"><div class="x1">✎ Escrita</div><div class="x2">Acarreo de material a banco de tiro</div><div class="x3">J. Pérez</div></div><span class="cl"><svg class="cld2" viewBox="0 0 512 512" aria-label="Por enviar"><path d="M320 367.79h76c55 0 100-29.21 100-83.6s-53-81.47-96-83.6c-8.89-85.06-71-136.8-144-136.8-69 0-113.44 45.79-128 91.2-60 5.7-112 43.88-112 106.4s54 106.4 120 106.4h56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M320 255.79l-64-64-64 64M256 448.21V207.79"/></svg></span></div>
+        </div>
+        <span class="addl">+ Agregar actividad</span>
+      </div></div>
+    </div>
+
+    <div>
+      <div class="colh"><b>E-4 · Sin lectura previa · jue 15, 10:00</b><span>Primer día de la máquina; guarda solo una actividad.</span></div>
+      <div class="phone"><div class="sh">
+        <div class="grab"></div>
+        <div class="eb">Jornada · jue 15 oct</div>
+        <div class="ttl">Retroexcavadora · JCB 3CX</div>
+        <div class="sl">¿Trabajó hoy?</div>
+        <div class="yn"><span class="on"><i></i>Sí, trabajó</span><span><i></i>No operó</span></div>
+        <div class="sl">Horómetro del día</div>
+        <div class="hb">
+          <div class="hrow">
+            <div><label>Inicial</label><div class="in empty">—</div><div class="hh">Léelo en la máquina</div></div>
+            <div><label>Final</label><div class="in empty">—</div><div class="hh">Léelo en la máquina</div></div>
+          </div>
+        </div>
+        <div class="sl"><span>Actividades</span></div>
+        <div class="card"><div class="chd">Actividad 1 <span class="k">· ✎ Escrita</span><span class="rr">cambiar</span></div><div class="cdone">Excavación de cepa para registro sanitario</div></div>
+        <div class="sum">Se registrará: Retroexcavadora JCB 3CX trabajó hoy, con el cierre pendiente, en 1 actividad.</div>
+        <div class="go">Guardar arranque</div>
+      </div></div>
+    </div>
+
+  </div>
+  <div class="notes" style="--acc:var(--violet)">
+    <div class="ann"><span class="n">1</span><p><b>Otro turno (E-1) abre la hoja como en B-1</b>, con una sola línea de solo lectura del turno anterior: da contexto al inicial sugerido y evita duplicar actividades. Es también como empieza un turno nocturno.</p></div>
+    <div class="ann"><span class="n">2</span><p><b>Nocturno (E-2):</b> el encabezado dice la jornada (jue 15) y las horas llevan el día debajo cuando no es el de la jornada. El resumen es el mismo de siempre.</p></div>
+    <div class="ann"><span class="n">3</span><p><b>Sin lectura previa (E-4):</b> se puede guardar solo con actividad, sin aviso en la hoja. En el hub la tarjeta mostrará "Sin horómetro" en la posición 5. Con lectura previa no pasa: el inicial se toma de la última lectura (D3, como hoy).</p></div>
+    <div class="ann"><span class="n">4</span><p><b>Sin señal (E-3):</b> cada guardado es un envío independiente en la cola, como hoy. la nube de la cola (<code>cloud-upload-outline</code>) va junto a lo que espera, sin texto, igual que en el hub.</p></div>
+  </div>
+</section>
+
+<!-- CIERRE OLVIDADO -->
+<section class="sec coral">
+  <div class="sec-head"><span class="code">C</span><h3>Cierre olvidado</h3><p>D14, dentro del mismo bloque</p></div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,340px))">
+    <div>
+      <div class="colh"><b>C-1 · vie 16, 07:05</b><span>Ayer se guardó el arranque y nadie capturó el final.</span></div>
+      <div class="phone"><div class="sh">
+        <div class="grab"></div>
+        <div class="eb">Jornada · vie 16 oct</div>
+        <div class="ttl">Motoconformadora · Caterpillar 140</div>
+        <div class="sl">¿Trabajó hoy?</div>
+        <div class="yn"><span class="on"><i></i>Sí, trabajó</span><span><i></i>No operó</span></div>
+        <div class="sl">Horómetro del día</div>
+        <div class="hb">
+          <div class="hrow">
+            <div><label>Inicial</label><div class="in">8,879.5</div><div class="hh">Editado</div></div>
+            <div><label>Final</label><div class="in empty">—</div><div class="hh">Léelo en la máquina</div></div>
+          </div>
+          <div class="ask">Ayer (jue 15) arrancó en <b>8,871.5</b> y no se capturó el final. ¿Usar <b>8,879.5</b> como final de ayer? Serían <b>8.0 h</b> el jueves.
+            <div class="bt"><span class="p">Sí, usarlo</span><span class="s">No, dejarlo sin final</span></div>
+          </div>
+        </div>
+        <div class="sl"><span>Actividades</span><span class="rep">⧉ Repetir lo del jue 15 · 2</span></div>
+        <div class="go">Guardar arranque</div>
+      </div></div>
+    </div>
+    <div class="notes" style="--acc:var(--coral); margin-top:58px">
+      <div class="ann"><span class="n">1</span><p><b>Es D14 tal cual se aprobó</b>, con el texto ajustado: "No, dejarlo sin final" en lugar de "No, lo corrijo después", porque corregir quedó fuera de esta iteración.</p></div>
+      <div class="ann"><span class="n">2</span><p><b>"Sin final" cierra el día de ayer con horas desconocidas</b> y lo deja marcado. Hoy arranca normal. No hay "turno abierto desde ayer" que el usuario tenga que gestionar.</p></div>
+      <div class="ann"><span class="n">3</span><p><b>¿Cómo se distingue de un nocturno?</b> El nocturno se abre otra vez en la madrugada para capturar su final y nunca llega a esta pregunta. Esta pregunta solo aparece cuando alguien captura un <b>inicial nuevo</b> mientras el de ayer sigue sin final.</p></div>
+    </div>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

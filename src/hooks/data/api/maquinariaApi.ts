@@ -9,8 +9,8 @@ import {
   EstanciaResponse,
   CreateEstanciaBody,
   CloseEstanciaBody,
-  JornadaResponse,
-  CreateJornadaBody,
+  JornadaCompleta,
+  CreateCapturaBody,
   CreateReconciliacionBody,
   ReconciliacionResponse,
   HubDiarioResponse,
@@ -83,13 +83,20 @@ export const closeEstancia = async (
     body,
   );
 
-export const createJornada = async (
-  body: CreateJornadaBody,
-): Promise<JornadaResponse> =>
-  apiRequest<JornadaResponse>(
+/**
+ * Una captura: lo que el usuario guardó de una vez en la hoja de jornada.
+ *
+ * Responde con la jornada completa donde aterrizó. 200 si ese `client_id` ya
+ * se había aplicado (reintento seguro), 409 si choca con el estado de la
+ * máquina —un turno sin cerrar o un cierre olvidado—.
+ */
+export const createCaptura = async (
+  body: CreateCapturaBody,
+): Promise<JornadaCompleta> =>
+  apiRequest<JornadaCompleta>(
     "post",
-    API_CONFIG.endpoints.maquinaria.jornadas,
-    "Error al registrar la jornada",
+    API_CONFIG.endpoints.maquinaria.capturas,
+    "Error al registrar la captura",
     body,
   );
 
