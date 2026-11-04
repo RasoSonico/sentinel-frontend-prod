@@ -3,6 +3,7 @@ import { useObject, useRealm } from "@realm/react";
 import { UpdateMode } from "realm";
 import { getAssignedConstruction } from "../../api/avanceApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { cargandoPorPrimeraVez, puedeIntentar } from "src/hooks/utils/red";
 import { AssignedConstructionResponse } from "src/realm/assignedConstruction/Response";
 import { AVANCE_QUERY_KEYS } from "../avanceQueries.const";
 import {
@@ -95,7 +96,7 @@ export const assignedConstructionOptions = (
 
       return data;
     },
-    enabled: isOnline === true,
+    enabled: puedeIntentar(isOnline),
   });
 
 export const useAssignedConstruction = (role: string = "CONTRATISTA") => {
@@ -131,7 +132,7 @@ export const useAssignedConstruction = (role: string = "CONTRATISTA") => {
     ...q,
     data: cached?.construction ?? null,
     hasOfflineData: !!cached,
-    isInitialLoading: !cached && q.isPending,
+    isInitialLoading: cargandoPorPrimeraVez(!!cached, q),
   };
 };
 

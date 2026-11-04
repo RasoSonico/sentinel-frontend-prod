@@ -3,6 +3,7 @@ import { useObject, useRealm } from "@realm/react";
 import { UpdateMode } from "realm";
 import { getAvanceBase } from "../../api/avanceApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { cargandoPorPrimeraVez, puedeIntentar } from "src/hooks/utils/red";
 import { AvanceBaseResponse } from "src/realm/avanceBase/Response";
 import { AVANCE_QUERY_KEYS } from "../avanceQueries.const";
 import {
@@ -23,7 +24,7 @@ import {
 export const avanceBaseOptions = (realm: Realm, isOnline: boolean | null) =>
   queryOptions({
     queryKey: [AVANCE_QUERY_KEYS.BASE],
-    enabled: isOnline === true,
+    enabled: puedeIntentar(isOnline),
     // El aislamiento entre usuarios ya NO depende de esta línea: lo garantiza el
     // wipe por cambio de identidad (src/services/auth/cacheOwner.ts), que corre
     // antes de que monte el árbol autenticado y cubre también el caso offline,
@@ -130,7 +131,7 @@ export const useAvanceBase = () => {
     data: cached ?? null,
 
     hasOfflineData: !!cached,
-    isInitialLoading: !cached && q.isPending,
+    isInitialLoading: cargandoPorPrimeraVez(!!cached, q),
   };
 };
 

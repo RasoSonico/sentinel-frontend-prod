@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, subDays } from "date-fns";
 import { getPhotosByRange } from "../../api/avanceApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { puedeIntentar } from "src/hooks/utils/red";
 import { ConstructionPhoto } from "src/types/avance";
 import { AVANCE_QUERY_KEYS } from "../avanceQueries.const";
 
@@ -45,7 +46,7 @@ export const useTodayPhotos = (constructionId: number | undefined) => {
           : photo;
       });
     },
-    enabled: !!constructionId && isOnline === true,
+    enabled: !!constructionId && puedeIntentar(isOnline),
     staleTime: 2 * 60 * 1000,
   });
 };

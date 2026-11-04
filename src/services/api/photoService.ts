@@ -150,6 +150,40 @@ export const requestBulkUpload = async (
  * Subir archivo directamente a Azure Blob Storage
  * Returns detailed result with error information
  */
+/**
+ * Plazo de la subida de UNA foto a Blob.
+ *
+ * `fetch` sin `AbortController` no se rinde nunca, y una subida colgada en
+ * señal débil congelaba el ciclo entero de la cola: ni esa foto avanzaba ni
+ * las siguientes se intentaban.
+ *
+ * Es más largo que el de la API porque aquí viajan bytes —una foto del reporte
+ * pesa ~220 KB a 1920 px— y en obra el ancho de banda es el que es. Noventa
+ * segundos alcanzan para subirla a ~2.5 KB/s; por debajo de eso no hay subida
+ * que valga, y seguir esperando solo gasta batería.
+ */
+export const PLAZO_SUBIDA_MS = 90_000;
+
+/** Plazo para leer el archivo local. No viaja nada por la red. */
+export const PLAZO_ARCHIVO_LOCAL_MS = 30_000;
+
+/**
+ * Un `AbortController` con plazo, escrito a mano.
+ *
+ * **`AbortSignal.timeout()` NO existe en React Native.** `setUpXHR` instala el
+ * polyfill de `abort-controller`, que trae el controlador y la señal pero no
+ * ese método estático: usarlo habría tumbado TODAS las subidas con un
+ * "is not a function" en el primer intento.
+ *
+ * `cancelar()` se llama siempre —incluso cuando la petición sale bien— para no
+ * dejar un temporizador vivo por cada foto.
+ */
+const conPlazo = (ms: number) => {
+  const control = new AbortController();
+  const id = setTimeout(() => control.abort(), ms);
+  return { signal: control.signal, cancelar: () => clearTimeout(id) };
+};
+
 export const uploadToAzureBlob = async (
   uploadUrl: string,
   fileData: Blob,
@@ -159,14 +193,21 @@ export const uploadToAzureBlob = async (
     console.log("🔵 Azure Blob Upload - Starting direct upload to:", uploadUrl);
     console.log("🔵 File info:", { size: fileData.size, type: contentType });
 
-    const response = await fetch(uploadUrl, {
-      method: "PUT",
-      body: fileData,
-      headers: {
-        "x-ms-blob-type": "BlockBlob",
-        "Content-Type": contentType,
-      },
-    });
+    const plazo = conPlazo(PLAZO_SUBIDA_MS);
+    let response: Response;
+    try {
+      response = await fetch(uploadUrl, {
+        method: "PUT",
+        body: fileData,
+        headers: {
+          "x-ms-blob-type": "BlockBlob",
+          "Content-Type": contentType,
+        },
+        signal: plazo.signal,
+      });
+    } finally {
+      plazo.cancelar();
+    }
 
     console.log("🔵 Azure Blob Upload - Response status:", response.status);
 
@@ -262,9 +303,13 @@ export const confirmUpload = async (
  * Convertir URI de imagen a Blob para upload
  */
 export const uriToBlob = async (uri: string): Promise<Blob> => {
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  return blob;
+  const plazo = conPlazo(PLAZO_ARCHIVO_LOCAL_MS);
+  try {
+    const response = await fetch(uri, { signal: plazo.signal });
+    return await response.blob();
+  } finally {
+    plazo.cancelar();
+  }
 };
 
 /**

@@ -112,12 +112,24 @@ export function usePendingReporteQueue() {
       // Un mapa en vez de filtrar dentro del `map`: con varios reportes en cola
       // recorrer todas las fotos por cada uno sería cuadrático para nada.
       const pendientesPorReporte = new Map<string, number>();
+      // Las DETENIDAS se cuentan aparte. Una foto que el servidor rechazó o
+      // cuyo archivo desapareció no va a salir sola, y es lo único que
+      // justifica enseñarle un botón al usuario: las demás pendientes siguen
+      // en camino aunque la señal esté mala, y pedirle que haga algo por ellas
+      // sería inventarle trabajo.
+      const detenidasPorReporte = new Map<string, number>();
       for (const foto of allPhotos) {
         if (foto.status === "done") continue;
         pendientesPorReporte.set(
           foto.reporteLocalId,
           (pendientesPorReporte.get(foto.reporteLocalId) ?? 0) + 1,
         );
+        if (foto.status === "failed") {
+          detenidasPorReporte.set(
+            foto.reporteLocalId,
+            (detenidasPorReporte.get(foto.reporteLocalId) ?? 0) + 1,
+          );
+        }
       }
 
       return [...allItems]
@@ -147,6 +159,12 @@ export function usePendingReporteQueue() {
           // estar `done` —ya llegó al servidor— y aun así no estar disponible
           // para nadie: sin sus fotos, el archivo no se puede generar.
           fotosPendientes: pendientesPorReporte.get(item._id) ?? 0,
+          /**
+           * Las que ya no se reintentan solas. Son las únicas que piden una
+           * decisión de una persona; el resto de las pendientes sigue en la
+           * fila y el worker las vuelve a intentar por su cuenta.
+           */
+          fotosDetenidas: detenidasPorReporte.get(item._id) ?? 0,
           errorMessage: item.errorMessage,
           // Sin esto el chip no puede distinguir "va a reintentar" de "ya no
           // lo va a intentar más", y decir lo primero cuando es lo segundo
@@ -445,6 +463,39 @@ export function usePendingReporteQueue() {
   );
 
   /**
+   * El intento no se pudo completar, pero el siguiente sí podría: el reporte
+   * vuelve a la fila sin pasar por `failed`.
+   *
+   * **No pasa por `failed` ni un instante.** Esa visita hacía parpadear "No se
+   * envió" en el chip —y la franja roja de la lista— sobre un reporte que se
+   * iba a reintentar solo un segundo después: un estado de paso pintado como
+   * veredicto.
+   *
+   * El espaciado entre intentos ya no vive aquí ni duerme el ciclo: lo pone el
+   * worker, que espera cada vez un poco más antes de volver a recorrer la cola
+   * entera. Dormir dentro del lazo retrasaba también las fotos de los demás
+   * reportes, que no tenían nada que ver con el fallo.
+   */
+  const aplazarReporte = useCallback(
+    (id: string, errorMessage: string) => {
+      const item = realm.objectForPrimaryKey(PendingReporteSubmission, id);
+      if (!item) return false;
+      realm.write(() => {
+        item.status = "pending";
+        item.errorMessage = errorMessage;
+        item.lastAttemptAt = new Date();
+        // Sigue contando los intentos —es información que el detalle puede
+        // enseñar—, pero ya no es un presupuesto: `intentosAgotados` solo se
+        // lee cuando el estado es `failed`, y a `failed` ya nada más se llega
+        // por rechazo explícito del servidor.
+        item.retryCount += 1;
+      });
+      return true;
+    },
+    [realm],
+  );
+
+  /**
    * Devuelve a `pending` lo que quedó en `syncing` de una sesión anterior.
    *
    * Un item en `syncing` sin worker vivo detrás no lo va a mover nadie: sin
@@ -486,6 +537,107 @@ export function usePendingReporteQueue() {
         if (status === "failed") foto.retryCount += 1;
       });
       return true;
+    },
+    [realm],
+  );
+
+  /**
+   * El intento de subida no se pudo completar, pero el siguiente sí podría: la
+   * foto vuelve a la fila.
+   *
+   * **Es el arreglo del defecto más caro del módulo.** `failed` significa "no
+   * tiene caso volver a intentar", y los dos lectores de la cola —
+   * `leerTrabajoPendiente` y `fotosListasParaSubir`— solo miran `waiting` y
+   * `uploaded`: una foto que caía en `failed` no la volvía a tomar nadie, ni
+   * el ciclo, ni el botón Sincronizar, ni el reintento manual. Como hasta
+   * ahora CUALQUIER fallo la mandaba ahí, una subida cortada por señal débil
+   * —el pan de cada día en obra— bastaba para que el reporte no se pudiera
+   * generar nunca.
+   *
+   * `uploaded` se conserva: significa que los bytes YA están en Blob y solo
+   * falta confirmar. Degradarla a `waiting` volvería a mandar la foto entera
+   * sobre una red que apenas alcanzó para subirla una vez.
+   */
+  const aplazarFoto = useCallback(
+    (id: string, errorMessage: string) => {
+      const foto = realm.objectForPrimaryKey(PendingReportePhotoSubmission, id);
+      if (!foto) return false;
+      realm.write(() => {
+        if (foto.status !== "uploaded") foto.status = "waiting";
+        foto.errorMessage = errorMessage;
+        foto.lastAttemptAt = new Date();
+        foto.retryCount += 1;
+      });
+      return true;
+    },
+    [realm],
+  );
+
+  /**
+   * Rescate de UNA SOLA VEZ de todas las fotos detenidas del teléfono.
+   *
+   * **Ninguna foto que esté hoy en `failed` llegó ahí por la regla nueva.** La
+   * vieja mandaba a `failed` cualquier tropiezo —un corte de red, un servidor
+   * ocupado, una subida que no alcanzó a terminar— y de ahí no salía nadie. Lo
+   * que hay en la cola de los teléfonos que ya estuvieron en obra es trabajo
+   * perfectamente vivo clasificado con un criterio que acabamos de declarar
+   * equivocado, así que se le devuelve su lugar en la fila.
+   *
+   * Corre una vez y no en cada arranque: después de esto, `failed` ya significa
+   * lo que dice, y volver a revivirlo cada vez convertiría "detenida" en una
+   * etiqueta que parpadea.
+   *
+   * Solo las que tienen id de servidor, por lo mismo que el rescate manual.
+   */
+  const rescatarFotosDetenidas = useCallback((): number => {
+    const detenidas = realm
+      .objects(PendingReportePhotoSubmission)
+      .filtered('status == "failed" AND fotoRemotaId != null');
+    if (detenidas.length === 0) return 0;
+
+    const total = detenidas.length;
+    realm.write(() => {
+      detenidas.forEach((foto) => {
+        foto.status = "waiting";
+        foto.errorMessage = null;
+        foto.retryCount = 0;
+      });
+    });
+    return total;
+  }, [realm]);
+
+  /**
+   * Rescate manual de las fotos detenidas de un reporte. Devuelve cuántas
+   * revivió.
+   *
+   * Solo las que tienen id de servidor: una foto sin `fotoRemotaId` no la
+   * declaró el 201 y volver a ponerla en la fila la dejaría dando vueltas sin
+   * que ningún lector la tome. Devolver el conteo real es lo que le permite a
+   * la pantalla no prometer un reintento que no va a ocurrir.
+   *
+   * El presupuesto se devuelve completo por la misma razón que en
+   * `reintentarReporte`: que lo pida una persona significa que sabe algo que
+   * el teléfono no.
+   */
+  const reintentarFotosDetenidas = useCallback(
+    (reporteLocalId: string): number => {
+      const detenidas = realm
+        .objects(PendingReportePhotoSubmission)
+        .filtered(
+          'reporteLocalId == $0 AND status == "failed" AND fotoRemotaId != null',
+          reporteLocalId,
+        );
+      if (detenidas.length === 0) return 0;
+
+      const total = detenidas.length;
+      realm.write(() => {
+        detenidas.forEach((foto) => {
+          foto.status = "waiting";
+          foto.errorMessage = null;
+          foto.retryCount = 0;
+        });
+      });
+      return total;
     },
     [realm],
   );
@@ -640,11 +792,15 @@ export function usePendingReporteQueue() {
     markAsSyncing,
     markAsFailed,
     markAsPending,
+    aplazarReporte,
     reintentarReporte,
     resetStuckSyncingItems,
 
     // Fotos
     setPhotoStatus,
+    aplazarFoto,
+    rescatarFotosDetenidas,
+    reintentarFotosDetenidas,
     removeDonePhotos,
     resetStuckSyncingPhotos,
   };

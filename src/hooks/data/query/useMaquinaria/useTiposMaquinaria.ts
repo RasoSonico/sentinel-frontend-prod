@@ -3,6 +3,7 @@ import { useObject, useRealm } from "@realm/react";
 import { UpdateMode } from "realm";
 import { getTiposMaquinaria } from "../../api/maquinariaApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { cargandoPorPrimeraVez, puedeIntentar } from "src/hooks/utils/red";
 import { TiposMaquinariaResponse } from "src/realm/tiposMaquinaria/Response";
 import { MAQUINARIA_QUERY_KEYS } from "../maquinariaQueries.const";
 import {
@@ -25,7 +26,7 @@ export const tiposMaquinariaOptions = (
 ) =>
   queryOptions({
     queryKey: [MAQUINARIA_QUERY_KEYS.TIPOS],
-    enabled: isOnline === true,
+    enabled: puedeIntentar(isOnline),
     staleTime: 30 * 60 * 1000,
     queryFn: async () => {
       logApiFetchStart("Tipos Maquinaria");
@@ -91,7 +92,7 @@ export const useTiposMaquinaria = () => {
     ...q,
     data: cached?.tipos ? Array.from(cached.tipos) : [],
     hasOfflineData: !!cached,
-    isInitialLoading: !cached && q.isPending,
+    isInitialLoading: cargandoPorPrimeraVez(!!cached, q),
   };
 };
 

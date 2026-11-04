@@ -70,6 +70,7 @@ export default function ReporteDetailScreen() {
     resolverReporteId,
     getPhotosByReporteId,
     reintentarReporte,
+    reintentarFotosDetenidas,
     removeFromQueueWithPhotos,
   } = usePendingReporteQueue();
 
@@ -287,6 +288,16 @@ export default function ReporteDetailScreen() {
   const esNuestro = params.localId !== undefined;
   const fotosFaltantes =
     faltanPorError ?? enCola?.fotosPendientes ?? data?.fotos_pendientes ?? 0;
+  /**
+   * Fotos que ya no se reintentan solas: el servidor las rechazó o su archivo
+   * desapareció del teléfono.
+   *
+   * Es lo único de esta pantalla que pide una decisión del usuario mientras el
+   * reporte está en camino. Una foto detenida **bloquea el reporte entero** —
+   * sin ella el servidor nunca va a dejar generar el archivo—, así que
+   * callarla sería dejarlo esperando para siempre algo que no va a pasar.
+   */
+  const fotosDetenidas = enCola?.fotosDetenidas ?? 0;
   const disponible =
     !faltaElReporte && data?.puede_generar === true && fotosFaltantes === 0;
 
@@ -305,6 +316,21 @@ export default function ReporteDetailScreen() {
    */
   const linea = useMemo(() => {
     if (disponible) return null;
+    /**
+     * Va ANTES que la de sin señal, y no por jerarquía visual: porque la otra
+     * sería mentira. "Se enviará solo al recuperarla" es falso sobre una foto
+     * que ya no está en la fila — recuperar la señal no la va a mover.
+     */
+    if (fotosDetenidas > 0) {
+      return {
+        titulo:
+          fotosDetenidas === 1
+            ? "1 foto detenida"
+            : `${fotosDetenidas} fotos detenidas`,
+        texto: "No se pudieron subir y no se reintentan solas.",
+        alerta: true,
+      };
+    }
     if (sinSenal && esNuestro) {
       return {
         titulo: "Por enviar",
@@ -334,7 +360,14 @@ export default function ReporteDetailScreen() {
     // servidor se refresca: sin esto quedaría una pantalla sin línea y sin
     // botones, que es exactamente el callejón sin salida que esto corrige.
     return { titulo: "Enviando", texto: "Enviando el reporte.", alerta: false };
-  }, [disponible, sinSenal, esNuestro, faltaElReporte, fotosFaltantes]);
+  }, [
+    disponible,
+    sinSenal,
+    esNuestro,
+    faltaElReporte,
+    fotosFaltantes,
+    fotosDetenidas,
+  ]);
 
   /**
    * Qué falta, en lugar de dos botones apagados.
@@ -345,7 +378,9 @@ export default function ReporteDetailScreen() {
    */
   const fraseDeEspera = faltaElReporte
     ? "El Excel y el PDF se podrán generar cuando el reporte llegue al servidor."
-    : "El Excel y el PDF se podrán generar en cuanto terminen de subir las fotos.";
+    : fotosDetenidas > 0
+      ? "El Excel y el PDF se podrán generar cuando suban las fotos que faltan."
+      : "El Excel y el PDF se podrán generar en cuanto terminen de subir las fotos.";
 
   // ── Rescate de un envío fallido ─────────────────────────────────────────
 
@@ -358,6 +393,31 @@ export default function ReporteDetailScreen() {
     // cambio de `pendingCount`.
     showSnackbar("Reintentando el envío…", "info");
   }, [enCola, reintentarReporte, showSnackbar]);
+
+  /**
+   * Devuelve a la fila las fotos detenidas de este reporte.
+   *
+   * Se informa el conteo real que devolvió la cola y no uno optimista: una
+   * foto que el 201 nunca declaró no se puede reintentar desde aquí, y
+   * prometerlo dejaría al usuario mirando una pantalla que no cambia.
+   */
+  const reintentarFotos = useCallback(() => {
+    if (!enCola) return;
+    const revividas = reintentarFotosDetenidas(enCola.localId);
+    if (revividas === 0) {
+      showSnackbar(
+        "Estas fotografías no se pueden reintentar desde aquí.",
+        "error",
+      );
+      return;
+    }
+    showSnackbar(
+      revividas === 1
+        ? "Reintentando la subida de la fotografía…"
+        : `Reintentando la subida de ${revividas} fotografías…`,
+      "info",
+    );
+  }, [enCola, reintentarFotosDetenidas, showSnackbar]);
 
   const confirmarDescarte = useCallback(() => {
     if (!enCola) return;
@@ -474,7 +534,25 @@ export default function ReporteDetailScreen() {
             </View>
           </>
         ) : (
-          <Text style={estilos.espera}>{fraseDeEspera}</Text>
+          <>
+            {/* Una foto detenida es el único caso en que esta pantalla tiene
+                algo que pedirle al usuario mientras el reporte va en camino.
+                Sin este botón, el reporte quedaba bloqueado para siempre sin
+                que nada en la app lo dijera ni ofreciera salida. */}
+            {fotosDetenidas > 0 ? (
+              <View style={estilos.acciones}>
+                <BotonWizard
+                  etiqueta={
+                    fotosDetenidas === 1
+                      ? "Reintentar la fotografía"
+                      : "Reintentar las fotografías"
+                  }
+                  onPress={reintentarFotos}
+                />
+              </View>
+            ) : null}
+            <Text style={estilos.espera}>{fraseDeEspera}</Text>
+          </>
         )}
       </ScrollView>
     </View>

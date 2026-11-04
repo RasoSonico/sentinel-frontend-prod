@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { telemetry } from "src/services/telemetry";
@@ -26,7 +27,46 @@ import {
 } from "./usePendingReporteQueue";
 
 const DEBOUNCE_MS = 500;
-const RETRY_DELAY_BASE_MS = 1000;
+
+/** Marca del rescate único de fotos detenidas. Ver el efecto que la usa. */
+const MARCA_RESCATE = "reportes.rescate_fotos_detenidas.v1";
+
+/**
+ * Espera antes de volver a recorrer la cola cuando un ciclo entero no logró
+ * mover nada. Se duplica en cada ciclo en vano hasta el tope.
+ *
+ * **El presupuesto de reintentos se mide en tiempo, no en intentos.** Tres
+ * intentos quemados en siete segundos no significan nada en una obra: la señal
+ * va y viene por zonas a lo largo del día, y lo único que separa un fallo de
+ * un éxito suele ser esperar. El tope son cinco minutos; más que eso ya no es
+ * reintentar, es rendirse despacio.
+ */
+const ESPERA_BASE_MS = 5_000;
+const ESPERA_MAXIMA_MS = 5 * 60 * 1000;
+
+/**
+ * Qué errores no tiene caso reintentar.
+ *
+ * Un 4xx NO se arregla reintentando: el servidor entendió la petición y la
+ * rechazó, y el mismo cuerpo va a producir el mismo rechazo. Un 5xx, un
+ * timeout o un corte sí — el servidor puede estar reiniciando o a media
+ * migración. 408 y 429 son 4xx pero significan literalmente "vuelve a
+ * intentar", así que cuentan como transitorios.
+ *
+ * Gastar los intentos contra un error temporal convierte una falla pasajera en
+ * pérdida permanente, que es exactamente lo que pasó con el 500 del
+ * despliegue y lo que pasa todos los días con la señal de obra.
+ */
+const esPermanente = (error: unknown): boolean => {
+  const status = error instanceof ApiError ? error.status : undefined;
+  return (
+    status !== undefined &&
+    status >= 400 &&
+    status < 500 &&
+    status !== 408 &&
+    status !== 429
+  );
+};
 
 interface FotoSerializada {
   orden: number;
@@ -65,10 +105,13 @@ export function useReporteSyncWorker() {
     markAsSyncing,
     markAsFailed,
     markAsPending,
+    aplazarReporte,
     completeReporteSyncAtomic,
     resetStuckSyncingItems,
     resetStuckSyncingPhotos,
     setPhotoStatus,
+    aplazarFoto,
+    rescatarFotosDetenidas,
     leerTrabajoPendiente,
     leerReportesDisponibles,
     removeDonePhotos,
@@ -85,6 +128,44 @@ export function useReporteSyncWorker() {
   const enCursoRef = useRef(false);
   const montadoRef = useRef(true);
 
+  /** Cuánto se esperará antes del próximo ciclo. 0 = sin espera. */
+  const esperaRef = useRef(0);
+  /** Instante en que la espera vence. Antes de él, el efecto no dispara. */
+  const finDeEsperaRef = useRef(0);
+  const reintentoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Programa el próximo recorrido de la cola, con espera creciente.
+   *
+   * **Esto es lo que hace que la cola ya no se rinda.** Antes, un ciclo que
+   * fallaba entero dejaba el trabajo esperando un disparo externo —un cambio
+   * de red, un reintento manual— que podía no llegar nunca; y las fotos ni
+   * siquiera tenían eso, porque un fallo las sacaba de la fila para siempre.
+   * Ahora lo que quedó pendiente se reintenta solo, indefinidamente.
+   */
+  const programarReintento = useCallback(() => {
+    esperaRef.current = Math.min(
+      esperaRef.current === 0 ? ESPERA_BASE_MS : esperaRef.current * 2,
+      ESPERA_MAXIMA_MS,
+    );
+    finDeEsperaRef.current = Date.now() + esperaRef.current;
+    if (reintentoRef.current) clearTimeout(reintentoRef.current);
+    reintentoRef.current = setTimeout(() => {
+      finDeEsperaRef.current = 0;
+      if (montadoRef.current) setPulso((n) => n + 1);
+    }, esperaRef.current);
+  }, []);
+
+  /** La espera vuelve a cero: hay una razón nueva para creer que sí se puede. */
+  const reiniciarEspera = useCallback(() => {
+    esperaRef.current = 0;
+    finDeEsperaRef.current = 0;
+    if (reintentoRef.current) {
+      clearTimeout(reintentoRef.current);
+      reintentoRef.current = null;
+    }
+  }, []);
+
   // Rescate de arranque: lo que quedó en "syncing" de una sesión que murió a
   // media subida no lo va a mover nadie más.
   useEffect(() => {
@@ -97,10 +178,47 @@ export function useReporteSyncWorker() {
     }
   }, [resetStuckSyncingItems, resetStuckSyncingPhotos]);
 
+  /**
+   * Rescate de una sola vez de las fotos que murieron bajo la regla vieja.
+   *
+   * Los teléfonos que ya estuvieron en obra traen fotos en `failed` que no
+   * fallaron de verdad: la regla anterior mandaba ahí cualquier tropiezo de
+   * red. Sin esto, instalar la versión nueva arreglaría los reportes futuros y
+   * dejaría los de esta semana bloqueados para siempre, que es justo el
+   * trabajo que ya costó una jornada en campo.
+   *
+   * La marca vive en `AsyncStorage` y no en Realm para no pedir una migración
+   * de esquema por algo que ocurre una vez en la vida de la instalación.
+   */
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        if (await AsyncStorage.getItem(MARCA_RESCATE)) return;
+        if (!vivo) return;
+        const revividas = rescatarFotosDetenidas();
+        await AsyncStorage.setItem(MARCA_RESCATE, new Date().toISOString());
+        if (revividas > 0) {
+          console.log(
+            `[ReporteSync] Rescate único: ${revividas} foto(s) detenida(s) vuelven a la fila`,
+          );
+        }
+      } catch (error) {
+        // Que falle el rescate no puede impedir que el worker arranque: lo
+        // que hay en la fila sigue saliendo igual.
+        console.warn("[ReporteSync] No se pudo correr el rescate único", error);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [rescatarFotosDetenidas]);
+
   useEffect(() => {
     montadoRef.current = true;
     return () => {
       montadoRef.current = false;
+      if (reintentoRef.current) clearTimeout(reintentoRef.current);
     };
   }, []);
 
@@ -147,24 +265,7 @@ export function useReporteSyncWorker() {
         return true;
       } catch (error) {
         const status = error instanceof ApiError ? error.status : undefined;
-
-        /**
-         * Un 4xx NO se arregla reintentando: el servidor entendió la petición
-         * y la rechazó, y el mismo cuerpo va a producir el mismo rechazo. Un
-         * 5xx, un timeout o un corte sí — el servidor puede estar reiniciando
-         * o a media migración. 408 y 429 son 4xx pero significan literalmente
-         * "vuelve a intentar", así que cuentan como transitorios.
-         *
-         * Gastar los tres intentos en siete segundos contra un error temporal
-         * convierte una falla pasajera en pérdida permanente, que es
-         * exactamente lo que pasó con el 500 del despliegue.
-         */
-        const permanente =
-          status !== undefined &&
-          status >= 400 &&
-          status < 500 &&
-          status !== 408 &&
-          status !== 429;
+        const permanente = esPermanente(error);
 
         const mensaje = permanente
           ? `El servidor rechazó el reporte (${status}). ${
@@ -174,23 +275,27 @@ export function useReporteSyncWorker() {
             ? error.message
             : "Error desconocido al enviar el reporte";
 
-        markAsFailed(item._id, mensaje, permanente);
-
-        // SIN el `+ 1` que tenía: `markAsFailed` ya incrementó `retryCount` y
-        // `item` es un objeto VIVO de Realm, así que sumar otra vez contaba el
-        // intento dos veces. El reporte se detenía en `retryCount = 2` con
-        // `maxRetries = 3`, y como "agotado" se mide con `>= maxRetries`,
-        // nunca llegaba a serlo: el chip decía "Reintentando" para siempre
-        // sobre algo que ya no iba a reintentar nada.
-        if (!permanente && item.retryCount < item.maxRetries) {
-          const espera = RETRY_DELAY_BASE_MS * Math.pow(2, item.retryCount);
-          await new Promise((resolve) => setTimeout(resolve, espera));
-          markAsPending(item._id);
+        if (permanente) {
+          markAsFailed(item._id, mensaje, true);
+        } else {
+          /**
+           * **El reporte ya no se queda sin intentos.** Antes gastaba tres en
+           * siete segundos —el espaciado dormía DENTRO del ciclo, retrasando
+           * de paso las fotos de los demás reportes— y después se detenía para
+           * siempre. En una obra con señal por zonas eso es perder el reporte
+           * por haberlo guardado en el lugar equivocado.
+           *
+           * Ahora vuelve a la fila sin pasar por `failed` y el espaciado lo
+           * pone el ciclo, que espera cada vez un poco más. `failed` queda
+           * reservado para el rechazo explícito del servidor, que es lo único
+           * que de verdad necesita que una persona decida.
+           */
+          aplazarReporte(item._id, mensaje);
         }
         return false;
       }
     },
-    [markAsSyncing, markAsFailed, markAsPending, completeReporteSyncAtomic],
+    [markAsSyncing, markAsFailed, aplazarReporte, completeReporteSyncAtomic],
   );
 
   // ── Subida de una foto ──────────────────────────────────────────────────
@@ -210,7 +315,34 @@ export function useReporteSyncWorker() {
           // y un reintento tras una noche sin señal llegaría con un token
           // muerto. La ruta del blob, en cambio, ya está reservada y no caduca.
           const sas = await requestFotoUpload(foto.fotoRemotaId);
-          const blob = await uriToBlob(foto.localUri);
+
+          /**
+           * El archivo local se lee aparte del resto porque es el ÚNICO fallo
+           * de foto que de verdad es definitivo: si el archivo ya no está en
+           * el teléfono, ningún reintento lo va a traer de vuelta.
+           */
+          let blob;
+          try {
+            blob = await uriToBlob(foto.localUri);
+          } catch (error) {
+            // Un plazo vencido leyendo el disco no dice que el archivo no
+            // esté: dice que el teléfono anda lento. Solo el resto —no se
+            // puede abrir— es definitivo.
+            if (error instanceof Error && error.name === "AbortError") {
+              aplazarFoto(
+                foto._id,
+                "No se pudo leer el archivo de la fotografía a tiempo.",
+              );
+            } else {
+              setPhotoStatus(
+                foto._id,
+                "failed",
+                "El archivo de la fotografía ya no está en este teléfono.",
+              );
+            }
+            return false;
+          }
+
           const resultado = await uploadToAzureBlob(
             sas.upload_url,
             blob,
@@ -218,11 +350,20 @@ export function useReporteSyncWorker() {
           );
 
           if (!resultado.success) {
-            setPhotoStatus(
-              foto._id,
-              "failed",
-              resultado.errorMessage ?? "Error al subir la fotografía",
-            );
+            const mensaje =
+              resultado.errorMessage ?? "Error al subir la fotografía";
+            /**
+             * Solo un rechazo explícito de Blob detiene la foto. Un `403` es
+             * el SAS caducado —`expired_sas`—, y el siguiente intento pide uno
+             * nuevo sobre la misma ruta, así que es de los que SÍ se
+             * reintentan. Un corte de red tampoco dice nada sobre el próximo
+             * intento.
+             */
+            if (resultado.errorType === "forbidden") {
+              setPhotoStatus(foto._id, "failed", mensaje);
+            } else {
+              aplazarFoto(foto._id, mensaje);
+            }
             return false;
           }
           setPhotoStatus(foto._id, "uploaded");
@@ -234,13 +375,21 @@ export function useReporteSyncWorker() {
       } catch (error) {
         const mensaje =
           error instanceof Error ? error.message : "Error al subir la fotografía";
-        // Si ya estaba subida se conserva `uploaded`, para que el reintento
-        // solo confirme en vez de volver a mandar los bytes.
-        setPhotoStatus(foto._id, soloConfirmar ? "uploaded" : "failed", mensaje);
+        /**
+         * Mismo corte que el reporte. Y un `uploaded` NUNCA se detiene: los
+         * bytes ya están en Blob y lo único que falta es una confirmación que
+         * el servidor trata como idempotente, así que insistir no cuesta nada
+         * y rendirse costaría el reporte entero.
+         */
+        if (!soloConfirmar && esPermanente(error)) {
+          setPhotoStatus(foto._id, "failed", mensaje);
+        } else {
+          aplazarFoto(foto._id, mensaje);
+        }
         return false;
       }
     },
-    [setPhotoStatus],
+    [setPhotoStatus, aplazarFoto],
   );
 
   // ── Ciclo ───────────────────────────────────────────────────────────────
@@ -370,10 +519,18 @@ export function useReporteSyncWorker() {
       // sería girar en vacío contra un fallo que no se va a resolver solo; en
       // ese caso se espera a un disparo externo (red, reintento manual).
       if (reportesEnviados + fotosSubidas > 0) {
+        // Algo se movió: la espera vuelve a cero. Si hubo progreso, la red
+        // sirve, y hacer esperar al resto del trabajo sería gratuito.
+        reiniciarEspera();
         const { reportes, fotos } = leerTrabajoPendiente();
         if (reportes.length > 0 || fotos.length > 0) {
           setPulso((n) => n + 1);
         }
+      } else if (fallos > 0) {
+        // El ciclo no logró mover nada. **Se vuelve a intentar igual**, solo
+        // que más tarde cada vez. Antes aquí se dejaba de intentar y el
+        // trabajo quedaba esperando un disparo externo que podía no llegar.
+        programarReintento();
       }
     }
   }, [
@@ -389,11 +546,32 @@ export function useReporteSyncWorker() {
     removeDonePhotos,
     removeDoneReportes,
     showSnackbar,
+    programarReintento,
+    reiniciarEspera,
   ]);
+
+  /**
+   * La red volvió: se cancela la espera.
+   *
+   * Va ANTES del efecto que dispara el ciclo —los efectos corren en orden de
+   * declaración— para que ese vea la espera ya en cero y salga a intentarlo de
+   * inmediato. Lo que llevaba cinco minutos esperando no tiene por qué seguir
+   * esperando ahora que hay por dónde salir, y recuperar la señal al cambiar
+   * de zona es justo el momento en que el usuario espera que la app reaccione.
+   */
+  useEffect(() => {
+    if (isOnline !== true) return;
+    reiniciarEspera();
+  }, [isOnline, reiniciarEspera]);
 
   useEffect(() => {
     if (isOnline === false || !isAuthenticated || enCursoRef.current) return;
     if (pendingCount === 0 && fotosListasParaSubir.length === 0) return;
+    // Dentro de la ventana de espera no se dispara: el temporizador de
+    // `programarReintento` es quien va a reabrirla. Sin esto, cualquier render
+    // —y la cola produce varios por ciclo— reiniciaría el intento de
+    // inmediato, que es girar en vacío contra una red que no está.
+    if (Date.now() < finDeEsperaRef.current) return;
 
     const timeoutId = setTimeout(procesarCola, DEBOUNCE_MS);
     return () => clearTimeout(timeoutId);
@@ -411,17 +589,22 @@ export function useReporteSyncWorker() {
       showSnackbar("Sin conexión a internet", "error");
       return;
     }
+    // Que lo pida una persona reinicia la espera: sabe algo que el teléfono
+    // no —que ya hay señal, que acaba de salir del sótano—.
+    reiniciarEspera();
     await procesarCola();
-  }, [isOnline, procesarCola, showSnackbar]);
+  }, [isOnline, procesarCola, showSnackbar, reiniciarEspera]);
 
   const retryItem = useCallback(
     async (id: string) => {
       const item = getItemById(id);
       if (!item || item.status !== "failed") return;
       markAsPending(id);
+      // Que lo pida una persona también reinicia la espera del ciclo.
+      reiniciarEspera();
       if (isOnline !== false) await procesarCola();
     },
-    [getItemById, markAsPending, isOnline, procesarCola],
+    [getItemById, markAsPending, reiniciarEspera, isOnline, procesarCola],
   );
 
   return { isSyncing, syncNow, retryItem };

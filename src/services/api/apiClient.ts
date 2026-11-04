@@ -140,9 +140,26 @@ const responseHandlerInterceptor = (client: AxiosInstance) =>
     },
   );
 
+/**
+ * Plazo de TODA petición a la API.
+ *
+ * **Axios sin `timeout` usa 0, que significa "espera para siempre".** En una
+ * red de obra con señal débil un socket se queda colgado hasta que el sistema
+ * operativo lo corta, y eso en Android puede ser minutos: es lo que dejaba el
+ * hub de maquinaria con el spinner eterno y lo que tenía a la cola creyendo
+ * que estaba trabajando cuando no pasaba nada.
+ *
+ * Veinte segundos son holgados para cualquier respuesta JSON de este backend
+ * incluso con señal mala, y cortos frente a lo que un usuario está dispuesto a
+ * mirar sin saber si la app está viva. Lo que se corta no se pierde: vuelve a
+ * la cola y se reintenta.
+ */
+export const PLAZO_API_MS = 20_000;
+
 const createClientWithInterceptors = (baseUrl: string) => {
   const client = axios.create({
     baseURL: baseUrl,
+    timeout: PLAZO_API_MS,
   });
 
   addTokenToRequestsInterceptor(client);

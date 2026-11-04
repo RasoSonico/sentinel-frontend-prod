@@ -3,6 +3,7 @@ import { useObject, useRealm } from "@realm/react";
 import { UpdateMode } from "realm";
 import { getHubDiario } from "../../api/maquinariaApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { cargandoPorPrimeraVez, puedeIntentar } from "src/hooks/utils/red";
 import { MaquinariaHubResponse } from "src/realm/maquinariaHub/Response";
 import { MaquinariaHubItem } from "src/types/maquinaria";
 import { MAQUINARIA_QUERY_KEYS } from "../maquinariaQueries.const";
@@ -65,7 +66,7 @@ export const hubDiarioOptions = (
 ) =>
   queryOptions({
     queryKey: [MAQUINARIA_QUERY_KEYS.HUB_DIARIO, constructionId, localDate],
-    enabled: !!constructionId && isOnline === true,
+    enabled: !!constructionId && puedeIntentar(isOnline),
     queryFn: async () => {
       logApiFetchStart("Hub Diario Maquinaria");
       const data = await getHubDiario(constructionId!, localDate);
@@ -152,7 +153,7 @@ export const useHubDiario = (constructionId: number | undefined) => {
     ...q,
     data: cached ?? null,
     hasOfflineData: !!cached,
-    isInitialLoading: !cached && q.isPending,
+    isInitialLoading: cargandoPorPrimeraVez(!!cached, q),
   };
 };
 

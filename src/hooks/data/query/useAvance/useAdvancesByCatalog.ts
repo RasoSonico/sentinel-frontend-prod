@@ -4,6 +4,7 @@ import { useObject, useQuery as useRealmQuery, useRealm } from "@realm/react";
 import { UpdateMode } from "realm";
 import { getAdvancesByCatalog } from "../../api/avanceApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { puedeIntentar } from "src/hooks/utils/red";
 import { AvancesByCatalogResponse } from "src/realm/avanceByCatalog/Response";
 import { AVANCE_QUERY_KEYS } from "../avanceQueries.const";
 import {
@@ -95,7 +96,7 @@ export const advancesByCatalogOptions = (
 
       return data;
     },
-    enabled: !!catalogId && isOnline === true,
+    enabled: !!catalogId && puedeIntentar(isOnline),
   });
 
 export const useAdvancesByCatalog = ({

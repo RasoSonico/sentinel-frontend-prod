@@ -16,8 +16,20 @@ export type PendingReportePhotoStatus =
  * - `waiting`  — el reporte sincronizó y `fotoRemotaId` ya existe: lista para subir
  * - `syncing`  — subiendo a Azure
  * - `uploaded` — los bytes llegaron pero falta confirmar (el reintento SOLO confirma)
- * - `failed`   — agotó los reintentos
+ * - `failed`   — **detenida**: necesita que una persona decida
  * - `done`     — subida y confirmada
+ *
+ * **`failed` no es "falló el intento"; es "no tiene caso volver a intentar"**
+ * (ADR-006 F42). Un corte de red, un servidor caído o un plazo agotado
+ * devuelven la foto a `waiting` y se reintenta indefinidamente, con espera
+ * creciente: en obra la señal débil es la condición normal del día y una
+ * subida cortada no dice absolutamente nada sobre la siguiente. Solo aterrizan
+ * aquí el rechazo explícito del servidor y el archivo local que ya no existe.
+ *
+ * Antes **todo** fallo caía en `failed`, y como los lectores de la cola solo
+ * miran `waiting` y `uploaded`, una sola subida cortada dejaba la foto muerta
+ * para siempre: el reporte nunca quedaba disponible, el archivo nunca se podía
+ * generar y ninguna pantalla ofrecía salida. Encontrado en obra.
  *
  * La diferencia con avances está en de dónde sale `fotoRemotaId`: en avances la
  * fila de foto la crea el endpoint de SAS, aquí la crea el POST del reporte

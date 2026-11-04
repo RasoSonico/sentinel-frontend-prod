@@ -3,6 +3,7 @@ import { useObject, useRealm } from "@realm/react";
 import { UpdateMode } from "realm";
 import { getCatalogsByConstruction as getCatalogsByConstructionApi } from "../../api/avanceApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { cargandoPorPrimeraVez, puedeIntentar } from "src/hooks/utils/red";
 import { CatalogsByConstructionResponse } from "src/realm/catalogsByConstruction/Response";
 import { AVANCE_QUERY_KEYS } from "../avanceQueries.const";
 import {
@@ -97,7 +98,7 @@ export const catalogsByConstructionOptions = (
 
       return data;
     },
-    enabled: !!constructionId && isOnline === true,
+    enabled: !!constructionId && puedeIntentar(isOnline),
   });
 
 export const useCatalogsByConstruction = (
@@ -136,7 +137,7 @@ export const useCatalogsByConstruction = (
     ...q,
     data: cached?.catalogs ? Array.from(cached.catalogs) : [],
     hasOfflineData: !!cached,
-    isInitialLoading: !cached && q.isPending,
+    isInitialLoading: cargandoPorPrimeraVez(!!cached, q),
   };
 };
 

@@ -3,6 +3,7 @@ import { useObject, useRealm } from "@realm/react";
 import { UpdateMode } from "realm";
 import { getConceptsByWorkItem } from "../../api/avanceApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { cargandoPorPrimeraVez, puedeIntentar } from "src/hooks/utils/red";
 import { ConceptsByWorkItemResponse } from "src/realm/conceptsByWorkItem/Response";
 import { AVANCE_QUERY_KEYS } from "../avanceQueries.const";
 import {
@@ -97,7 +98,7 @@ export const conceptsByWorkItemOptions = (
 
       return data;
     },
-    enabled: !!workItemId && isOnline === true,
+    enabled: !!workItemId && puedeIntentar(isOnline),
   });
 
 export const useConceptsByWorkItem = (workItemId: number | null) => {
@@ -132,7 +133,7 @@ export const useConceptsByWorkItem = (workItemId: number | null) => {
     ...q,
     data: cached?.concepts ? Array.from(cached.concepts) : [],
     hasOfflineData: !!cached,
-    isInitialLoading: !cached && q.isPending,
+    isInitialLoading: cargandoPorPrimeraVez(!!cached, q),
   };
 };
 

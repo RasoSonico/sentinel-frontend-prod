@@ -3,6 +3,7 @@ import { useObject, useRealm } from "@realm/react";
 import { UpdateMode } from "realm";
 import { getPartidasByCatalog } from "../../api/avanceApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { cargandoPorPrimeraVez, puedeIntentar } from "src/hooks/utils/red";
 import { PartidasByCatalogResponse } from "src/realm/partidasByCatalog/Response";
 import { AVANCE_QUERY_KEYS } from "../avanceQueries.const";
 import {
@@ -97,7 +98,7 @@ export const partidasByCatalogOptions = (
 
       return data;
     },
-    enabled: !!catalogId && isOnline === true,
+    enabled: !!catalogId && puedeIntentar(isOnline),
   });
 
 export const usePartidasByCatalog = (catalogId: number | null) => {
@@ -132,7 +133,7 @@ export const usePartidasByCatalog = (catalogId: number | null) => {
     ...q,
     data: cached?.partidas ? Array.from(cached.partidas) : [],
     hasOfflineData: !!cached,
-    isInitialLoading: !cached && q.isPending,
+    isInitialLoading: cargandoPorPrimeraVez(!!cached, q),
   };
 };
 

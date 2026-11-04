@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getAdvancesByConcept } from "src/hooks/data/api/avanceApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { puedeIntentar } from "src/hooks/utils/red";
 
 export interface CargaHistorial {
   id: number;
@@ -31,7 +32,7 @@ export function useHistorialConcepto(
   const query = useQuery({
     queryKey: ["historialConcepto", conceptId],
     queryFn: () => getAdvancesByConcept({ conceptId: conceptId! }),
-    enabled: !!conceptId && habilitado && isOnline === true,
+    enabled: !!conceptId && habilitado && puedeIntentar(isOnline),
     staleTime: 60 * 1000,
   });
 

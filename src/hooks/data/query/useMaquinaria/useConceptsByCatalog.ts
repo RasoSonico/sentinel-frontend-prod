@@ -3,6 +3,7 @@ import { useObject, useRealm } from "@realm/react";
 import { UpdateMode } from "realm";
 import { getConceptsByCatalog } from "../../api/maquinariaApi";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { cargandoPorPrimeraVez, puedeIntentar } from "src/hooks/utils/red";
 import { ConceptsByWorkItemResponse } from "src/realm/conceptsByWorkItem/Response";
 import {
   logApiFetchStart,
@@ -25,7 +26,7 @@ export const conceptsByCatalogOptions = (
 ) =>
   queryOptions({
     queryKey: ["conceptsByCatalog", catalogId],
-    enabled: !!catalogId && isOnline === true,
+    enabled: !!catalogId && puedeIntentar(isOnline),
     queryFn: async () => {
       logApiFetchStart("Concepts By Catalog");
       const data = await getConceptsByCatalog(catalogId!);
@@ -103,6 +104,6 @@ export const useConceptsByCatalog = (catalogId: number | null) => {
     ...q,
     data: cached?.concepts ? Array.from(cached.concepts) : [],
     hasOfflineData: !!cached,
-    isInitialLoading: !!catalogId && !cached && q.isPending,
+    isInitialLoading: !!catalogId && cargandoPorPrimeraVez(!!cached, q),
   };
 };
