@@ -15,9 +15,13 @@ import { BotonWizard } from "./BotonWizard";
  * Confirmación de guardado (ADR-006, Decisión 7).
  *
  * **El modal está justificado por la finalidad, no por cortesía.** Es la única
- * confirmación del módulo y existe porque después de guardar no hay vuelta
+ * confirmación del módulo y existe porque después de enviar no hay vuelta
  * atrás dentro de la app. Queda escrito para que nadie lo conserve por inercia:
- * **si algún día se implementa edición post-guardado, este modal se retira.**
+ * **si algún día se implementa edición post-envío, este modal se retira.**
+ *
+ * Dice "enviar" y no "guardar" desde F44: guardado está desde que se captura
+ * —el borrador se escribe en cada cambio (F43)— y el único acto irreversible
+ * que queda aquí es mandarlo.
  *
  * El modal de RESULTADO que vivía aquí se retiró. Prometía "Guardado y
  * enviado" con un botón "Generar Excel" en el instante en que el reporte
@@ -45,13 +49,13 @@ export function ModalConfirmarGuardado({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancelar}>
       <View style={estilos.telon}>
         <View style={estilos.tarjeta}>
-          <Text style={estilos.titulo}>¿Guardar el reporte?</Text>
+          <Text style={estilos.titulo}>¿Enviar el reporte?</Text>
           <Text style={estilos.texto}>
             El reporte <Text style={estilos.negrita}>no se podrá editar</Text>{" "}
-            desde la app después de guardarse.
+            desde la app después de enviarse.
           </Text>
           <Text style={estilos.texto}>
-            El Excel se genera después de guardar.
+            El Excel y el PDF se generan cuando termine de llegar al servidor.
           </Text>
 
           <View style={estilos.acciones}>
@@ -62,7 +66,7 @@ export function ModalConfirmarGuardado({
               deshabilitado={guardando}
             />
             <BotonWizard
-              etiqueta="Guardar reporte"
+              etiqueta="Enviar reporte"
               variante="guardar"
               onPress={onConfirmar}
               cargando={guardando}

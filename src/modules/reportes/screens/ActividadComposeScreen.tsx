@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -58,21 +58,49 @@ export function ActividadComposeScreen({
   const existente = indice >= 0 ? borrador.actividades[indice] : null;
 
   const [texto, setTexto] = useState(existente?.texto ?? "");
+  const [zona, setZona] = useState(existente?.zona ?? "");
+  const [frente, setFrente] = useState(existente?.frente ?? "");
   const inputRef = useRef<TextInput>(null);
 
   const numeral = editando ? indice + 1 : borrador.actividades.length + 1;
   const hayTexto = texto.trim().length > 0;
 
+  /**
+   * Lo que ya se usó en ESTE reporte, para tocarlo en vez de escribirlo.
+   *
+   * **No se prellena.** Un valor puesto por la app es un valor que nadie
+   * decidió: el supervisor que cambia de tramo y no se fija deja el anterior,
+   * y el documento acaba diciendo que el trabajo ocurrió donde no ocurrió.
+   * Ofrecerlo para tocarlo cuesta un toque y lo deja siendo su decisión.
+   *
+   * Del mismo reporte y no de la obra entera: lo que importa es la jornada
+   * que se está capturando, y una lista histórica se volvería inservible a
+   * las pocas semanas.
+   */
+  const usados = useMemo(() => {
+    const unicos = (valores: string[]) =>
+      [...new Set(valores.map((v) => v.trim()).filter(Boolean))];
+    return {
+      zonas: unicos(borrador.actividades.map((a) => a.zona)),
+      frentes: unicos(borrador.actividades.map((a) => a.frente)),
+    };
+  }, [borrador.actividades]);
+
+  const datos = useMemo(
+    () => ({ texto, zona, frente }),
+    [texto, zona, frente],
+  );
+
   const guardar = useCallback(() => {
     if (!hayTexto) return;
-    if (editando && actividadId) editarActividad(actividadId, texto);
-    else agregarActividad(texto);
+    if (editando && actividadId) editarActividad(actividadId, datos);
+    else agregarActividad(datos);
     onGuardado();
   }, [
     hayTexto,
     editando,
     actividadId,
-    texto,
+    datos,
     editarActividad,
     agregarActividad,
     onGuardado,
@@ -80,15 +108,24 @@ export function ActividadComposeScreen({
 
   const guardarYSeguir = useCallback(() => {
     if (!hayTexto) return;
-    agregarActividad(texto);
-    // Se queda en la misma pantalla con el campo limpio: el usuario sigue
-    // escribiendo sin pasar por la lista.
+    agregarActividad(datos);
+    // Se queda en la misma pantalla con la descripción limpia: el usuario
+    // sigue escribiendo sin pasar por la lista.
+    //
+    // **Zona y frente se conservan**, y no es una excepción a "no prellenar":
+    // esto no es un valor que la app eligió, es el que el usuario acaba de
+    // escribir. Encadenar actividades del mismo frente es justo el caso que
+    // este botón atiende, y borrarlo obligaría a reescribir el cadenamiento
+    // en cada renglón.
     setTexto("");
     inputRef.current?.focus();
-  }, [hayTexto, agregarActividad, texto]);
+  }, [hayTexto, agregarActividad, datos]);
 
   const cerrar = useCallback(() => {
-    const cambio = texto.trim() !== (existente?.texto ?? "");
+    const cambio =
+      texto.trim() !== (existente?.texto ?? "") ||
+      zona.trim() !== (existente?.zona ?? "") ||
+      frente.trim() !== (existente?.frente ?? "");
     if (!cambio) {
       onCerrar();
       return;
@@ -101,7 +138,7 @@ export function ActividadComposeScreen({
         { text: "Descartar", style: "destructive", onPress: onCerrar },
       ],
     );
-  }, [texto, existente, onCerrar]);
+  }, [texto, zona, frente, existente, onCerrar]);
 
   const eliminar = useCallback(() => {
     if (!actividadId) return;
@@ -164,6 +201,26 @@ export function ActividadComposeScreen({
         contentContainerStyle={estilos.cuerpo}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Antes de la descripción porque es el orden en que se piensa:
+            primero dónde se está parado, después qué se hizo ahí. Y es el
+            mismo orden en que sale impreso. */}
+        <CampoDeUbicacion
+          etiqueta="Zona"
+          opcional
+          valor={zona}
+          onCambiar={setZona}
+          sugerencias={usados.zonas}
+          placeholder="85+500 al 89+900"
+        />
+        <CampoDeUbicacion
+          etiqueta="Frente"
+          opcional
+          valor={frente}
+          onCambiar={setFrente}
+          sugerencias={usados.frentes}
+          placeholder="Despalme"
+        />
+
         <Text style={estilos.etiqueta}>Descripción de la actividad</Text>
         <TextInput
           ref={inputRef}
@@ -227,6 +284,75 @@ export function ActividadComposeScreen({
         </View>
       ) : null}
     </KeyboardAvoidingView>
+  );
+}
+
+/**
+ * Un campo de ubicación —Zona o Frente— con lo ya usado a un toque.
+ *
+ * **Opcional de verdad y dicho en la etiqueta.** Un campo sin marcar se lee
+ * como obligatorio, y un obligatorio que no aplica se llena con basura: la
+ * obra que no usa frentes acabaría escribiendo "N/A" en todos los renglones.
+ *
+ * **Los chips no prellenan, ofrecen.** La diferencia importa: un valor puesto
+ * por la app es un valor que nadie decidió, y quien cambia de tramo sin
+ * fijarse dejaría el anterior. Un toque cuesta casi nada y mantiene la
+ * decisión en quien firma.
+ */
+function CampoDeUbicacion({
+  etiqueta,
+  opcional,
+  valor,
+  onCambiar,
+  sugerencias,
+  placeholder,
+}: {
+  etiqueta: string;
+  opcional?: boolean;
+  valor: string;
+  onCambiar: (v: string) => void;
+  sugerencias: string[];
+  placeholder: string;
+}) {
+  // El que ya está escrito no se ofrece: tocarlo no haría nada y ocuparía el
+  // lugar de uno que sí sirve.
+  const ofrecidas = sugerencias.filter((s) => s !== valor.trim());
+
+  return (
+    <View style={estilos.campo}>
+      <View style={estilos.campoEtiquetaFila}>
+        <Text style={estilos.etiqueta}>{etiqueta}</Text>
+        {opcional ? <Text style={estilos.opcional}>Opcional</Text> : null}
+      </View>
+      <TextInput
+        value={valor}
+        onChangeText={onCambiar}
+        placeholder={placeholder}
+        placeholderTextColor={DesignTokens.colors.neutral[400]}
+        style={estilos.inputLinea}
+        maxLength={60}
+      />
+      {ofrecidas.length > 0 ? (
+        <View style={estilos.chips}>
+          {ofrecidas.map((sugerencia) => (
+            <Pressable
+              key={sugerencia}
+              onPress={() => onCambiar(sugerencia)}
+              accessibilityRole="button"
+              accessibilityLabel={`Usar ${sugerencia}`}
+              style={({ pressed }) => [
+                estilos.chip,
+                pressed && estilos.presionado,
+              ]}
+            >
+              <Text style={estilos.chipTexto} numberOfLines={1}>
+                {sugerencia}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -311,6 +437,46 @@ const estilos = StyleSheet.create({
     ...sinPaddingAndroid,
   },
   presionado: { opacity: 0.85 },
+  campo: { marginBottom: sp(16), gap: sp(6) },
+  campoEtiquetaFila: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  opcional: {
+    fontSize: fs(DesignTokens.typography.fontSize.xs),
+    color: DesignTokens.colors.neutral[500],
+    ...sinPaddingAndroid,
+  },
+  inputLinea: {
+    minHeight: sp(44),
+    paddingHorizontal: sp(12),
+    paddingVertical: sp(10),
+    borderRadius: DesignTokens.borderRadius.base,
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.neutral[300],
+    backgroundColor: DesignTokens.colors.background.primary,
+    fontSize: fs(DesignTokens.typography.fontSize.base),
+    color: DesignTokens.colors.neutral[900],
+    ...sinPaddingAndroid,
+  },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: sp(6) },
+  // Neutros a propósito: son un atajo, no un estado del reporte. El color en
+  // este módulo está reservado para decir qué pasa con el trabajo.
+  chip: {
+    paddingHorizontal: sp(10),
+    paddingVertical: sp(6),
+    borderRadius: DesignTokens.borderRadius.full,
+    backgroundColor: DesignTokens.colors.neutral[100],
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.neutral[200],
+    maxWidth: "100%",
+  },
+  chipTexto: {
+    fontSize: fs(DesignTokens.typography.fontSize.sm),
+    color: DesignTokens.colors.neutral[700],
+    ...sinPaddingAndroid,
+  },
   pie: {
     paddingHorizontal: sp(16),
     paddingTop: sp(12),

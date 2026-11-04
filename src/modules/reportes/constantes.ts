@@ -39,8 +39,19 @@ export type AreaReporte = (typeof AREAS)[number]["valor"];
 export const etiquetaDeArea = (valor: string): string =>
   AREAS.find((a) => a.valor === valor)?.etiqueta ?? valor;
 
-/** Espejo de `MAX_FOTOS_POR_REPORTE`. La rejilla del machote define el tope. */
-export const MAX_FOTOS = 6;
+/**
+ * Espejo de `MAX_FOTOS_POR_REPORTE`.
+ *
+ * Era 6 porque el machote traía una rejilla de evidencia fija. Ya no: el
+ * paginador del servidor parte las fotos en renglones de tres y abre hoja
+ * nueva cuando un renglón no cabe, así que el documento aguanta las que le
+ * manden. El tope de hoy es de captura, no de papel — en campo con 6 no
+ * alcanzaba.
+ *
+ * El precio de subirlo es el peso: cada foto va a 1920 px y ~600 KB, así que
+ * 15 son ~9 MB que con señal débil tardan en llegar. Tardan, no se pierden.
+ */
+export const MAX_FOTOS = 15;
 
 /**
  * Espejo de `MAX_CARACTERES_PIE`.
@@ -51,6 +62,24 @@ export const MAX_FOTOS = 6;
  * límite mientras escribe, en vez de descubrir el corte en el PDF.
  */
 export const MAX_CARACTERES_PIE = 50;
+
+/**
+ * "ZONA · FRENTE", o cadena vacía si no hay ninguno de los dos.
+ *
+ * **Espejo de `Actividad.rotulo` del backend.** El documento lo arma allá; esto
+ * existe para que la vista previa del wizard enseñe exactamente lo que se va a
+ * imprimir. Si las dos reglas se separaran, el usuario revisaría una cosa y
+ * entregaría otra — y la Revisión dejaría de servir para lo único que sirve.
+ *
+ * Vacío significa que no se pinta NADA: ni el rótulo ni un renglón en blanco
+ * en su lugar. Con uno solo de los dos, el separador no cuelga.
+ */
+export const rotuloDeUbicacion = (zona?: string, frente?: string): string =>
+  [zona, frente]
+    .map((p) => (p ?? "").trim())
+    .filter(Boolean)
+    .join(" · ")
+    .toUpperCase();
 
 /** Mínimos para poder guardar (validados también en el servidor). */
 export const MIN_ACTIVIDADES = 1;

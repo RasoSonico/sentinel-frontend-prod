@@ -11,7 +11,12 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 
 import { DesignTokens } from "src/styles/designTokens";
@@ -21,6 +26,10 @@ import {
   useReportesDeObra,
   type FilaReporte,
 } from "src/hooks/reportes/useReportesDeObra";
+import {
+  useBorradoresDeReporte,
+  type ResumenBorrador,
+} from "src/hooks/reportes/useBorradoresDeReporte";
 import { usePendingReporteQueue } from "src/hooks/reportes/usePendingReporteQueue";
 import { useProveedores } from "src/hooks/reportes/useProveedores";
 import { useResaltadoDeLlegada } from "src/hooks/ui/useResaltadoDeLlegada";
@@ -30,6 +39,7 @@ import { fechaConDia } from "src/modules/avance/utils/fechaPrograma";
 import type { ReportesStackParamList } from "src/navigation/types";
 
 import { IndicadorSincronizacion } from "../components/IndicadorSincronizacion";
+import { ModalReporteEnCurso } from "../components/ModalReporteEnCurso";
 
 type Navegacion = StackNavigationProp<
   ReportesStackParamList,
@@ -64,7 +74,15 @@ export default function ReportSelectionScreen() {
   // La tabla de avances recibe el id como string (contrato de su pantalla).
   const obraIdTexto = obra?.id != null ? String(obra.id) : "";
 
-  const { filas, isPending, isFetching, refetch } = useReportesDeObra(obraId);
+  const {
+    filas,
+    total,
+    isPending,
+    isFetching,
+    isFetchingNextPage,
+    cargarMas,
+    refrescarDesdeArriba,
+  } = useReportesDeObra(obraId);
 
   // Se lee aquí y baja por prop a cada chip: `useNetworkStatus` dentro de la
   // fila serían N suscripciones a NetInfo para leer el mismo valor.
@@ -140,13 +158,108 @@ export default function ReportSelectionScreen() {
    */
   const idServidorResaltado = resaltado ? resolverReporteId(resaltado) : null;
 
+  // ── El reporte en curso (F43) ─────────────────────────────────────────
+
+  const {
+    borradorDeLaObra,
+    descartarBorrador,
+    purgarVencidos,
+    nuevoBorradorId,
+  } = useBorradoresDeReporte();
+
+  const borradorEnCurso = borradorDeLaObra(obraId);
+  const [preguntandoPorBorrador, setPreguntandoPorBorrador] = useState(false);
+
+  /**
+   * Los borradores caducos se tiran AQUÍ, cada vez que la pantalla toma el
+   * foco.
+   *
+   * Es el único paso obligatorio para llegar al wizard, así que ningún
+   * borrador vencido alcanza a ofrecerse. Hacerlo al arrancar la app habría
+   * puesto un barrido de disco en el camino crítico del arranque, para algo
+   * que solo importa justo antes de preguntar "¿lo continúas?".
+   *
+   * Por foco y no por montaje porque esta pantalla es raíz de una tab: se
+   * monta una vez y vive el resto de la sesión. Con un `useEffect` de montaje,
+   * un teléfono que pasa el día abierto nunca volvería a purgar y acabaría
+   * ofreciendo el borrador de antier.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      void purgarVencidos();
+    }, [purgarVencidos]),
+  );
+
+  /**
+   * **Entrar a Reportes trae lo nuevo.**
+   *
+   * El cliente de consultas tiene `refetchOnMount: false` como default global
+   * —correcto: protege el caché del que depende la captura sin señal— y esta
+   * pantalla es raíz de tab, así que se monta una vez y vive la sesión. El
+   * resultado era que la lista se quedaba congelada en lo que se había bajado
+   * y solo se movía con el arrastre hacia abajo.
+   *
+   * Pero esta lista la escriben OTROS: los reportes de los compañeros de obra
+   * aparecen sin que este teléfono haga nada. Una lista de trabajo ajeno que
+   * no se actualiza al abrirla miente por omisión.
+   *
+   * Se salta la primera vez —la consulta ya está trayendo la página uno— y
+   * cuando no hay red, porque pedir sin señal solo gasta intentos.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      if (isPending || sinSenal) return;
+      void refrescarDesdeArriba();
+      // `isPending` fuera de las dependencias a propósito: entra aquí solo
+      // como guarda del primer montaje, y listarlo volvería a disparar el
+      // refresco en cuanto cambiara.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [refrescarDesdeArriba, sinSenal]),
+  );
+
+  const abrirWizardCon = useCallback(
+    (borradorId: string) => {
+      if (obraId === null) return;
+      navigation.navigate("ReporteWizard", {
+        constructionId: obraId,
+        constructionName: obraNombre,
+        borradorId,
+      });
+    },
+    [navigation, obraId, obraNombre],
+  );
+
+  /**
+   * CREAR pregunta cuando ya hay algo a medias; la fila del borrador no.
+   *
+   * No es inconsistencia: la card dice "crear", y con un borrador vivo crear
+   * es ambiguo —seguir con el de la mañana o abrir un segundo reporte del
+   * día—. La fila ya nombra a cuál se refiere, así que preguntar ahí sería
+   * pedirle al usuario que confirme lo que acaba de señalar con el dedo.
+   */
   const abrirWizard = useCallback(() => {
     if (obraId === null) return;
-    navigation.navigate("ReporteWizard", {
-      constructionId: obraId,
-      constructionName: obraNombre,
-    });
-  }, [navigation, obraId, obraNombre]);
+    if (borradorEnCurso) {
+      setPreguntandoPorBorrador(true);
+      return;
+    }
+    abrirWizardCon(nuevoBorradorId());
+  }, [obraId, borradorEnCurso, abrirWizardCon, nuevoBorradorId]);
+
+  const continuarBorrador = useCallback(() => {
+    if (!borradorEnCurso) return;
+    setPreguntandoPorBorrador(false);
+    abrirWizardCon(borradorEnCurso.id);
+  }, [borradorEnCurso, abrirWizardCon]);
+
+  const descartarYEmpezar = useCallback(async () => {
+    if (!borradorEnCurso) return;
+    setPreguntandoPorBorrador(false);
+    // Con sus archivos: nadie más los referencia. Un borrador descartado que
+    // dejara sus fotos en el disco sería espacio que no se recupera nunca.
+    await descartarBorrador(borradorEnCurso.id, { borrarArchivos: true });
+    abrirWizardCon(nuevoBorradorId());
+  }, [borradorEnCurso, descartarBorrador, abrirWizardCon, nuevoBorradorId]);
 
   const abrirTablaDeAvances = useCallback(() => {
     navigation.navigate("AdvanceReport", {
@@ -185,6 +298,7 @@ export default function ReportSelectionScreen() {
   );
 
   return (
+    <>
     <FlatList
       style={estilos.contenedor}
       data={filas}
@@ -192,7 +306,24 @@ export default function ReportSelectionScreen() {
       renderItem={renderFila}
       contentContainerStyle={estilos.contenido}
       refreshControl={
-        <RefreshControl refreshing={isFetching && !isPending} onRefresh={refetch} />
+        <RefreshControl
+          refreshing={isFetching && !isPending && !isFetchingNextPage}
+          onRefresh={refrescarDesdeArriba}
+        />
+      }
+      // El historial de una obra con un reporte diario pasa de 15 en semanas,
+      // así que la lista trae la siguiente página al acercarse al final en vez
+      // de terminar ahí (F47). Medio alto de pantalla por delante: en obra se
+      // arrastra rápido y con guantes, y pedir la página al tocar el borde
+      // enseña el hueco antes de llenarlo.
+      onEndReached={cargarMas}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={
+        isFetchingNextPage ? (
+          <View style={estilos.pieCargando}>
+            <ActivityIndicator color={DesignTokens.colors.primary[500]} />
+          </View>
+        ) : null
       }
       ListHeaderComponent={
         <>
@@ -219,10 +350,25 @@ export default function ReportSelectionScreen() {
             />
           </View>
 
+          {/* El borrador va ARRIBA de los reportes y no entre ellos: no es
+              uno más de la obra —solo lo ve su autor— y lo que pide es que
+              alguien lo termine, no que alguien lo consulte. */}
+          {borradorEnCurso ? (
+            <View style={estilos.bloqueBorrador}>
+              <Text style={estilos.etiquetaSeccion}>En captura</Text>
+              <FilaBorrador
+                borrador={borradorEnCurso}
+                onPress={() => abrirWizardCon(borradorEnCurso.id)}
+              />
+            </View>
+          ) : null}
+
           <View style={estilos.encabezadoLista}>
             <Text style={estilos.etiquetaSeccion}>Reportes de la obra</Text>
-            {filas.length > 0 ? (
-              <Text style={estilos.contadorLista}>{filas.length}</Text>
+            {/* `total` y no `filas.length`: con paginación, lo segundo es
+                cuántos se han bajado. Una obra con 200 reportes decía "15". */}
+            {total > 0 ? (
+              <Text style={estilos.contadorLista}>{total}</Text>
             ) : null}
           </View>
         </>
@@ -250,6 +396,77 @@ export default function ReportSelectionScreen() {
         )
       }
     />
+    {preguntandoPorBorrador ? (
+      <ModalReporteEnCurso
+        borrador={borradorEnCurso}
+        onContinuar={continuarBorrador}
+        onDescartarYEmpezar={() => void descartarYEmpezar()}
+        onCancelar={() => setPreguntandoPorBorrador(false)}
+      />
+    ) : null}
+    </>
+  );
+}
+
+/**
+ * El reporte que se está capturando.
+ *
+ * Lleva la misma forma que una fila de reporte porque es la misma cosa en un
+ * momento anterior, y un lenguaje distinto obligaría a aprender dos. Lo que
+ * cambia es el chip —neutro, porque un borrador no está en ningún estado de
+ * envío: todavía no se ha declarado nada— y el ícono, que es de escritura.
+ */
+function FilaBorrador({
+  borrador,
+  onPress,
+}: {
+  borrador: ResumenBorrador;
+  onPress: () => void;
+}) {
+  const piezas = [
+    borrador.actividadesCount === 1
+      ? "1 actividad"
+      : `${borrador.actividadesCount} actividades`,
+    borrador.fotosCount === 1 ? "1 foto" : `${borrador.fotosCount} fotos`,
+  ];
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Continuar el reporte en curso del ${borrador.fechaReporte}`}
+      style={({ pressed }) => [
+        estilos.fila,
+        estilos.filaToque,
+        pressed && estilos.presionado,
+      ]}
+    >
+      <View style={estilos.filaIcono}>
+        <Ionicons
+          name="create-outline"
+          size={fs(20)}
+          color={DesignTokens.colors.neutral[600]}
+        />
+      </View>
+      <View style={estilos.filaTexto}>
+        <Text style={estilos.filaTitulo}>
+          Actividades · {fechaConDia(borrador.fechaReporte)}
+        </Text>
+        <Text style={estilos.filaMeta} numberOfLines={1}>
+          Sin enviar · {piezas.join(" · ")}
+        </Text>
+      </View>
+      <View style={[estilos.chip, estilos.chipBorrador]}>
+        <Text style={[estilos.chipTexto, estilos.chipTextoBorrador]}>
+          En captura
+        </Text>
+      </View>
+      <Ionicons
+        name="chevron-forward"
+        size={fs(18)}
+        color={DesignTokens.colors.neutral[300]}
+      />
+    </Pressable>
   );
 }
 
@@ -429,6 +646,7 @@ const estilos = StyleSheet.create({
     backgroundColor: DesignTokens.colors.background.secondary,
   },
   contenido: { padding: sp(16), paddingBottom: sp(28) },
+  pieCargando: { paddingVertical: sp(20) },
   etiquetaSeccion: {
     fontSize: fs(DesignTokens.typography.fontSize.xs),
     fontWeight: DesignTokens.typography.fontWeight.semibold,
@@ -471,6 +689,7 @@ const estilos = StyleSheet.create({
     color: DesignTokens.colors.neutral[500],
     ...(Platform.OS === "android" ? { includeFontPadding: false } : {}),
   },
+  bloqueBorrador: { marginBottom: sp(24) },
   encabezadoLista: {
     flexDirection: "row",
     alignItems: "baseline",
@@ -532,6 +751,11 @@ const estilos = StyleSheet.create({
   chipListo: { backgroundColor: DesignTokens.colors.success[50] },
   chipTextoListo: { color: DesignTokens.colors.success[700] },
   chipError: { backgroundColor: DesignTokens.colors.error[50] },
+  // Neutro a propósito: un borrador no está "por enviar" ni "enviando" — no
+  // se ha declarado terminado, así que no está en ningún estado de envío.
+  // Tampoco puede ser el tono del resaltado de llegada (regla 2 de F33).
+  chipBorrador: { backgroundColor: DesignTokens.colors.neutral[200] },
+  chipTextoBorrador: { color: DesignTokens.colors.neutral[700] },
   chipTextoError: { color: DesignTokens.colors.error[700] },
   vacio: { alignItems: "center", paddingVertical: sp(36), gap: sp(8) },
   vacioTitulo: {

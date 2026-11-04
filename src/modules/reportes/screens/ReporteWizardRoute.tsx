@@ -48,6 +48,7 @@ export default function ReporteWizardRoute() {
     <ReporteWizardScreen
       constructionId={params.constructionId}
       constructionName={params.constructionName}
+      borradorId={params.borradorId}
       onSalir={salir}
       onGuardado={irAMisReportes}
     />

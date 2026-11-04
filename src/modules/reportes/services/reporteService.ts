@@ -84,12 +84,52 @@ export const confirmFotoUpload = async (
 
 // ── Consulta ───────────────────────────────────────────────────────────────
 
-/** Historial de la obra, más reciente primero. Abierto a todo miembro. */
-export const getReportesPorObra = async (constructionId: number) =>
-  await apiRequest<ReporteListItem[] | { results: ReporteListItem[] }>(
+/**
+ * Historial de la obra, más reciente primero. Abierto a todo miembro.
+ *
+ * **Pide una página.** El servidor pagina de 15 en 15 (`PAGE_SIZE`) y ordena
+ * por `-fecha_reporte, -created_at`, así que la primera página son los 15 más
+ * recientes. Antes se leía esa página y se ignoraba `next`: el reporte 16
+ * hacia atrás existía en el servidor y era inalcanzable desde el teléfono, y
+ * con un reporte diario una obra cruza ese muro en tres semanas.
+ *
+ * El tipo admite respuesta sin paginar por si algún entorno la tiene apagada.
+ */
+export const getReportesPorObra = async (
+  constructionId: number,
+  page = 1,
+) =>
+  await apiRequest<
+    | ReporteListItem[]
+    | {
+        results: ReporteListItem[];
+        next: string | null;
+        /** Cuántos hay EN TOTAL en la obra, no cuántos trae esta página. */
+        count: number;
+      }
+  >(
     "get",
-    `${reportes.actividades}?construction_id=${constructionId}`,
+    `${reportes.actividades}?construction_id=${constructionId}&page=${page}`,
     "Error al obtener los reportes de la obra",
+  );
+
+/**
+ * Quita del servidor una foto declarada que nunca subió.
+ *
+ * **Es la válvula de escape del 409.** El endpoint de archivo se niega a
+ * generar mientras quede una foto declarada sin subir —y hace bien: entregar
+ * un reporte al que le falta evidencia que su autor dijo haber tomado sería
+ * entregar algo incompleto sin avisar—. Esto es la salida: su autor declara
+ * que esa foto no va.
+ *
+ * Solo el autor, y solo si no subió. Lo verifica el servidor; aquí no se
+ * adivina.
+ */
+export const descartarFotoDeReporte = async (fotoId: number) =>
+  await apiRequest<{ foto_id: number; fotos_pendientes_del_reporte: number }>(
+    "delete",
+    `${reportes.fotos}${fotoId}/`,
+    "No se pudo descartar la fotografía",
   );
 
 /** Detalle completo. Alimenta el Documento en Miniatura en modo lectura. */

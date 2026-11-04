@@ -60,7 +60,7 @@ export interface DatosMiniatura {
   supervision: string[];
   /** Etiqueta legible del área, no la clave: "Seguridad e Higiene". */
   area: string | null;
-  actividades: string[];
+  actividades: { texto: string; rotulo: string }[];
   conclusion: string;
   /**
    * La maquinaria que reportó ese día. No se captura aquí: el servidor la
@@ -132,10 +132,20 @@ export function DocumentoMiniatura({ datos, modo, onEditar }: Props) {
         {datos.actividades.length === 0 ? (
           <Text style={estilos.faltante}>Sin actividades capturadas</Text>
         ) : (
-          datos.actividades.map((texto, i) => (
-            <View key={`${i}-${texto.slice(0, 12)}`} style={estilos.actividad}>
-              <Text style={estilos.actividadNumeral}>{i + 1}.</Text>
-              <Text style={estilos.actividadTexto}>{texto}</Text>
+          datos.actividades.map((actividad, i) => (
+            <View
+              key={`${i}-${actividad.texto.slice(0, 12)}`}
+              style={estilos.actividadBloque}
+            >
+              {/* Solo si hay algo que poner: sin esto, las obras que no usan
+                  zona ni frente verían un hueco antes de cada renglón. */}
+              {actividad.rotulo ? (
+                <Text style={estilos.actividadRotulo}>{actividad.rotulo}</Text>
+              ) : null}
+              <View style={estilos.actividad}>
+                <Text style={estilos.actividadNumeral}>{i + 1}.</Text>
+                <Text style={estilos.actividadTexto}>{actividad.texto}</Text>
+              </View>
             </View>
           ))
         )}
@@ -395,6 +405,15 @@ const estilos = StyleSheet.create({
   parValor: {
     fontWeight: DesignTokens.typography.fontWeight.normal,
     color: DesignTokens.colors.neutral[800],
+  },
+  actividadBloque: { gap: sp(2) },
+  // Gris en versalitas: el mismo papel que en el papel —decir de qué es lo
+  // que sigue— y por eso la misma voz discreta.
+  actividadRotulo: {
+    fontSize: fs(DesignTokens.typography.fontSize.xs),
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.neutral[500],
+    letterSpacing: 0.5,
   },
   actividad: { flexDirection: "row", gap: sp(6) },
   actividadNumeral: {

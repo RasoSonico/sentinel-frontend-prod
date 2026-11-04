@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePendingPhotoQueue } from "./usePendingPhotoQueue";
@@ -19,10 +20,35 @@ import {
   AzureUploadResult,
 } from "../../services/api/photoService";
 import { PendingPhotoSubmission } from "src/realm/pendingAdvance/PendingPhotoSubmission";
+import { ApiError } from "src/services/api/apiClient";
 import * as Device from "expo-device";
 
-const RETRY_DELAY_BASE_MS = 1000;
 const DEBOUNCE_MS = 500;
+
+/**
+ * El presupuesto de reintentos se mide en TIEMPO, no en intentos (ADR-006 F49).
+ *
+ * Mismo arreglo que ya corre en reportes y en maquinaria. Aquí el techo eran
+ * tres intentos gastados en siete segundos: con la señal yendo y viniendo —que
+ * es la condición normal de una obra, no la excepción— una foto moría antes de
+ * que el usuario saliera de la zona sin cobertura.
+ */
+const ESPERA_BASE_MS = 5_000;
+const ESPERA_MAXIMA_MS = 5 * 60 * 1000;
+
+/** Corre una vez por instalación. */
+const MARCA_RESCATE = "avances.rescate_fotos_detenidas.v1";
+
+/**
+ * Un 4xx no se arregla reintentando: el servidor entendió y rechazó. Un 5xx,
+ * un plazo vencido o un corte, sí. 408 y 429 son 4xx que piden volver.
+ */
+const esPermanente = (status: number | undefined): boolean =>
+  status !== undefined &&
+  status >= 400 &&
+  status < 500 &&
+  status !== 408 &&
+  status !== 429;
 
 export function usePhotoSyncWorker() {
   const queryClient = useQueryClient();
@@ -36,6 +62,8 @@ export function usePhotoSyncWorker() {
     donePhotos,
     markPhotoAsSyncing,
     markPhotoAsUploaded,
+    aplazarFoto,
+    rescatarFotosDetenidas,
     markPhotoAsFailed,
     markPhotoAsWaiting,
     markPhotoAsDone,
@@ -51,6 +79,52 @@ export function usePhotoSyncWorker() {
   const [currentPhotoId, setCurrentPhotoId] = useState<string | null>(null);
   const syncInProgressRef = useRef(false);
   const mountedRef = useRef(true);
+
+  /**
+   * Reprograma el ciclo. Es ESTADO y no un ref: un ref no provoca render, así
+   * que el disparador no volvería a correr y el reintento no llegaría nunca.
+   */
+  const [pulso, setPulso] = useState(0);
+
+  /** Espera actual del respaldo y el instante en que vence. */
+  const esperaRef = useRef(0);
+  const finDeEsperaRef = useRef(0);
+  const reintentoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Programa el siguiente intento, duplicando la espera (F49).
+   *
+   * Vive FUERA del ciclo. Antes cada fallo dormía dentro del lazo, con un
+   * `await` entre dos fotos: el ciclo entero quedaba detenido, así que una
+   * foto con mala suerte retrasaba las de todos los demás avances.
+   *
+   * También es lo que evita el giro en vacío: `aplazarFoto` escribe en Realm,
+   * la consulta viva cambia y el disparador vuelve a correr de inmediato. Sin
+   * esta ventana, una foto que no puede subir reintentaría cada medio segundo
+   * hasta agotar la batería.
+   */
+  const programarReintento = useCallback(() => {
+    esperaRef.current = Math.min(
+      esperaRef.current === 0 ? ESPERA_BASE_MS : esperaRef.current * 2,
+      ESPERA_MAXIMA_MS,
+    );
+    finDeEsperaRef.current = Date.now() + esperaRef.current;
+    if (reintentoRef.current) clearTimeout(reintentoRef.current);
+    reintentoRef.current = setTimeout(() => {
+      finDeEsperaRef.current = 0;
+      if (mountedRef.current) setPulso((p) => p + 1);
+    }, esperaRef.current);
+  }, []);
+
+  /** Borra la espera: lo que la motivaba ya cambió. */
+  const reiniciarEspera = useCallback(() => {
+    esperaRef.current = 0;
+    finDeEsperaRef.current = 0;
+    if (reintentoRef.current) {
+      clearTimeout(reintentoRef.current);
+      reintentoRef.current = null;
+    }
+  }, []);
 
   // Reset stuck photos and detect orphaned photos on mount
   useEffect(() => {
@@ -76,8 +150,43 @@ export function usePhotoSyncWorker() {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      if (reintentoRef.current) clearTimeout(reintentoRef.current);
     };
   }, []);
+
+  /**
+   * Rescate de UNA SOLA VEZ de las fotos que murieron bajo la regla vieja.
+   *
+   * Hasta F49 cualquier tropiezo de red mandaba una foto a `failed`, y de ahí
+   * no la sacaba nadie. Instalar la versión nueva sin esto arreglaría las
+   * fotos futuras y dejaría enterradas las de las jornadas que ya se
+   * trabajaron — que es justo el trabajo que más costó.
+   *
+   * La marca vive en `AsyncStorage` y no en Realm para no pedir una migración
+   * de esquema por algo que ocurre una vez en la vida de la instalación.
+   */
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        if (await AsyncStorage.getItem(MARCA_RESCATE)) return;
+        if (!vivo) return;
+        const revividas = await rescatarFotosDetenidas();
+        await AsyncStorage.setItem(MARCA_RESCATE, new Date().toISOString());
+        if (revividas > 0) {
+          console.log(
+            `[PhotoSyncWorker] Rescate único: ${revividas} foto(s) vuelven a la fila`,
+          );
+        }
+      } catch (error) {
+        // Que falle el rescate no puede impedir que el worker arranque.
+        console.warn("[PhotoSyncWorker] No se pudo correr el rescate único", error);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [rescatarFotosDetenidas]);
 
   // Limpieza de arranque: fotos "done" que quedaron de una sesión que murió
   // antes de la limpieza post-refetch. Se refresca el cache de avances
@@ -145,13 +254,19 @@ export function usePhotoSyncWorker() {
       success: boolean;
       remotePhotoId?: string;
       error?: string;
+      /** El servidor dijo que no. Reintentar daría el mismo resultado. */
+      permanente?: boolean;
     }> => {
       if (!photo.physicalAdvanceId) {
         console.error(
           "[PhotoSyncWorker] Photo missing physicalAdvanceId:",
           photo._id,
         );
-        return { success: false, error: "Falta ID de avance físico" };
+        return {
+          success: false,
+          error: "Falta ID de avance físico",
+          permanente: true,
+        };
       }
 
       // Check if local file exists
@@ -235,7 +350,14 @@ export function usePhotoSyncWorker() {
             };
           }
 
-          return { success: false, error: errorMessage };
+          // `forbidden` de Blob es el único definitivo: la credencial no
+          // autoriza esa escritura y pedir otra no cambia nada. Un 403 por SAS
+          // caducado llega como `expired_sas`, arriba, y sí se reintenta.
+          return {
+            success: false,
+            error: errorMessage,
+            permanente: azureResult.errorType === "forbidden",
+          };
         }
 
         // Step 4: Confirm upload - this might fail due to auth
@@ -261,7 +383,12 @@ export function usePhotoSyncWorker() {
         console.error("[PhotoSyncWorker] Upload error:", error);
         const errorMessage =
           error instanceof Error ? error.message : "Error desconocido";
-        return { success: false, error: errorMessage };
+        const status = error instanceof ApiError ? error.status : undefined;
+        return {
+          success: false,
+          error: errorMessage,
+          permanente: esPermanente(status),
+        };
       }
     },
     [confirmPhotoUpload],
@@ -320,10 +447,15 @@ export function usePhotoSyncWorker() {
     const totalToProcess =
       photosReadyForUpload.length + photosNeedingConfirmation.length;
 
-    // Guard against concurrent processing or unauthenticated state
+    /**
+     * `isOnline === false` y no `!isOnline`: `null` significa "todavía no se
+     * sabe", y tratarlo como "sin red" deja la cola trabada justo cuando la
+     * sonda de red no logra decidir — que en obra es el caso común, no el
+     * raro. Ante la duda se intenta: un POST sin señal falla y se reintenta.
+     */
     if (
       syncInProgressRef.current ||
-      !isOnline ||
+      isOnline === false ||
       !isAuthenticated ||
       totalToProcess === 0
     ) {
@@ -338,8 +470,11 @@ export function usePhotoSyncWorker() {
 
     try {
       // First, process photos needing confirmation retry (quick operations)
+      // Sin releer `isOnline`: el ciclo lo capturó al crearse y no puede
+      // cambiar a media vuelta. Un corte real lo detecta el intento mismo, que
+      // falla y se aplaza.
       for (const photo of photosNeedingConfirmation) {
-        if (!mountedRef.current || !isOnline) break;
+        if (!mountedRef.current) break;
 
         setCurrentPhotoId(photo._id);
         markPhotoAsSyncing(photo._id);
@@ -353,33 +488,18 @@ export function usePhotoSyncWorker() {
           markPhotoAsDone(photo._id);
           successCount++;
         } else {
-          if (photo.retryCount + 1 >= photo.maxRetries) {
-            markPhotoAsFailed(
-              photo._id,
-              result.error || "Error al confirmar subida",
-            );
-            failCount++;
-            showSnackbar(
-              `Error al confirmar foto: ${photo.filename.substring(0, 15)}...`,
-              "error",
-            );
-          } else {
-            markPhotoAsFailed(
-              photo._id,
-              result.error || "Error al confirmar subida",
-            );
-            // Keep as uploaded so we retry confirmation, not full upload
-            markPhotoAsUploaded(photo._id, photo.remotePhotoId!);
-
-            const delay = RETRY_DELAY_BASE_MS * Math.pow(2, photo.retryCount);
-            await new Promise((resolve) => setTimeout(resolve, delay));
-          }
+          // La foto YA está en Azure; lo único que falta es que el servidor la
+          // registre. Rendirse aquí dejaría bytes subidos que nadie reclama,
+          // así que se aplaza y se vuelve. `aplazarFoto` la deja en
+          // `uploaded`, de modo que el siguiente intento solo confirma.
+          aplazarFoto(photo._id, result.error || "Error al confirmar subida");
+          failCount++;
         }
       }
 
       // Then, process photos needing full upload
       for (const photo of photosReadyForUpload) {
-        if (!mountedRef.current || !isOnline) break;
+        if (!mountedRef.current) break;
 
         setCurrentPhotoId(photo._id);
         markPhotoAsSyncing(photo._id);
@@ -393,59 +513,56 @@ export function usePhotoSyncWorker() {
           markPhotoAsDone(photo._id);
           successCount++;
         } else {
-          // Check if photo was uploaded but confirmation failed
+          // Subió a Azure y falló la confirmación: se guarda el id remoto
+          // para que el siguiente intento solo confirme, sin remandar bytes.
           if (result.remotePhotoId) {
-            // Mark as uploaded so next retry only confirms
             markPhotoAsUploaded(photo._id, result.remotePhotoId);
+            aplazarFoto(
+              photo._id,
+              result.error || "Foto subida, falta confirmarla",
+            );
+            failCount++;
             console.log(
               "[PhotoSyncWorker] Photo uploaded, pending confirmation:",
               photo.filename,
             );
-
-            // Try confirmation again after a delay
-            const delay = RETRY_DELAY_BASE_MS * Math.pow(2, photo.retryCount);
-            await new Promise((resolve) => setTimeout(resolve, delay));
           } else {
-            // Full upload failed
-            // Check if this is a permanent failure (file missing)
-            const isFileMissing =
+            /**
+             * **Dos desenlaces, no tres (F49).**
+             *
+             * Se detiene si el archivo ya no está en el teléfono —reintentar
+             * no lo va a traer de vuelta— o si el servidor rechazó. Todo lo
+             * demás vuelve a la fila: un corte de red no dice nada sobre la
+             * foto, y antes bastaba para matarla en tres intentos.
+             */
+            const archivoPerdido =
               result.error?.includes("Archivo local no encontrado") ||
               result.error?.includes("el archivo fue eliminado");
 
-            if (isFileMissing) {
-              // File is permanently missing - mark as failed and don't retry
+            if (archivoPerdido || result.permanente) {
               markPhotoAsFailed(
                 photo._id,
-                result.error || "Archivo local no encontrado",
+                archivoPerdido
+                  ? "El archivo de la fotografía ya no está en este teléfono"
+                  : result.error || "El servidor rechazó la fotografía",
               );
               failCount++;
               console.warn(
-                "[PhotoSyncWorker] Photo file permanently missing, marking as failed:",
+                "[PhotoSyncWorker] Foto detenida:",
                 photo.filename,
+                result.error,
               );
               showSnackbar(
-                `Archivo de foto no encontrado: ${photo.filename.substring(0, 15)}...`,
-                "error",
-              );
-            } else if (photo.retryCount + 1 >= photo.maxRetries) {
-              markPhotoAsFailed(
-                photo._id,
-                result.error || "Error al subir foto",
-              );
-              failCount++;
-              showSnackbar(
-                `Error al subir foto: ${photo.filename.substring(0, 15)}...`,
+                archivoPerdido
+                  ? `Archivo de foto no encontrado: ${photo.filename.substring(0, 15)}...`
+                  : `Error al subir foto: ${photo.filename.substring(0, 15)}...`,
                 "error",
               );
             } else {
-              markPhotoAsFailed(
-                photo._id,
-                result.error || "Error al subir foto",
-              );
-              markPhotoAsWaiting(photo._id);
-
-              const delay = RETRY_DELAY_BASE_MS * Math.pow(2, photo.retryCount);
-              await new Promise((resolve) => setTimeout(resolve, delay));
+              // Sin dormir aquí: el espaciado lo pone el ciclo. Dormir dentro
+              // del lazo detenía de paso las fotos de los demás avances.
+              aplazarFoto(photo._id, result.error || "Error al subir foto");
+              failCount++;
             }
           }
         }
@@ -481,6 +598,17 @@ export function usePhotoSyncWorker() {
       syncInProgressRef.current = false;
       setIsSyncing(false);
       setCurrentPhotoId(null);
+
+      if (successCount > 0) {
+        // Algo avanzó: la red está sirviendo y la espera acumulada ya no
+        // describe nada. Se borra y se vuelve a pasar enseguida.
+        reiniciarEspera();
+        if (mountedRef.current) setPulso((p) => p + 1);
+      } else if (failCount > 0) {
+        // Nada salió y algo lo intentó: se vuelve, más tarde cada vez. Lo que
+        // NO se hace es rendirse.
+        programarReintento();
+      }
     }
   }, [
     isOnline,
@@ -488,8 +616,8 @@ export function usePhotoSyncWorker() {
     uploadedPhotos,
     markPhotoAsSyncing,
     markPhotoAsUploaded,
+    aplazarFoto,
     markPhotoAsFailed,
-    markPhotoAsWaiting,
     markPhotoAsDone,
     removeDonePhotos,
     uploadPhoto,
@@ -497,7 +625,22 @@ export function usePhotoSyncWorker() {
     isAuthenticated,
     showSnackbar,
     queryClient,
+    programarReintento,
+    reiniciarEspera,
   ]);
+
+  /**
+   * Volver a tener red borra la espera.
+   *
+   * Declarado ANTES del disparador a propósito: los efectos corren en orden de
+   * declaración, así que para cuando el de abajo mira la ventana, esta ya está
+   * limpia y el intento sale de inmediato en vez de esperar los cinco minutos
+   * acumulados sin señal. Es el caso de la obra: se sale de la zona muerta y
+   * la cola tiene que vaciarse al llegar, no un rato después.
+   */
+  useEffect(() => {
+    if (isOnline === true) reiniciarEspera();
+  }, [isOnline, reiniciarEspera]);
 
   // Debounced effect to trigger sync when conditions are met
   useEffect(() => {
@@ -512,31 +655,45 @@ export function usePhotoSyncWorker() {
       photosReadyForUpload.length + photosNeedingConfirmation.length;
 
     if (
-      !isOnline ||
+      isOnline === false ||
       !isAuthenticated ||
       totalToProcess === 0 ||
       syncInProgressRef.current
     ) {
       return;
     }
+    // Dentro de la ventana de espera no se insiste: el temporizador del
+    // respaldo despertará al ciclo cuando toque. Sin esto, `aplazarFoto`
+    // cambia la consulta viva y este efecto volvería a correr de inmediato.
+    if (Date.now() < finDeEsperaRef.current) return;
 
     const timeoutId = setTimeout(() => {
       processQueue();
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timeoutId);
-  }, [isOnline, isAuthenticated, waitingPhotos, uploadedPhotos, processQueue]);
+  }, [
+    isOnline,
+    isAuthenticated,
+    waitingPhotos,
+    uploadedPhotos,
+    pulso,
+    processQueue,
+  ]);
 
   /**
    * Manually trigger sync
    */
   const syncNow = useCallback(async () => {
-    if (!isOnline) {
+    if (isOnline === false) {
       showSnackbar("Sin conexión a internet", "error");
       return;
     }
+    // Una persona que toca el botón está diciendo "ahora": hacerla esperar el
+    // respaldo sería contestarle que no a algo que sí se puede intentar.
+    reiniciarEspera();
     await processQueue();
-  }, [isOnline, processQueue, showSnackbar]);
+  }, [isOnline, processQueue, showSnackbar, reiniciarEspera]);
 
   /**
    * Retry a specific failed photo

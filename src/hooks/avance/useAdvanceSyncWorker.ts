@@ -9,8 +9,27 @@ import { useSnackbar } from "../useSnackbar";
 import { submitAdvance } from "../data/api/avanceApi";
 import { AVANCE_QUERY_KEYS } from "../data/query/avanceQueries.const";
 import { PendingAdvanceSubmission } from "src/realm/pendingAdvance/PendingAdvanceSubmission";
+import { ApiError } from "src/services/api/apiClient";
 
-const RETRY_DELAY_BASE_MS = 1000;
+/**
+ * El presupuesto de reintentos se mide en TIEMPO, no en intentos (F50).
+ *
+ * Mismo arreglo que en reportes, maquinaria y las fotos de avances.
+ */
+const ESPERA_BASE_MS = 5_000;
+const ESPERA_MAXIMA_MS = 5 * 60 * 1000;
+
+/**
+ * Un 4xx no se arregla reintentando: el servidor entendió y rechazó. Un 5xx,
+ * un plazo vencido o un corte, sí. 408 y 429 son 4xx que piden volver.
+ */
+const esPermanente = (status: number | undefined): boolean =>
+  status !== undefined &&
+  status >= 400 &&
+  status < 500 &&
+  status !== 408 &&
+  status !== 429;
+
 const DEBOUNCE_MS = 500;
 
 export function useAdvanceSyncWorker() {
@@ -23,6 +42,7 @@ export function useAdvanceSyncWorker() {
     pendingItems,
     pendingCount,
     markAsSyncing,
+    aplazar,
     markAsFailed,
     markAsPending,
     completeAdvanceSyncAtomic,
@@ -36,6 +56,49 @@ export function useAdvanceSyncWorker() {
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
   const syncInProgressRef = useRef(false);
   const mountedRef = useRef(true);
+
+  /**
+   * Reprograma el ciclo. Es ESTADO y no un ref: un ref no provoca render, así
+   * que el disparador no volvería a correr y el reintento no llegaría nunca.
+   */
+  const [pulso, setPulso] = useState(0);
+
+  /** Espera actual del respaldo y el instante en que vence. */
+  const esperaRef = useRef(0);
+  const finDeEsperaRef = useRef(0);
+  const reintentoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Programa el siguiente intento, duplicando la espera (F50).
+   *
+   * Vive FUERA del ciclo: antes cada fallo dormía dentro del lazo, con un
+   * `await` entre dos avances, y el ciclo entero quedaba detenido.
+   *
+   * También evita el giro en vacío: `aplazar` escribe en Realm, la consulta
+   * viva cambia y el disparador volvería a correr de inmediato.
+   */
+  const programarReintento = useCallback(() => {
+    esperaRef.current = Math.min(
+      esperaRef.current === 0 ? ESPERA_BASE_MS : esperaRef.current * 2,
+      ESPERA_MAXIMA_MS,
+    );
+    finDeEsperaRef.current = Date.now() + esperaRef.current;
+    if (reintentoRef.current) clearTimeout(reintentoRef.current);
+    reintentoRef.current = setTimeout(() => {
+      finDeEsperaRef.current = 0;
+      if (mountedRef.current) setPulso((p) => p + 1);
+    }, esperaRef.current);
+  }, []);
+
+  /** Borra la espera: lo que la motivaba ya cambió. */
+  const reiniciarEspera = useCallback(() => {
+    esperaRef.current = 0;
+    finDeEsperaRef.current = 0;
+    if (reintentoRef.current) {
+      clearTimeout(reintentoRef.current);
+      reintentoRef.current = null;
+    }
+  }, []);
 
   // Mutation for submitting advance
   const submitMutation = useMutation({
@@ -72,9 +135,14 @@ export function useAdvanceSyncWorker() {
    */
   const processQueue = useCallback(async () => {
     // Guard against concurrent processing or unauthenticated state
+    /**
+     * `isOnline === false` y no `!isOnline`: `null` significa "todavía no se
+     * sabe", y tratarlo como "sin red" deja la cola trabada justo cuando la
+     * sonda no logra decidir — que en obra es el caso común, no el raro.
+     */
     if (
       syncInProgressRef.current ||
-      !isOnline ||
+      isOnline === false ||
       !isAuthenticated ||
       pendingCount === 0
     ) {
@@ -92,8 +160,10 @@ export function useAdvanceSyncWorker() {
       const itemsToProcess = [...pendingItems];
 
       for (const item of itemsToProcess) {
-        // Stop if we go offline or component unmounts
-        if (!mountedRef.current || !isOnline) {
+        // Sin releer `isOnline`: el ciclo lo capturó al crearse y no cambia a
+        // media vuelta. Un corte real lo detecta el intento, que falla y se
+        // aplaza.
+        if (!mountedRef.current) {
           break;
         }
 
@@ -157,10 +227,26 @@ export function useAdvanceSyncWorker() {
               ? error.message
               : "Error desconocido al sincronizar";
 
-          // Check if max retries exceeded
-          if (item.retryCount + 1 >= item.maxRetries) {
-            // Mark as permanently failed
-            markAsFailed(item._id, errorMessage);
+          /**
+           * **Dos desenlaces, no tres (F50).**
+           *
+           * El servidor rechazó —y el avance se detiene a esperar a una
+           * persona— o cualquier otra cosa, y vuelve a la fila.
+           *
+           * La rama de "reintentar" de antes decía en su comentario que
+           * devolvía el avance a `pending` y **no lo hacía**: llamaba a
+           * `markAsFailed` y ahí terminaba. Como el worker solo lee `pending`,
+           * un avance capturado sin señal moría al PRIMER intento, mucho antes
+           * de llegar al techo de tres.
+           */
+          const status =
+            error instanceof ApiError ? error.status : undefined;
+
+          if (esPermanente(status)) {
+            markAsFailed(
+              item._id,
+              `El servidor rechazó el avance (${status}). ${errorMessage}`.trim(),
+            );
             failCount++;
 
             showSnackbar(
@@ -175,12 +261,10 @@ export function useAdvanceSyncWorker() {
               },
             );
           } else {
-            // Increment retry and keep as pending for next attempt
-            markAsFailed(item._id, errorMessage);
-            // Immediately reset to pending for retry
-            // Wait with exponential backoff before continuing
-            const delay = RETRY_DELAY_BASE_MS * Math.pow(2, item.retryCount);
-            await new Promise((resolve) => setTimeout(resolve, delay));
+            // Sin dormir aquí: el espaciado lo pone el ciclo. Dormir dentro
+            // del lazo detenía de paso los avances de los demás.
+            aplazar(item._id, errorMessage);
+            failCount++;
           }
         }
       }
@@ -226,6 +310,15 @@ export function useAdvanceSyncWorker() {
       syncInProgressRef.current = false;
       setIsSyncing(false);
       setCurrentItemId(null);
+
+      if (successCount > 0) {
+        // Algo avanzó: la red sirve y la espera acumulada ya no describe nada.
+        reiniciarEspera();
+        if (mountedRef.current) setPulso((p) => p + 1);
+      } else if (failCount > 0) {
+        // Nada salió y algo lo intentó: se vuelve, más tarde cada vez.
+        programarReintento();
+      }
     }
   }, [
     isOnline,
@@ -233,24 +326,42 @@ export function useAdvanceSyncWorker() {
     pendingCount,
     pendingItems,
     markAsSyncing,
+    aplazar,
     markAsFailed,
     completeAdvanceSyncAtomic,
     submitMutation,
     queryClient,
     showSnackbar,
     getPhotosByAdvanceId,
+    programarReintento,
+    reiniciarEspera,
   ]);
+
+  /**
+   * Volver a tener red borra la espera.
+   *
+   * Declarado ANTES del disparador: los efectos corren en orden de
+   * declaración, así que para cuando el de abajo mira la ventana, esta ya está
+   * limpia y el intento sale al llegar a la zona con señal, no cinco minutos
+   * después.
+   */
+  useEffect(() => {
+    if (isOnline === true) reiniciarEspera();
+  }, [isOnline, reiniciarEspera]);
 
   // Debounced effect to trigger sync when conditions are met
   useEffect(() => {
     if (
-      !isOnline ||
+      isOnline === false ||
       !isAuthenticated ||
       pendingCount === 0 ||
       syncInProgressRef.current
     ) {
       return;
     }
+    // Dentro de la ventana de espera no se insiste: el temporizador del
+    // respaldo despertará al ciclo cuando toque.
+    if (Date.now() < finDeEsperaRef.current) return;
 
     // Debounce to avoid rapid re-triggers
     const timeoutId = setTimeout(() => {
@@ -258,7 +369,7 @@ export function useAdvanceSyncWorker() {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timeoutId);
-  }, [isOnline, isAuthenticated, pendingCount, processQueue]);
+  }, [isOnline, isAuthenticated, pendingCount, pulso, processQueue]);
 
   // Show notification when connection is restored
   const prevOnlineRef = useRef(isOnline);
@@ -276,12 +387,14 @@ export function useAdvanceSyncWorker() {
    * Manually trigger sync
    */
   const syncNow = useCallback(async () => {
-    if (!isOnline) {
+    if (isOnline === false) {
       showSnackbar("Sin conexión a internet", "error");
       return;
     }
+    // Una persona que toca el botón está diciendo "ahora".
+    reiniciarEspera();
     await processQueue();
-  }, [isOnline, processQueue, showSnackbar]);
+  }, [isOnline, processQueue, showSnackbar, reiniciarEspera]);
 
   /**
    * Retry a specific failed item

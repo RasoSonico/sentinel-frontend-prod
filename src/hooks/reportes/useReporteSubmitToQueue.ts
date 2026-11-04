@@ -56,6 +56,8 @@ export function useReporteSubmitToQueue() {
         actividades: borrador.actividades.map((actividad, indice) => ({
           orden: indice + 1,
           texto: actividad.texto,
+          zona: actividad.zona,
+          frente: actividad.frente,
         })),
         fotos: borrador.fotos.map((foto, indice) => ({
           orden: indice + 1,

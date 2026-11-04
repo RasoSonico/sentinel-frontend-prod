@@ -316,6 +316,38 @@ export function usePendingAdvanceQueue() {
   /**
    * Mark an item as failed with error message
    */
+  /**
+   * **"No ahora" no es "falló" (ADR-006 F50).**
+   *
+   * El avance vuelve a `pending` conservando el motivo. Antes un corte de red
+   * lo mandaba a `failed`, y `failed` no lo lee el worker —solo toma
+   * `pending`—, así que un avance capturado en una zona sin señal moría al
+   * primer intento y se quedaba ahí hasta que una persona lo descubriera en la
+   * hoja de pendientes.
+   *
+   * `errorMessage` se conserva —a diferencia de `markAsPending`, que lo
+   * borra— porque sigue siendo cierto: es la razón por la que todavía espera.
+   */
+  const aplazar = useCallback(
+    (id: string, errorMessage: string): boolean => {
+      const item = realm.objectForPrimaryKey(PendingAdvanceSubmission, id);
+      if (!item) return false;
+
+      realm.write(() => {
+        item.status = "pending";
+        item.errorMessage = errorMessage;
+        item.retryCount += 1;
+      });
+
+      return true;
+    },
+    [realm]
+  );
+
+  /**
+   * **Detenido**: necesita que una persona decida. Desde F50 solo llegan aquí
+   * los rechazos del servidor; los tropiezos de red van por `aplazar`.
+   */
   const markAsFailed = useCallback(
     (id: string, errorMessage: string): boolean => {
       const item = realm.objectForPrimaryKey(PendingAdvanceSubmission, id);
@@ -478,6 +510,7 @@ export function usePendingAdvanceQueue() {
     removeFromQueueWithPhotos,
     completeAdvanceSyncAtomic,
     markAsSyncing,
+    aplazar,
     markAsFailed,
     markAsPending,
     incrementRetryCount,

@@ -235,7 +235,17 @@ export function useReporteSyncWorker() {
           area: item.area as ReportePayload["area"],
           fecha_reporte: item.fechaReporte,
           conclusion: item.conclusion,
-          actividades: JSON.parse(item.actividadesJson) as ActividadEnCola[],
+          // Normalizadas a vacío: una fila encolada antes de F52 no trae
+          // `zona` ni `frente` en su JSON, y la cola puede tardar días en
+          // vaciarse. El servidor los acepta vacíos y no imprime el rótulo.
+          actividades: (
+            JSON.parse(item.actividadesJson) as ActividadEnCola[]
+          ).map((a) => ({
+            orden: a.orden,
+            texto: a.texto,
+            zona: a.zona ?? "",
+            frente: a.frente ?? "",
+          })),
           fotos: JSON.parse(item.fotosJson) as FotoSerializada[],
           proveedor_ids: JSON.parse(item.proveedorIdsJson) as number[],
           // Vacío solo en los reportes encolados antes de que existiera la

@@ -136,7 +136,11 @@ const AdvanceRegistrationScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.contentContainer}>
         <View style={styles.headerContainer}>
-          <Text style={styles.constructionName}>{constructionName}</Text>
+          {/* Tope de 2 renglones: el encabezado no se desplaza y el nombre
+              de obra admite 500 caracteres; sin tope se come el formulario. */}
+          <Text style={styles.constructionName} numberOfLines={2}>
+            {constructionName}
+          </Text>
           <Text style={styles.headerDescription}>
             Registra los avances diarios para mantener actualizados los reportes
             de progreso.

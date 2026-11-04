@@ -23,7 +23,22 @@ import { llaveMaquina, usePendingCapturaQueue } from "./usePendingCapturaQueue";
 import { usePendingMaquinariaQueue } from "./usePendingMaquinariaQueue";
 
 const DEBOUNCE_MS = 500;
-const RETRY_DELAY_BASE_MS = 1000;
+
+/**
+ * El presupuesto de reintentos se mide en TIEMPO, no en intentos (F48).
+ *
+ * Tres intentos gastados en siete segundos no significan nada en una jornada
+ * de ocho horas: es lo que detenía una máquina el resto del día por tres
+ * cortes de red en una mañana. Ahora el ciclo se reprograma solo, con espera
+ * creciente, y la espera se reinicia cuando algo avanza, cuando vuelve la red
+ * o cuando una persona toca Sincronizar.
+ *
+ * Cinco minutos de techo: una zona con señal al mediodía vacía la cola de
+ * inmediato por el reinicio, así que el techo solo gobierna el caso en que no
+ * vuelve nada.
+ */
+const ESPERA_BASE_MS = 5_000;
+const ESPERA_MAXIMA_MS = 5 * 60 * 1000;
 
 /**
  * Drena las DOS colas de maquinaria: altas y capturas, **en ese orden**.
@@ -53,6 +68,7 @@ export function useMaquinariaSyncWorker() {
     leerTrabajoPendiente,
     markAsSyncing,
     markAsPending,
+    aplazar,
     markAsFailed,
     markAsDone,
     resetStuckSyncingItems,
@@ -63,7 +79,7 @@ export function useMaquinariaSyncWorker() {
     pendingCount: altasPendientes,
     leerTrabajoPendiente: leerAltasPendientes,
     markAsSyncing: marcarAltaEnviando,
-    markAsPending: marcarAltaPendiente,
+    aplazarAlta,
     markAsFailed: marcarAltaFallida,
     completarAltaYEnlazar,
     resetStuckSyncingItems: rescatarAltasEncalladas,
@@ -83,6 +99,41 @@ export function useMaquinariaSyncWorker() {
   const enCursoRef = useRef(false);
   const montadoRef = useRef(true);
 
+  /** Espera actual del respaldo, y el instante en que vence. */
+  const esperaRef = useRef(0);
+  const finDeEsperaRef = useRef(0);
+  const reintentoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Programa el siguiente intento, duplicando la espera.
+   *
+   * Vive FUERA del ciclo. Antes la espera se dormía dentro del lazo, con un
+   * `await` entre dos envíos: el ciclo entero se quedaba detenido, así que un
+   * corte en una máquina retrasaba el trabajo de todas las demás.
+   */
+  const programarReintento = useCallback(() => {
+    esperaRef.current = Math.min(
+      esperaRef.current === 0 ? ESPERA_BASE_MS : esperaRef.current * 2,
+      ESPERA_MAXIMA_MS,
+    );
+    finDeEsperaRef.current = Date.now() + esperaRef.current;
+    if (reintentoRef.current) clearTimeout(reintentoRef.current);
+    reintentoRef.current = setTimeout(() => {
+      finDeEsperaRef.current = 0;
+      if (montadoRef.current) setPulso((p) => p + 1);
+    }, esperaRef.current);
+  }, []);
+
+  /** Borra la espera: lo que la motivaba ya cambió. */
+  const reiniciarEspera = useCallback(() => {
+    esperaRef.current = 0;
+    finDeEsperaRef.current = 0;
+    if (reintentoRef.current) {
+      clearTimeout(reintentoRef.current);
+      reintentoRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     const rescatadas = resetStuckSyncingItems();
     const altas = rescatarAltasEncalladas();
@@ -99,6 +150,7 @@ export function useMaquinariaSyncWorker() {
     montadoRef.current = true;
     return () => {
       montadoRef.current = false;
+      if (reintentoRef.current) clearTimeout(reintentoRef.current);
     };
   }, []);
 
@@ -155,34 +207,37 @@ export function useMaquinariaSyncWorker() {
         return true;
       } catch (error) {
         const status = error instanceof ApiError ? error.status : undefined;
-        const permanente = esPermanente(status);
 
-        marcarAltaFallida(
-          item._id,
-          permanente
-            ? `El servidor rechazó el alta (${status}). ${
-                error instanceof Error ? error.message : ""
-              }`.trim()
-            : error instanceof Error
-              ? error.message
-              : "Error desconocido al dar de alta la máquina",
-          permanente,
-        );
-
-        if (!permanente && item.retryCount < item.maxRetries) {
-          const espera = RETRY_DELAY_BASE_MS * Math.pow(2, item.retryCount);
-          await new Promise((resolve) => setTimeout(resolve, espera));
-          marcarAltaPendiente(item._id);
+        /**
+         * **Dos desenlaces, no tres (F48).** O el servidor contestó y dijo que
+         * no —y entonces el alta se detiene y pide a una persona—, o cualquier
+         * otra cosa, y vuelve a la fila. Lo que no existe ya es el tercer
+         * desenlace de antes: "se acabaron los intentos", que convertía un
+         * problema de red en un alta muerta.
+         */
+        if (esPermanente(status)) {
+          marcarAltaFallida(
+            item._id,
+            `El servidor rechazó el alta (${status}). ${
+              error instanceof Error ? error.message : ""
+            }`.trim(),
+            true,
+          );
+          return false;
         }
+
+        // Sin dormir aquí: el espaciado lo pone el ciclo, que es el único que
+        // puede esperar sin dejar a las demás máquinas detenidas.
+        aplazarAlta(
+          item._id,
+          error instanceof Error
+            ? error.message
+            : "Error desconocido al dar de alta la máquina",
+        );
         return false;
       }
     },
-    [
-      marcarAltaEnviando,
-      marcarAltaFallida,
-      marcarAltaPendiente,
-      completarAltaYEnlazar,
-    ],
+    [marcarAltaEnviando, marcarAltaFallida, aplazarAlta, completarAltaYEnlazar],
   );
 
   /**
@@ -257,29 +312,41 @@ export function useMaquinariaSyncWorker() {
               )?.response?.data ?? null)
             : null;
 
-        const mensaje = conflicto?.detail
-          ? conflicto.detail
-          : permanente
-            ? `El servidor rechazó la captura (${status}). ${
-                error instanceof Error ? error.message : ""
-              }`.trim()
-            : error instanceof Error
-              ? error.message
-              : "Error desconocido al enviar la captura";
-
-        markAsFailed(item._id, mensaje, permanente, conflicto?.motivo ?? null);
-
-        // Sin `+ 1`: `markAsFailed` ya incrementó, y `item` es un objeto VIVO
-        // de Realm.
-        if (!permanente && item.retryCount < item.maxRetries) {
-          const espera = RETRY_DELAY_BASE_MS * Math.pow(2, item.retryCount);
-          await new Promise((resolve) => setTimeout(resolve, espera));
-          markAsPending(item._id);
+        if (permanente) {
+          markAsFailed(
+            item._id,
+            conflicto?.detail
+              ? conflicto.detail
+              : `El servidor rechazó la captura (${status}). ${
+                  error instanceof Error ? error.message : ""
+                }`.trim(),
+            true,
+            conflicto?.motivo ?? null,
+          );
+          return false;
         }
+
+        /**
+         * **Todo lo demás vuelve a la fila (F48).**
+         *
+         * Antes esto pasaba por `failed` y gastaba uno de tres intentos. Una
+         * subida cortada por señal débil —el caso más común de la obra, no el
+         * raro— contaba igual que un rechazo del servidor, y a la tercera la
+         * máquina quedaba detenida hasta que alguien la rescatara a mano.
+         *
+         * Sin dormir aquí: el espaciado lo pone el ciclo. Dormir dentro del
+         * lazo detenía de paso el trabajo de todas las demás máquinas.
+         */
+        aplazar(
+          item._id,
+          error instanceof Error
+            ? error.message
+            : "Error desconocido al enviar la captura",
+        );
         return false;
       }
     },
-    [markAsSyncing, markAsFailed, markAsPending, markAsDone],
+    [markAsSyncing, markAsFailed, aplazar, markAsDone],
   );
 
   const procesarCola = useCallback(async () => {
@@ -303,6 +370,7 @@ export function useMaquinariaSyncWorker() {
     removeDoneMaquinarias();
 
     let enviadas = 0;
+    let fallos = 0;
 
     try {
       // ── 1 · Las altas PRIMERO ────────────────────────────────────────
@@ -311,6 +379,7 @@ export function useMaquinariaSyncWorker() {
       for (const alta of [...leerAltasPendientes()]) {
         if (!montadoRef.current) break;
         if (await enviarAlta(alta)) enviadas += 1;
+        else fallos += 1;
       }
 
       // ── 2 · Y después las capturas ───────────────────────────────────
@@ -326,7 +395,10 @@ export function useMaquinariaSyncWorker() {
         const llave = llaveMaquina(item);
         if (caidas.has(llave)) continue;
         if (await enviarCaptura(item)) enviadas += 1;
-        else caidas.add(llave);
+        else {
+          fallos += 1;
+          caidas.add(llave);
+        }
       }
 
       if (enviadas > 0) {
@@ -343,9 +415,19 @@ export function useMaquinariaSyncWorker() {
     } finally {
       enCursoRef.current = false;
       if (montadoRef.current) setIsSyncing(false);
-      // Solo si el ciclo avanzó: reprogramar siempre giraría en vacío contra
-      // un fallo permanente.
-      if (enviadas > 0 && montadoRef.current) setPulso((p) => p + 1);
+
+      if (enviadas > 0) {
+        // Algo avanzó: la red está sirviendo, así que la espera acumulada ya
+        // no describe nada. Se borra y se vuelve a pasar enseguida, por si lo
+        // que quedó atrás de un alta ya puede salir.
+        reiniciarEspera();
+        if (montadoRef.current) setPulso((p) => p + 1);
+      } else if (fallos > 0) {
+        // Nada salió y algo lo intentó: se vuelve, más tarde cada vez. Lo que
+        // NO se hace es rendirse — en una obra, "no pude ahora" es la
+        // respuesta normal, no el final del camino.
+        programarReintento();
+      }
     }
   }, [
     isOnline,
@@ -360,11 +442,33 @@ export function useMaquinariaSyncWorker() {
     realm,
     removeDoneCapturas,
     removeDoneMaquinarias,
+    programarReintento,
+    reiniciarEspera,
   ]);
+
+  /**
+   * Volver a tener red borra la espera.
+   *
+   * Va declarado ANTES del disparador a propósito: los efectos corren en orden
+   * de declaración, así que para cuando el de abajo mira la ventana, esta ya
+   * está limpia y el intento sale de inmediato en vez de esperar los cinco
+   * minutos que había acumulado sin señal. Es el caso de la obra: se sale de
+   * la zona muerta y la cola tiene que vaciarse al llegar, no un rato después.
+   *
+   * Deliberadamente sin `setPulso`: cambiar `isOnline` ya vuelve a correr el
+   * disparador, y agregar estado aquí sería escribir estado dentro de un
+   * efecto por nada.
+   */
+  useEffect(() => {
+    if (isOnline === true) reiniciarEspera();
+  }, [isOnline, reiniciarEspera]);
 
   useEffect(() => {
     if (isOnline === false || !isAuthenticated || enCursoRef.current) return;
     if (pendingCount === 0 && altasPendientes === 0) return;
+    // Dentro de la ventana de espera no se insiste: el temporizador del
+    // respaldo despertará al ciclo cuando toque.
+    if (Date.now() < finDeEsperaRef.current) return;
 
     const timeoutId = setTimeout(procesarCola, DEBOUNCE_MS);
     return () => clearTimeout(timeoutId);
@@ -377,19 +481,26 @@ export function useMaquinariaSyncWorker() {
     procesarCola,
   ]);
 
+  /**
+   * Sincronizar a mano. **Borra la espera**: una persona que toca el botón
+   * está diciendo "ahora", y hacerla esperar el respaldo sería contestarle que
+   * no a algo que sí se puede intentar.
+   */
   const syncNow = useCallback(async () => {
     if (isOnline === false) return;
+    reiniciarEspera();
     await procesarCola();
-  }, [isOnline, procesarCola]);
+  }, [isOnline, procesarCola, reiniciarEspera]);
 
   const retryItem = useCallback(
     async (id: string) => {
       const item = getItemById(id);
       if (!item || item.status !== "failed") return;
       markAsPending(id);
+      reiniciarEspera();
       if (isOnline !== false) await procesarCola();
     },
-    [getItemById, markAsPending, isOnline, procesarCola],
+    [getItemById, markAsPending, isOnline, procesarCola, reiniciarEspera],
   );
 
   return { isSyncing, syncNow, retryItem };

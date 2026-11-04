@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import * as FileSystem from "expo-file-system";
 import { useQuery, useRealm } from "@realm/react";
 import { uuid } from "expo-modules-core";
 
@@ -22,6 +23,16 @@ import type { FirmaPayload, FotoReporte } from "src/types/reporte";
 export interface ActividadEnCola {
   orden: number;
   texto: string;
+  /**
+   * Dónde ocurrió (F52). Cadena vacía cuando no aplica.
+   *
+   * Opcionales en el TIPO porque las filas encoladas antes de esta versión
+   * no los traen en su JSON, y una cola puede tardar días en vaciarse: leer
+   * una fila vieja esperando el campo daría `undefined` donde el payload
+   * declara `string`. Al enviar se normalizan a vacío.
+   */
+  zona?: string;
+  frente?: string;
 }
 
 export interface FotoEnCola {
@@ -151,7 +162,7 @@ export function usePendingReporteQueue() {
           // es justo cuando el usuario más necesita ver que su captura sigue
           // completa.
           actividades: parse<ActividadEnCola[]>(item.actividadesJson, []).map(
-            (a) => a.texto,
+            (a) => a,
           ),
           conclusion: item.conclusion,
           status: item.status,
@@ -643,6 +654,64 @@ export function usePendingReporteQueue() {
   );
 
   /**
+   * Las fotos detenidas de un reporte, para poder soltarlas.
+   *
+   * Devuelve datos planos y no objetos de Realm: quien llama va a hacer una
+   * ida al servidor por cada una, y un objeto vivo puede haber dejado de
+   * existir para cuando la respuesta vuelve.
+   */
+  const fotosDetenidasDe = useCallback(
+    (
+      reporteLocalId: string,
+    ): { id: string; fotoRemotaId: number | null; localUri: string }[] =>
+      [
+        ...realm
+          .objects(PendingReportePhotoSubmission)
+          .filtered(
+            'reporteLocalId == $0 AND status == "failed"',
+            reporteLocalId,
+          ),
+      ].map((foto) => ({
+        id: foto._id,
+        fotoRemotaId: foto.fotoRemotaId,
+        localUri: foto.localUri,
+      })),
+    [realm],
+  );
+
+  /**
+   * Saca una foto de la cola y borra su archivo.
+   *
+   * **Solo para el descarte deliberado de su autor.** No lo llama ningún
+   * ciclo: una foto que la cola no puede subir hoy sigue siendo trabajo, y
+   * borrarla por iniciativa de la máquina es exactamente el error que se
+   * arregló en F42.
+   */
+  const soltarFotoDetenida = useCallback(
+    async (id: string) => {
+      const foto = realm.objectForPrimaryKey(
+        PendingReportePhotoSubmission,
+        id,
+      );
+      if (!foto) return;
+      const uri = foto.localUri;
+
+      realm.write(() => {
+        realm.delete(foto);
+      });
+
+      try {
+        await FileSystem.deleteAsync(uri, { idempotent: true });
+      } catch (error) {
+        // Un archivo que no se pudo borrar es espacio ocupado, no un fallo: la
+        // fila ya no existe y nada lo va a volver a leer.
+        console.warn("[ReporteQueue] No se pudo borrar la foto local:", error);
+      }
+    },
+    [realm],
+  );
+
+  /**
    * Borra las fotos ya confirmadas. Se llama DESPUÉS de que la consulta del
    * reporte refleje el estado nuevo — el mismo ciclo `done` de la enmienda E5
    * de la Fase 1: sacarlas antes haría que el conteo bajara y volviera a subir
@@ -683,8 +752,8 @@ export function usePendingReporteQueue() {
    * fotos seguían subiendo, y entonces:
    *
    * - el detalle abierto por id local se quedaba sin identidad y moría
-   *   â€”vista previa vacía, "0 actividades · 0 fotos", botones apagados para
-   *   siempreâ€”, que es el defecto de fondo de esta enmienda;
+   *   —vista previa vacía, "0 actividades · 0 fotos", botones apagados para
+   *   siempre—, que es el defecto de fondo de esta enmienda;
    * - y nada podía saber en qué momento el reporte quedaba DISPONIBLE, porque
    *   para cuando su última foto cerraba ya no había fila que consultar.
    *
@@ -801,6 +870,8 @@ export function usePendingReporteQueue() {
     aplazarFoto,
     rescatarFotosDetenidas,
     reintentarFotosDetenidas,
+    fotosDetenidasDe,
+    soltarFotoDetenida,
     removeDonePhotos,
     resetStuckSyncingPhotos,
   };

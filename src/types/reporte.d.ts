@@ -23,6 +23,16 @@ export interface Proveedor {
 export interface ActividadPayload {
   orden: number;
   texto: string;
+  /**
+   * Dónde ocurrió, en las palabras de la obra. Cadena vacía cuando no aplica.
+   *
+   * El servidor las acepta ausentes o vacías —significan lo mismo— pero aquí
+   * van siempre, para que el payload de la cola tenga una sola forma: una
+   * fila encolada puede salir días después, y adivinar qué versión la
+   * escribió sería trabajo para nadie.
+   */
+  zona: string;
+  frente: string;
 }
 
 export interface FotoPayload {
@@ -76,6 +86,9 @@ export interface ActividadReporte {
   id: number;
   orden: number;
   texto: string;
+  /** Opcionales en el servidor; ausentes en reportes creados antes de F52. */
+  zona?: string;
+  frente?: string;
 }
 
 export interface FotoReporte {

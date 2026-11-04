@@ -29,6 +29,7 @@ import { PendingAdvanceSubmission } from "src/realm/pendingAdvance/PendingAdvanc
 import { PendingPhotoSubmission } from "src/realm/pendingAdvance/PendingPhotoSubmission";
 import { PendingReporteSubmission } from "src/realm/pendingReporte/PendingReporteSubmission";
 import { PendingReportePhotoSubmission } from "src/realm/pendingReporte/PendingReportePhotoSubmission";
+import { BorradorReporte } from "src/realm/borradorReporte/BorradorReporte";
 import { PendingCapturaSubmission } from "src/realm/pendingJornada/PendingCapturaSubmission";
 import { PendingMaquinariaSubmission } from "src/realm/pendingMaquinaria/PendingMaquinariaSubmission";
 import { MaquinariaHubResponse } from "src/realm/maquinariaHub/Response";
@@ -83,6 +84,10 @@ const SENTINEL_SCHEMA = [
   // Cola del reporte de actividades diario (schemaVersion 13, ADR-006 D7)
   PendingReporteSubmission,
   PendingReportePhotoSubmission,
+  // El reporte que se está capturando (schemaVersion 22, ADR-006 F43).
+  // Tabla aparte de la cola a propósito: la cola es para lo declarado
+  // terminado, esto para lo que todavía se escribe.
+  BorradorReporte,
   // Cola de capturas de la hoja de jornada (schemaVersion 21, ADR-009 D1).
   // Sustituye a la cola de jornadas de la versión 16.
   PendingCapturaSubmission,
@@ -242,6 +247,24 @@ const handleMigration = (oldRealm: Realm, newRealm: Realm) => {
   // en esas columnas, que es lo mismo que hace el documento cuando no hay
   // lectura. Nada que inventar y nada que corregir.
 
+  // schemaVersion 22 (ADR-006 F43): `BorradorReporte`, el reporte en captura.
+  //
+  // **Aditiva**: clase nueva, ninguna existente tocada. La rama va vacía a
+  // propósito, no por olvido — no hay dato viejo que mudar, porque hasta esta
+  // versión el borrador vivía en memoria y moría con la pantalla.
+  if (oldRealm.schemaVersion < 22) {
+    // Sin migración.
+  }
+
+  // schemaVersion 23 (ADR-006 F46): `ultimaSeccion` en el borrador.
+  //
+  // **Aditiva y con default**: los borradores que ya existan entran con `""`,
+  // que es exactamente lo que significa "no sé dónde estaba" — y el wizard
+  // abre entonces por el encuadre, como siempre.
+  if (oldRealm.schemaVersion < 23) {
+    // Sin migración.
+  }
+
   // schemaVersion 21 (ADR-009): la jornada se captura en varias veces.
   //
   // La cola cambia de unidad —de jornada a captura— y el caché del hub pasa
@@ -330,7 +353,7 @@ export default function RealmProviderWrapper({
   return (
     <RealmProvider
       schema={SENTINEL_SCHEMA}
-      schemaVersion={21}
+      schemaVersion={23}
       onMigration={handleMigration}
     >
       {children}

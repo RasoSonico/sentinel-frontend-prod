@@ -215,9 +215,41 @@ export function usePendingCapturaQueue() {
   );
 
   /**
+   * **"No ahora" no es "falló".**
+   *
+   * Un corte de red, un 5xx o un plazo vencido no dicen nada sobre el
+   * contenido: el servidor ni siquiera llegó a opinar. Pasarlos por `failed`
+   * —como se hacía— los contaba contra un presupuesto de tres intentos y, al
+   * agotarlo, detenía la máquina para siempre. En una obra con señal que va y
+   * viene, tres transiciones de zona en una mañana bastaban.
+   *
+   * Así que vuelve a `pending` sin tocar ese presupuesto. El mensaje se
+   * conserva para poder decir por qué sigue esperando; `retryCount` sube solo
+   * como contador de diagnóstico, y no detiene nada porque quien decide eso
+   * mira el estado, no el número.
+   */
+  const aplazar = useCallback(
+    (id: string, errorMessage: string, errorMotivo: string | null = null) => {
+      const item = realm.objectForPrimaryKey(PendingCapturaSubmission, id);
+      if (!item) return false;
+      realm.write(() => {
+        item.status = "pending";
+        item.errorMessage = errorMessage;
+        item.errorMotivo = errorMotivo;
+        item.retryCount += 1;
+      });
+      return true;
+    },
+    [realm],
+  );
+
+  /**
    * `agotarIntentos` marca un fallo del que no tiene sentido volver: sube
    * `retryCount` al tope en vez de agregar una bandera, porque "no quedan
    * intentos" es literalmente lo que significa.
+   *
+   * **Desde F48 solo lo llaman los rechazos del servidor.** Antes cualquier
+   * tropiezo de red terminaba aquí; ahora eso va por `aplazar`.
    */
   const markAsFailed = useCallback(
     (
@@ -331,6 +363,7 @@ export function usePendingCapturaQueue() {
     addToQueue,
     markAsSyncing,
     markAsPending,
+    aplazar,
     markAsFailed,
     markAsDone,
     reintentarCaptura,

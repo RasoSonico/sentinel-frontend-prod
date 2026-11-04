@@ -275,6 +275,37 @@ export function usePendingPhotoQueue() {
   /**
    * Mark a photo as failed with error message
    */
+  /**
+   * **"No ahora" no es "falló" (ADR-006 F49).**
+   *
+   * Es el mismo arreglo que ya corre en reportes y en maquinaria. Aquí el
+   * defecto era idéntico: un corte de red mandaba la foto a `failed`, y
+   * `failed` no lo lee nadie —el worker solo toma `waiting` y `uploaded`—, así
+   * que una subida cortada por señal débil mataba la foto en silencio.
+   *
+   * Vuelve a la fila por donde corresponda: si ya subió a Azure y lo que
+   * falló fue confirmarla, vuelve a `uploaded` para que el siguiente intento
+   * solo confirme en vez de volver a mandar los bytes.
+   */
+  const aplazarFoto = useCallback(
+    (id: string, errorMessage: string) => {
+      const photo = realm.objectForPrimaryKey(PendingPhotoSubmission, id);
+      if (!photo) return false;
+      realm.write(() => {
+        photo.status = photo.remotePhotoId ? "uploaded" : "waiting";
+        photo.errorMessage = errorMessage;
+        photo.retryCount += 1;
+      });
+      return true;
+    },
+    [realm],
+  );
+
+  /**
+   * **Detenida**: necesita que una persona decida. Desde F49 solo llegan aquí
+   * el archivo que ya no está en el teléfono y el rechazo explícito del
+   * servidor; cualquier otra cosa va por `aplazarFoto`.
+   */
   const markPhotoAsFailed = useCallback(
     (photoId: string, errorMessage: string): boolean => {
       const photo = realm.objectForPrimaryKey(PendingPhotoSubmission, photoId);
@@ -472,6 +503,50 @@ export function usePendingPhotoQueue() {
   /**
    * Clear all failed photos from the queue
    */
+  /**
+   * Devuelve a la fila las fotos que murieron bajo la regla vieja (F49).
+   *
+   * Ninguna foto llega a `failed` por la regla nueva salvo por archivo
+   * perdido o rechazo del servidor, así que lo que hoy está en `failed` en los
+   * teléfonos que ya estuvieron en obra es, casi todo, trabajo vivo clasificado
+   * con un criterio equivocado. Se revive solo lo que todavía tiene su archivo:
+   * revivir una foto sin archivo sería condenarla a fallar en cada ciclo.
+   *
+   * Corre UNA vez por instalación; la marca la lleva el worker.
+   */
+  const rescatarFotosDetenidas = useCallback(async (): Promise<number> => {
+    const detenidas = [...allPhotos.filtered('status == "failed"')];
+    if (detenidas.length === 0) return 0;
+
+    const vivas: string[] = [];
+    for (const foto of detenidas) {
+      try {
+        const info = await FileSystem.getInfoAsync(foto.localUri);
+        if (info.exists) vivas.push(foto._id);
+      } catch {
+        // No se pudo preguntar por el archivo: se deja como está. Revivirla a
+        // ciegas la haría fallar en cada ciclo sin que nadie lo entienda.
+      }
+    }
+    if (vivas.length === 0) return 0;
+
+    realm.write(() => {
+      for (const id of vivas) {
+        const foto = realm.objectForPrimaryKey(PendingPhotoSubmission, id);
+        if (!foto) continue;
+        foto.status = foto.remotePhotoId ? "uploaded" : "waiting";
+        foto.errorMessage = null;
+      }
+    });
+    return vivas.length;
+  }, [allPhotos, realm]);
+
+  /**
+   * **Borra fotos detenidas CON SU ARCHIVO.** Hoy no la llama nadie, y es
+   * importante que siga así mientras no haya una pantalla que le pregunte al
+   * autor: desde F49, `failed` ya no significa "se le acabaron los intentos",
+   * así que lo que haya aquí es trabajo que su autor dio por capturado.
+   */
   const clearAllFailedPhotos = useCallback(async (): Promise<number> => {
     const failed = allPhotos.filtered('status == "failed"');
     const count = failed.length;
@@ -610,6 +685,7 @@ export function usePendingPhotoQueue() {
     markPhotosAsWaiting,
     markPhotoAsSyncing,
     markPhotoAsUploaded,
+    aplazarFoto,
     markPhotoAsFailed,
     markPhotoAsWaiting,
     markPhotoAsDone,
@@ -617,6 +693,7 @@ export function usePendingPhotoQueue() {
     removeDonePhotos,
     removePhotosByAdvanceId,
     resetStuckSyncingPhotos,
+    rescatarFotosDetenidas,
     clearAllFailedPhotos,
     detectAndHandleOrphanedPhotos,
 

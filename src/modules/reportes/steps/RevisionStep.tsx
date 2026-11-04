@@ -14,7 +14,7 @@ import {
   type DatosMiniatura,
 } from "../components/DocumentoMiniatura";
 import { ReordenarFotos } from "../components/ReordenarFotos";
-import { etiquetaDeArea } from "../constantes";
+import { etiquetaDeArea, rotuloDeUbicacion } from "../constantes";
 import { useMaquinariaDelDia } from "../hooks/useMaquinariaDelDia";
 import { useBorradorReporte } from "../state/BorradorReporteContext";
 import { FORMATO_CODIGO } from "../constantesDocumento";
@@ -30,9 +30,17 @@ import { FORMATO_CODIGO } from "../constantesDocumento";
 
 interface Props {
   onEditarBloque: (bloque: BloqueEditable) => void;
+  /**
+   * Lo que falta para poder enviar, en palabras. Vacío = se puede enviar.
+   *
+   * Llega desde el wizard y no se calcula aquí porque la misma lista decide
+   * si el botón de enviar está encendido: calcularla dos veces sería permitir
+   * que la pantalla y el botón se contradigan.
+   */
+  falta: string[];
 }
 
-export function RevisionStep({ onEditarBloque }: Props) {
+export function RevisionStep({ onEditarBloque, falta }: Props) {
   const { borrador, reordenarFotos, setFirma } = useBorradorReporte();
   const [ordenando, setOrdenando] = useState(false);
   const nombre = useAppSelector(selectUserName);
@@ -51,7 +59,10 @@ export function RevisionStep({ onEditarBloque }: Props) {
       // enseñe el documento COMPLETO, que es todo el punto de esta pantalla.
       supervision: borrador.supervisores.map((p) => p.nombre),
       area: borrador.area ? etiquetaDeArea(borrador.area) : null,
-      actividades: borrador.actividades.map((a) => a.texto),
+      actividades: borrador.actividades.map((a) => ({
+        texto: a.texto,
+        rotulo: rotuloDeUbicacion(a.zona, a.frente),
+      })),
       conclusion: borrador.conclusion,
       maquinaria,
       fotos: borrador.fotos.map((f) => ({
@@ -131,13 +142,56 @@ export function RevisionStep({ onEditarBloque }: Props) {
               textoConfirmar="Firmar el reporte"
             />
           </View>
+
+          {/* Va al final del documento y justo encima del botón que exige
+              estas cosas. Un botón de enviar apagado sin explicación es un
+              callejón sin salida: el usuario no sabe si está roto, si le falta
+              un permiso o si solo le falta algo por capturar. Mismo criterio
+              que F38 en el detalle. */}
+          {falta.length > 0 ? (
+            <View style={estilos.falta}>
+              <Text style={estilos.faltaTitulo}>Para enviarlo falta:</Text>
+              {falta.map((renglon) => (
+                <Text key={renglon} style={estilos.faltaRenglon}>
+                  · {renglon}
+                </Text>
+              ))}
+            </View>
+          ) : null}
         </>
       )}
     </ScrollView>
   );
 }
 
+const sinPaddingAndroid =
+  Platform.OS === "android"
+    ? { includeFontPadding: false, textAlignVertical: "center" as const }
+    : {};
+
 const estilos = StyleSheet.create({
+  // Ámbar, el mismo que el módulo reserva para "esto bloquea": no es un error
+  // —nada está mal— pero sí impide terminar.
+  falta: {
+    marginTop: sp(16),
+    padding: sp(12),
+    borderRadius: DesignTokens.borderRadius.base,
+    backgroundColor: DesignTokens.colors.warning[50],
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.warning[100],
+    gap: sp(4),
+  },
+  faltaTitulo: {
+    fontSize: fs(DesignTokens.typography.fontSize.sm),
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.warning[800],
+    ...sinPaddingAndroid,
+  },
+  faltaRenglon: {
+    fontSize: fs(DesignTokens.typography.fontSize.sm),
+    color: DesignTokens.colors.warning[800],
+    ...sinPaddingAndroid,
+  },
   cuerpo: { padding: sp(16), gap: sp(12), paddingBottom: sp(24) },
   firma: {
     backgroundColor: DesignTokens.colors.background.primary,

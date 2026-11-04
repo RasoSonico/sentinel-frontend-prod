@@ -23,6 +23,7 @@ import { useSnackbar } from "src/hooks/useSnackbar";
 import { useReporteDetalle } from "src/hooks/reportes/useReportesDeObra";
 import { usePendingReporteQueue } from "src/hooks/reportes/usePendingReporteQueue";
 import { useNetworkStatus } from "src/hooks/utils/useNetworkStatus";
+import { descartarFotoDeReporte } from "../services/reporteService";
 import { fechaLargaConDia } from "src/modules/avance/utils/fechaPrograma";
 import { DateUtils } from "src/utils/dateUtils";
 import type { ReportesStackParamList } from "src/navigation/types";
@@ -32,7 +33,7 @@ import {
   DocumentoMiniatura,
   type DatosMiniatura,
 } from "../components/DocumentoMiniatura";
-import { etiquetaDeArea } from "../constantes";
+import { etiquetaDeArea, rotuloDeUbicacion } from "../constantes";
 import { FORMATO_CODIGO } from "../constantesDocumento";
 import { useMaquinariaDelDia } from "../hooks/useMaquinariaDelDia";
 import {
@@ -71,6 +72,8 @@ export default function ReporteDetailScreen() {
     getPhotosByReporteId,
     reintentarReporte,
     reintentarFotosDetenidas,
+    fotosDetenidasDe,
+    soltarFotoDetenida,
     removeFromQueueWithPhotos,
   } = usePendingReporteQueue();
 
@@ -196,7 +199,10 @@ export default function ReporteDetailScreen() {
       // La etiqueta la resuelve el servidor: derivarla aquí obligaría a
       // mantener las traducciones en dos lados.
       area: data.area_display,
-      actividades: data.actividades.map((a) => a.texto),
+      actividades: data.actividades.map((a) => ({
+        texto: a.texto,
+        rotulo: rotuloDeUbicacion(a.zona, a.frente),
+      })),
       conclusion: data.conclusion,
       // Ya emitido: la maquinaria viene CONGELADA en el reporte, no se
       // reconstruye del hub. Es la misma copia que imprime el documento, así
@@ -240,7 +246,10 @@ export default function ReporteDetailScreen() {
       // cuatro, y el usuario concluía —con razón— que la app le había borrado
       // el trabajo. Las fotos salen de la cola de fotos, que es la que guarda
       // el `localUri`.
-      actividades: enCola.actividades,
+      actividades: enCola.actividades.map((a) => ({
+        texto: a.texto,
+        rotulo: rotuloDeUbicacion(a.zona, a.frente),
+      })),
       conclusion: enCola.conclusion,
       maquinaria: maquinariaEnCola,
       fotos: getPhotosByReporteId(enCola.localId)
@@ -419,6 +428,93 @@ export default function ReporteDetailScreen() {
     );
   }, [enCola, reintentarFotosDetenidas, showSnackbar]);
 
+  /**
+   * **Soltar una foto que ya nunca va a subir.**
+   *
+   * Es la salida del callejón: mientras quede una foto declarada y sin subir,
+   * el servidor se niega a generar el documento —con razón, le falta evidencia
+   * que su autor dijo haber tomado—. Reintentar es el primer recurso; esto es
+   * el último, y por eso va en rojo y debajo.
+   *
+   * **Necesita señal**, y se dice antes de intentarlo: el renglón que bloquea
+   * vive en el servidor, no en el teléfono, así que soltarlo solo en local
+   * dejaría el reporte igual de atorado y al usuario creyendo que lo resolvió.
+   *
+   * Si una foto nunca llegó a declararse —sin `fotoRemotaId`— no hay nada que
+   * pedirle al servidor: solo estorba en la cola de este teléfono y se quita.
+   */
+  const descartarFotos = useCallback(() => {
+    if (!enCola) return;
+    if (sinSenal) {
+      showSnackbar(
+        "Necesitas señal para quitar una fotografía del reporte.",
+        "error",
+      );
+      return;
+    }
+
+    const detenidas = fotosDetenidasDe(enCola.localId);
+    if (detenidas.length === 0) return;
+
+    Alert.alert(
+      detenidas.length === 1
+        ? "¿Quitar la fotografía del reporte?"
+        : `¿Quitar ${detenidas.length} fotografías del reporte?`,
+      "El reporte se entregará sin ella y no se puede deshacer. Hazlo solo si ya no es posible subirla.",
+      [
+        { text: "Conservar", style: "cancel" },
+        {
+          text: "Quitar",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              let quitadas = 0;
+              for (const foto of detenidas) {
+                try {
+                  if (foto.fotoRemotaId !== null) {
+                    await descartarFotoDeReporte(foto.fotoRemotaId);
+                  }
+                  await soltarFotoDetenida(foto.id);
+                  quitadas += 1;
+                } catch {
+                  // Se corta en la primera que el servidor no acepte: seguir
+                  // con las demás dejaría al usuario sin saber cuáles se
+                  // quitaron y cuáles no.
+                  break;
+                }
+              }
+
+              if (quitadas === 0) {
+                showSnackbar(
+                  "No se pudo quitar la fotografía. Inténtalo de nuevo.",
+                  "error",
+                );
+                return;
+              }
+
+              telemetry.trackEvent("reporte_foto_descartada", {
+                obra_id: enCola.constructionId,
+                cuantas: quitadas,
+              });
+              showSnackbar(
+                quitadas === 1
+                  ? "Fotografía quitada. El reporte ya se puede generar."
+                  : `${quitadas} fotografías quitadas. El reporte ya se puede generar.`,
+                "success",
+              );
+            })();
+          },
+        },
+      ],
+    );
+  }, [
+    enCola,
+    sinSenal,
+    fotosDetenidasDe,
+    soltarFotoDetenida,
+    showSnackbar,
+  ]);
+
   const confirmarDescarte = useCallback(() => {
     if (!enCola) return;
     Alert.alert(
@@ -548,6 +644,20 @@ export default function ReporteDetailScreen() {
                       : "Reintentar las fotografías"
                   }
                   onPress={reintentarFotos}
+                  ancho
+                />
+                {/* Debajo y en rojo: reintentar es lo que casi siempre hay que
+                    hacer, y quitar la foto es definitivo. El orden de los dos
+                    botones es el orden en que conviene intentarlos. */}
+                <BotonWizard
+                  etiqueta={
+                    fotosDetenidas === 1
+                      ? "Quitar la fotografía del reporte"
+                      : "Quitar las fotografías del reporte"
+                  }
+                  variante="peligro"
+                  onPress={descartarFotos}
+                  ancho
                 />
               </View>
             ) : null}

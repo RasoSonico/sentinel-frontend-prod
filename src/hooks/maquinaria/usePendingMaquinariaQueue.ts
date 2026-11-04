@@ -120,6 +120,33 @@ export function usePendingMaquinariaQueue() {
     [setStatus],
   );
 
+  /**
+   * **"No ahora" no es "falló".**
+   *
+   * Un corte de red, un 5xx o un plazo vencido no dicen nada sobre el
+   * contenido: el servidor ni siquiera llegó a opinar. Pasarlos por `failed`
+   * —como se hacía— los contaba contra un presupuesto de tres intentos y, al
+   * agotarlo, detenía la máquina para siempre. En una obra con señal que va y
+   * viene, tres transiciones de zona en una mañana bastaban.
+   *
+   * Vuelve a `pending` sin tocar ese presupuesto. `retryCount` sube solo como
+   * contador de diagnóstico: quien decide si algo está detenido mira el
+   * estado, no el número.
+   */
+  const aplazarAlta = useCallback(
+    (id: string, errorMessage: string) => {
+      const item = realm.objectForPrimaryKey(PendingMaquinariaSubmission, id);
+      if (!item) return false;
+      realm.write(() => {
+        item.status = "pending";
+        item.errorMessage = errorMessage;
+        item.retryCount += 1;
+      });
+      return true;
+    },
+    [realm],
+  );
+
   const markAsFailed = useCallback(
     (id: string, errorMessage: string, agotarIntentos = false) => {
       const item = realm.objectForPrimaryKey(PendingMaquinariaSubmission, id);
@@ -251,6 +278,7 @@ export function usePendingMaquinariaQueue() {
     addToQueue,
     markAsSyncing,
     markAsPending,
+    aplazarAlta,
     markAsFailed,
     completarAltaYEnlazar,
     reintentarAlta,

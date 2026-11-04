@@ -1,5 +1,9 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   getReporteDetalle,
@@ -72,9 +76,30 @@ export interface FilaReporte {
 }
 
 export function useReportesDeObra(constructionId: number | null) {
-  const consulta = useQuery({
-    queryKey: [REPORTE_QUERY_KEYS.REPORTES_POR_OBRA, constructionId],
-    queryFn: () => getReportesPorObra(constructionId as number),
+  const queryClient = useQueryClient();
+  const llave = [REPORTE_QUERY_KEYS.REPORTES_POR_OBRA, constructionId];
+
+  /**
+   * **Paginada, no de una sola página (F47).**
+   *
+   * El servidor entrega de 15 en 15. Leer solo la primera y tirar `next` hacía
+   * que el historial de la obra terminara en el reporte 15 — los anteriores
+   * seguían ahí y no había forma de llegar a ellos.
+   *
+   * Páginas y no `page_size=100`: subir el tope mueve el muro, no lo quita, y
+   * además obligaría a bajar cien reportes por obra cada vez que se abre la
+   * pantalla, en una app que trabaja con señal intermitente.
+   */
+  const consulta = useInfiniteQuery({
+    queryKey: llave,
+    queryFn: ({ pageParam }) =>
+      getReportesPorObra(constructionId as number, pageParam),
+    initialPageParam: 1,
+    // `next` viene como URL completa, pero aquí solo interesa si hay otra:
+    // el número lo lleva la cuenta de páginas ya traídas. Una respuesta sin
+    // paginar (arreglo pelón) no tiene siguiente y la lista se cierra ahí.
+    getNextPageParam: (ultima, todas) =>
+      !Array.isArray(ultima) && ultima?.next ? todas.length + 1 : undefined,
     enabled: constructionId !== null,
   });
 
@@ -85,11 +110,25 @@ export function useReportesDeObra(constructionId: number | null) {
   // `Number()` sobre un campo que el backend declara como texto.
   const usuarioId = useAppSelector((state) => state.auth.user?.id) ?? null;
 
-  const filas = useMemo<FilaReporte[]>(() => {
-    const crudo = consulta.data;
-    const delServidor: ReporteListItem[] = Array.isArray(crudo)
-      ? crudo
-      : (crudo?.results ?? []);
+  const { filas, total } = useMemo<{ filas: FilaReporte[]; total: number }>(() => {
+    const paginas = consulta.data?.pages ?? [];
+    const delServidor: ReporteListItem[] = paginas.flatMap((pagina) =>
+      Array.isArray(pagina) ? pagina : (pagina?.results ?? []),
+    );
+
+    /**
+     * **Cuántos hay, no cuántos se han bajado.**
+     *
+     * El contador del encabezado mostraba `filas.length`, que con paginación
+     * es el tamaño de lo cargado: una obra con 200 reportes decía "15" hasta
+     * que alguien arrastrara hasta el final. `count` viene en cada página y
+     * es el total de la obra.
+     */
+    const primera = paginas[0];
+    const totalServidor =
+      primera && !Array.isArray(primera)
+        ? (primera.count ?? delServidor.length)
+        : delServidor.length;
 
     // Un reporte recién sincronizado sale por las DOS vías durante unos
     // instantes: sigue en la cola como `done` y ya viene en la respuesta del
@@ -145,16 +184,60 @@ export function useReportesDeObra(constructionId: number | null) {
 
     // Los pendientes primero — son los que piden acción — y el resto por fecha
     // descendente, que es como se consulta un historial.
-    return [
-      ...locales,
-      ...remotos.sort((a, b) =>
-        b.fechaReporte.localeCompare(a.fechaReporte) ||
-        b.createdAt.getTime() - a.createdAt.getTime(),
-      ),
-    ];
+    return {
+      filas: [
+        ...locales,
+        ...remotos.sort((a, b) =>
+          b.fechaReporte.localeCompare(a.fechaReporte) ||
+          b.createdAt.getTime() - a.createdAt.getTime(),
+        ),
+      ],
+      // Los de la cola se suman porque existen y se ven, aunque el servidor
+      // todavía no los conozca.
+      total: totalServidor + locales.length,
+    };
   }, [consulta.data, reportesEnCola, constructionId, usuarioId]);
 
-  return { ...consulta, filas };
+  /**
+   * Trae la siguiente página. La llama la lista al llegar al final.
+   *
+   * Se protege de `isFetchingNextPage` aquí y no en la pantalla porque
+   * `onEndReached` de `FlatList` dispara varias veces durante un mismo
+   * arrastre: sin esto, un empujón al final pediría tres páginas.
+   */
+  const cargarMas = useCallback(() => {
+    if (consulta.hasNextPage && !consulta.isFetchingNextPage) {
+      void consulta.fetchNextPage();
+    }
+  }, [consulta]);
+
+  /**
+   * Trae lo nuevo SIN volver a bajar todo lo que ya se cargó.
+   *
+   * `refetch()` de una consulta infinita rebaja **todas** las páginas: con
+   * cinco cargadas son cinco peticiones cada vez, en una app que trabaja con
+   * señal intermitente. Como la lista va del más reciente al más viejo, lo
+   * nuevo siempre entra por la primera página — así que se recorta a esa y se
+   * vuelve a pedir solo ella: una petición, sin importar qué tan abajo haya
+   * llegado el usuario.
+   *
+   * Lo que el usuario ya había cargado se descarta, y es correcto: el
+   * historial viejo no cambia y vuelve a estar a un arrastre de distancia.
+   */
+  const refrescarDesdeArriba = useCallback(async () => {
+    queryClient.setQueryData(llave, (viejo: typeof consulta.data) =>
+      viejo
+        ? {
+            pages: viejo.pages.slice(0, 1),
+            pageParams: viejo.pageParams.slice(0, 1),
+          }
+        : viejo,
+    );
+    await consulta.refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, constructionId, consulta.refetch]);
+
+  return { ...consulta, filas, total, cargarMas, refrescarDesdeArriba };
 }
 
 /** Detalle completo; alimenta el Documento en Miniatura en modo lectura. */

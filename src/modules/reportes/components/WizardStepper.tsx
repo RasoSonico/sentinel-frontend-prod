@@ -1,12 +1,18 @@
 import React from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { DesignTokens } from "src/styles/designTokens";
 import { fs, sp } from "src/styles/escala";
 
 /**
- * Los cuatro pasos del wizard, con su progreso (ADR-006, D2).
+ * Las cuatro secciones de la captura, con su progreso (ADR-006 D2, F44).
+ *
+ * **Se toca para ir.** Nació como indicador de progreso de un recorrido
+ * lineal, y el campo mostró que el recorrido no es lineal: los supervisores
+ * entran y salen de Actividades, Fotos y Observaciones conforme avanza la
+ * jornada. La cinta ya pintaba dónde estaban y a dónde podían ir; lo único que
+ * faltaba era dejarlos tocarla.
  *
  * Gramática de color del módulo: **cyan `primary[500]` es el acento** —
  * palomitas y línea de progreso—, el navy marca el paso activo, y el gris lo
@@ -18,13 +24,15 @@ import { fs, sp } from "src/styles/escala";
 export const PASOS = ["Activid.", "Fotos", "Observ.", "Revisión"] as const;
 
 interface Props {
-  /** 0-based: el paso que se está mostrando. */
+  /** 0-based: la sección que se está mostrando. */
   actual: number;
   /** Índices ya completados; pintan palomita. */
   completados: number[];
+  /** Ir a esa sección. Sin esto la cinta es solo un indicador. */
+  onIr?: (indice: number) => void;
 }
 
-export function WizardStepper({ actual, completados }: Props) {
+export function WizardStepper({ actual, completados, onIr }: Props) {
   return (
     <View style={estilos.raiz}>
       {PASOS.map((etiqueta, indice) => {
@@ -33,7 +41,21 @@ export function WizardStepper({ actual, completados }: Props) {
         const previoCompletado = completados.includes(indice - 1);
 
         return (
-          <View key={etiqueta} style={estilos.paso}>
+          // El área tocable es el cuarto entero de la cinta, líneas incluidas:
+          // el punto mide 20 px y pedir puntería sobre eso, en un teléfono y
+          // con guantes, es pedir que no lo usen.
+          <Pressable
+            key={etiqueta}
+            onPress={onIr ? () => onIr(indice) : undefined}
+            disabled={!onIr || activo}
+            accessibilityRole="button"
+            accessibilityLabel={`Ir a ${etiqueta}`}
+            accessibilityState={{ selected: activo }}
+            style={({ pressed }) => [
+              estilos.paso,
+              pressed && estilos.pasoPresionado,
+            ]}
+          >
             {indice > 0 ? (
               <View
                 style={[
@@ -76,7 +98,7 @@ export function WizardStepper({ actual, completados }: Props) {
             ) : (
               <View style={estilos.lineaFantasma} />
             )}
-          </View>
+          </Pressable>
         );
       })}
     </View>
@@ -99,6 +121,7 @@ const estilos = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  pasoPresionado: { opacity: 0.6 },
   centro: {
     alignItems: "center",
   },

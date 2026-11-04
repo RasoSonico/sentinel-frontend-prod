@@ -92,6 +92,12 @@ export type ReportesStackParamList = {
   ReporteWizard: {
     constructionId: number;
     constructionName: string;
+    /**
+     * Borrador que se abre. Lo acuña quien navega —la lista—, no el wizard:
+     * así la decisión de retomar o empezar de cero se toma donde está el
+     * contexto para preguntarla, y el wizard solo obedece.
+     */
+    borradorId: string;
   };
   /**
    * Detalle de consulta de un reporte.

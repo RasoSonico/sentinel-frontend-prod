@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { telemetry } from "src/services/telemetry";
+import { useBorradorStore } from "src/hooks/reportes/useBorradoresDeReporte";
 import { useReporteSubmitToQueue } from "src/hooks/reportes/useReporteSubmitToQueue";
+import { useSnackbar } from "src/hooks/useSnackbar";
 
 import { useCapturaFotosReporte } from "../hooks/useCapturaFotosReporte";
 
@@ -36,6 +38,14 @@ import {
  * Con una máquina de estados, "de dónde vine" es una variable.
  *
  * Hacia afuera sigue siendo una ruta modal única, como pide el ADR.
+ *
+ * **Y dejó de ser un wizard (F44).** El ADR lo diseñó como un recorrido lineal
+ * de una sentada; el campo mostró otra cosa: se captura a lo largo de toda la
+ * jornada, entrando y saliendo de las secciones conforme avanza el trabajo —
+ * las actividades de la mañana, las fotos cuando se toman, las observaciones
+ * al cerrar—. Así que la cinta se toca para ir a cualquier sección, "Siguiente"
+ * dejó de bloquear, y lo que de verdad hace falta para enviar se dice una sola
+ * vez, en la Revisión, donde está el botón que lo exige.
  */
 
 type Vista =
@@ -55,9 +65,24 @@ const PASO_POR_VISTA: Partial<Record<Vista, number>> = {
   paso4: 3,
 };
 
+/**
+ * Las secciones que se recuerdan al salir (F46).
+ *
+ * Solo estas cuatro. `proveedores` queda fuera porque es el encuadre y ya es
+ * el default; las vistas de paso —componer una actividad, la cámara, el visor
+ * de una foto— porque reabrir ahí no devuelve al usuario a lo que estaba
+ * haciendo: lo deja dentro de una tarea que él ya había cerrado.
+ */
+const SECCIONES_RECORDADAS: Vista[] = ["paso1", "paso2", "paso3", "paso4"];
+
+const esSeccionRecordada = (v: string): v is Vista =>
+  (SECCIONES_RECORDADAS as string[]).includes(v);
+
 interface Props {
   constructionId: number;
   constructionName: string;
+  /** Borrador que se captura. Lo decide la lista; aquí solo se obedece. */
+  borradorId: string;
   /** Cierra el wizard y vuelve a la zona de reportes. */
   onSalir: () => void;
   /**
@@ -73,7 +98,11 @@ interface Props {
 
 export function ReporteWizardScreen(props: Props) {
   return (
-    <BorradorReporteProvider>
+    <BorradorReporteProvider
+      borradorId={props.borradorId}
+      constructionId={props.constructionId}
+      constructionName={props.constructionName}
+    >
       <Wizard {...props} />
     </BorradorReporteProvider>
   );
@@ -82,15 +111,32 @@ export function ReporteWizardScreen(props: Props) {
 function Wizard({
   constructionId,
   constructionName,
+  borradorId,
   onSalir,
   onGuardado,
 }: Props) {
-  const { borrador, tieneTrabajoSinGuardar, reiniciar } = useBorradorReporte();
+  const { borrador, tieneContenido, cerrarBorrador } = useBorradorReporte();
   const { submitToQueue } = useReporteSubmitToQueue();
+  const { descartarBorrador, leerUltimaSeccion, marcarSeccion } =
+    useBorradorStore();
+  const { showSnackbar } = useSnackbar();
   const captura = useCapturaFotosReporte();
   const { idsUltimaTanda, consumirTanda } = captura;
 
-  const [vista, setVista] = useState<Vista>("proveedores");
+  /**
+   * **Retomar devuelve al usuario donde estaba.**
+   *
+   * El encuadre se ve idéntico lleno y vacío, así que caer ahí al retomar
+   * obliga a preguntarse si el reporte empezó de nuevo. Abrir en las
+   * actividades, con las suyas en pantalla, contesta eso sin una sola palabra.
+   *
+   * Se lee una vez, en el inicializador perezoso: después de esto la sección
+   * la manda la navegación, no Realm.
+   */
+  const [vista, setVista] = useState<Vista>(() => {
+    const guardada = leerUltimaSeccion(borradorId);
+    return guardada && esSeccionRecordada(guardada) ? guardada : "proveedores";
+  });
   /** A dónde vuelve la subpantalla abierta. */
   const [regresarA, setRegresarA] = useState<Vista>("paso1");
   const [actividadId, setActividadId] = useState<string | undefined>();
@@ -100,27 +146,62 @@ function Wizard({
   const [confirmando, setConfirmando] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
+  /**
+   * Apunta la sección en cuanto se entra a ella, no al salir del wizard.
+   *
+   * Salir no siempre pasa por aquí: la tab de Reportes desmonta la ruta, y
+   * Android puede matar la app sin avisar. Lo que no se escribió en el momento
+   * no se escribe nunca, y este dato existe justamente para esos dos casos.
+   *
+   * Las vistas de paso se ignoran, así que abrir la cámara desde las fotos
+   * deja apuntado "fotos", que es donde el usuario cree que está.
+   */
+  useEffect(() => {
+    if (!esSeccionRecordada(vista)) return;
+    marcarSeccion(borradorId, vista);
+  }, [vista, borradorId, marcarSeccion]);
+
   // ── Validación por paso ─────────────────────────────────────────────────
 
   const fotosSinPie = borrador.fotos.filter(
     (f) => f.pie.trim().length === 0,
   ).length;
 
-  const puedeAvanzar = useMemo(() => {
-    switch (vista) {
-      case "paso1":
-        return borrador.actividades.length >= MIN_ACTIVIDADES;
-      case "paso2":
-        // Las fotos son opcionales; lo que no se admite es una foto sin pie.
-        return fotosSinPie === 0;
-      case "paso3":
-        // Las observaciones son opcionales: hay jornadas que no ameritan ninguna
-        // (retroalimentación de Coordinadores). El servidor tampoco la exige.
-        return true;
-      default:
-        return true;
+  /**
+   * Lo que falta para poder enviar, en palabras.
+   *
+   * **Sustituye a `puedeAvanzar`**, que bloqueaba "Siguiente" sin decir por
+   * qué. Bloquear el avance dejó de tener sentido cuando la cinta se volvió
+   * navegable —se podía llegar igual tocándola—, y nunca fue el lugar: lo que
+   * el servidor exige se exige al enviar, no a media captura.
+   *
+   * Se dice qué falta y no solo que falta algo, por lo mismo que F38 en el
+   * detalle: un botón apagado sin explicación es un callejón sin salida.
+   *
+   * Las observaciones NO entran: son opcionales, hay jornadas que no las
+   * ameritan y el servidor tampoco las pide.
+   */
+  const faltaParaEnviar = useMemo(() => {
+    const faltas: string[] = [];
+    if (borrador.actividades.length < MIN_ACTIVIDADES) {
+      faltas.push(
+        MIN_ACTIVIDADES === 1
+          ? "capturar al menos una actividad"
+          : `capturar al menos ${MIN_ACTIVIDADES} actividades`,
+      );
     }
-  }, [vista, borrador, fotosSinPie]);
+    if (fotosSinPie > 0) {
+      faltas.push(
+        fotosSinPie === 1
+          ? "el pie de una fotografía"
+          : `el pie de ${fotosSinPie} fotografías`,
+      );
+    }
+    // Firmar es obligatorio: un reporte va firmado o no va (ADR-008). El
+    // servidor lo exige también; esto evita descubrir el 400 al final.
+    if (borrador.firma === null) faltas.push("firmar el reporte");
+    return faltas;
+  }, [borrador.actividades.length, fotosSinPie, borrador.firma]);
 
   const completados = useMemo(() => {
     const hechos: number[] = [];
@@ -172,28 +253,52 @@ function Wizard({
     if (actual > 0) setVista(orden[actual - 1]);
   }, [vista]);
 
-  const salirConfirmando = useCallback(() => {
-    if (!tieneTrabajoSinGuardar) {
-      reiniciar();
-      onSalir();
-      return;
+  /**
+   * Ir a una sección tocando la cinta.
+   *
+   * **Sale del modo "corrigiendo desde Revisión".** Tocar la cinta es
+   * navegación deliberada, no el viaje redondo de una corrección: dejar el pie
+   * en "Volver a la revisión" después de eso haría que el botón prometiera un
+   * regreso que el usuario ya no pidió.
+   */
+  const irASeccion = useCallback(
+    (indice: number) => {
+      const orden: Vista[] = ["paso1", "paso2", "paso3", "paso4"];
+      const destino = orden[indice];
+      if (!destino || destino === vista) return;
+      telemetry.trackEvent("reporte_actividades_seccion_tocada", {
+        obra_id: constructionId,
+        desde: vista,
+        hacia: destino,
+      });
+      setRegresarA("paso1");
+      setVista(destino);
+    },
+    [vista, constructionId],
+  );
+
+  /**
+   * Salir ya no destruye nada.
+   *
+   * Antes el ✕ preguntaba *"¿descartar? se perderá todo lo que hayas
+   * capturado"*, porque era verdad: el borrador vivía en memoria. Ahora está
+   * en el teléfono, así que preguntar sería ofrecerle al usuario destruir su
+   * trabajo cada vez que quiere ir a ver otra cosa — y la respuesta correcta a
+   * esa pregunta siempre sería "no".
+   *
+   * Se avisa en vez de preguntar: el usuario necesita saber que lo suyo quedó
+   * guardado y cómo volver. Descartar pasa a ser un acto explícito, desde
+   * "Nuevo" en la lista.
+   */
+  const salir = useCallback(() => {
+    if (tieneContenido) {
+      showSnackbar(
+        "Guardado como borrador. Lo retomas desde Reportes.",
+        "info",
+      );
     }
-    Alert.alert(
-      "Descartar el reporte",
-      "Se perderá todo lo que hayas capturado.",
-      [
-        { text: "Seguir aquí", style: "cancel" },
-        {
-          text: "Descartar",
-          style: "destructive",
-          onPress: () => {
-            reiniciar();
-            onSalir();
-          },
-        },
-      ],
-    );
-  }, [tieneTrabajoSinGuardar, reiniciar, onSalir]);
+    onSalir();
+  }, [tieneContenido, showSnackbar, onSalir]);
 
   /** El ✎ de un bloque de Revisión: abre su editor y recuerda volver aquí. */
   const editarBloque = useCallback((bloque: BloqueEditable) => {
@@ -249,21 +354,37 @@ function Wizard({
       });
       setConfirmando(false);
       /**
-       * **Sin `reiniciar()` aquí.** Vaciar el borrador antes de salir dejaba
-       * la Revisión en blanco —"Sin actividades capturadas", "Sin área
-       * seleccionada"— justo detrás del modal que se desvanecía: el usuario
-       * veía su reporte borrarse en el instante de guardarlo.
+       * El borrador se cierra y se borra: su contenido ya es de la cola.
        *
-       * No hace falta: el borrador vive en el `useReducer` de
-       * `BorradorReporteProvider`, que envuelve esta pantalla y muere con la
-       * ruta modal al cerrarse. Reiniciar aquí era pagar el costo visual de
-       * algo que el desmontaje hace solo.
+       * **Sin tocar los archivos de las fotos** —`borrarArchivos: false`—:
+       * la cola guarda los mismos `localUri` y borrarlos aquí dejaría al
+       * reporte recién encolado sin nada que subir.
+       *
+       * `cerrarBorrador()` va primero y no es simetría: corta el guardado
+       * continuo. Sin él, el desmontaje de esta pantalla escribiría de nuevo
+       * la fila que acabamos de borrar y el usuario volvería a encontrar, como
+       * "reporte en curso", el reporte que acaba de enviar.
+       *
+       * **Sin `reiniciar()`.** Vaciar el estado antes de salir dejaba la
+       * Revisión en blanco detrás del modal que se desvanecía: el usuario veía
+       * su reporte borrarse en el instante de guardarlo.
        */
+      cerrarBorrador();
+      void descartarBorrador(borradorId, { borrarArchivos: false });
       onGuardado(salida.reporteLocalId);
     } finally {
       setGuardando(false);
     }
-  }, [submitToQueue, borrador, constructionId, constructionName, onGuardado]);
+  }, [
+    submitToQueue,
+    borrador,
+    constructionId,
+    constructionName,
+    borradorId,
+    cerrarBorrador,
+    descartarBorrador,
+    onGuardado,
+  ]);
 
   // ── Subpantallas ────────────────────────────────────────────────────────
 
@@ -302,7 +423,7 @@ function Wizard({
       <ProviderSelectionScreen
         constructionId={constructionId}
         constructionName={constructionName}
-        onCerrar={salirConfirmando}
+        onCerrar={salir}
         onContinuar={() => {
           if (!volverDeEdicion()) setVista("paso1");
         }}
@@ -321,8 +442,14 @@ function Wizard({
         titulo={esUltimo ? "Revisión" : "Reporte de actividades"}
         obra={constructionName}
         fechaReporte={borrador.fechaReporte}
-        onCerrar={salirConfirmando}
-        cinta={<WizardStepper actual={paso} completados={completados} />}
+        onCerrar={salir}
+        cinta={
+          <WizardStepper
+            actual={paso}
+            completados={completados}
+            onIr={irASeccion}
+          />
+        }
         pie={
           <>
             {editandoDesdeRevision ? (
@@ -341,26 +468,21 @@ function Wizard({
               onPress={retroceder}
             />
             {esUltimo ? (
+              // "Enviar" y no "Guardar": guardado ya está, en cada cambio
+              // (F43). Lo que este botón hace —y lo único que no tiene vuelta
+              // atrás— es mandarlo. Llamarlo "Guardar" cuando ya está guardado
+              // le quita el nombre a lo que de verdad ocurre aquí.
               <BotonWizard
-                etiqueta="Guardar reporte"
+                etiqueta="Enviar reporte"
                 variante="guardar"
                 onPress={() => setConfirmando(true)}
-                deshabilitado={
-                  borrador.actividades.length < MIN_ACTIVIDADES ||
-                  fotosSinPie > 0 ||
-                  // Firmar es obligatorio: un reporte va firmado o no va
-                  // (ADR-006 del backend, decisión 6). El servidor lo exige
-                  // también; esto evita que el usuario descubra el 400 cuando
-                  // ya creía haber cerrado.
-                  borrador.firma === null
-                }
+                deshabilitado={faltaParaEnviar.length > 0}
               />
             ) : (
-              <BotonWizard
-                etiqueta="Siguiente →"
-                onPress={avanzar}
-                deshabilitado={!puedeAvanzar}
-              />
+              // Sin `deshabilitado`: con la cinta navegable, bloquear el avance
+              // solo estorbaba —se llegaba igual tocándola— y lo que el
+              // servidor exige se exige al enviar, no a media captura.
+              <BotonWizard etiqueta="Siguiente →" onPress={avanzar} />
             )}
               </>
             )}
@@ -394,7 +516,10 @@ function Wizard({
           {vista === "paso3" ? <ConclusionStep /> : null}
 
           {vista === "paso4" ? (
-            <RevisionStep onEditarBloque={editarBloque} />
+            <RevisionStep
+              onEditarBloque={editarBloque}
+              falta={faltaParaEnviar}
+            />
           ) : null}
         </View>
       </WizardShell>

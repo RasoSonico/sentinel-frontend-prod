@@ -67,7 +67,8 @@ export function ProviderSelectionScreen({
   onCerrar,
   onContinuar,
 }: Props) {
-  const { borrador, setProveedores, setArea } = useBorradorReporte();
+  const { borrador, setProveedores, setArea, retomado } =
+    useBorradorReporte();
   const { data, isPending, isError, dataUpdatedAt, refetch } =
     useProveedores(constructionId);
   const isOnline = useNetworkStatus();
@@ -241,8 +242,15 @@ export function ProviderSelectionScreen({
       onCerrar={cerrar}
       pie={
         <View style={estilos.pieColumna}>
+          {/* El verbo dice en cuál de las dos situaciones está parado. Esta
+              pantalla se ve idéntica al empezar y al retomar —el encuadre ya
+              viene marcado en el segundo caso, pero quien no recuerde haberlo
+              marcado no puede distinguirlo—, y un "Comenzar" sobre un reporte
+              a medio llenar se lee como si fuera a tirar lo anterior (F45). */}
           <BotonWizard
-            etiqueta="Comenzar a llenar el reporte"
+            etiqueta={
+              retomado ? "Continuar el llenado" : "Comenzar a llenar el reporte"
+            }
             onPress={continuar}
             deshabilitado={!puedeContinuar}
             ancho

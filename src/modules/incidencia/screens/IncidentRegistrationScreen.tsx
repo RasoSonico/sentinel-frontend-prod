@@ -154,7 +154,9 @@ const IncidentRegistrationScreen: React.FC = () => {
         <View style={styles.contentContainer}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.constructionName}>
+            {/* Tope de 2 renglones: el encabezado no se desplaza y el nombre
+                de obra admite 500 caracteres; sin tope se come el formulario. */}
+            <Text style={styles.constructionName} numberOfLines={2}>
               {assignedConstruction?.name || "Obra sin nombre"}
             </Text>
             {/* Información adicional */}

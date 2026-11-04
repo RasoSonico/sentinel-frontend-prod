@@ -59,6 +59,9 @@ export const API_CONFIG = {
       actividades: "/api/reportes/actividades/",
       fotoUpload: "/api/reportes/fotos/upload/",
       fotoConfirmUpload: "/api/reportes/fotos/confirm-upload/",
+      // Base de una foto por id. Hoy solo para DELETE: el descarte que
+      // desbloquea el 409 cuando una foto ya nunca va a subir.
+      fotos: "/api/reportes/fotos/",
     },
     // "Descargar datos" de Perfil: Excel sin formato de la obra.
     tablas: {

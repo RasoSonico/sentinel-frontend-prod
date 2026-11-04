@@ -44,6 +44,8 @@ const nombreSeguro = (texto: string) =>
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^A-Za-z0-9]+/g, "_")
+    // El nombre de obra admite 500; el archivo no debe pasar de 255.
+    .slice(0, 60)
     .replace(/^_+|_+$/g, "") || "obra";
 
 export async function descargarDatos(params: {
